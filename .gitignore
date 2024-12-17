@@ -1,0 +1,20 @@
+
+# moon
+.moon/cache
+.moon/docker
+
+
+target/
+node_modules/
+
+.env
+
+build/
+
+default.etcd/
+
+yarn-error.log
+.yarn/install-state.gz
+
+.devcontainer/data.ms/
+.devcontainer/typesense-data/

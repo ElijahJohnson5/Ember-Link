@@ -1,0 +1,7 @@
+[package]
+name = "emberlink"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio-tungstenite = "0.26.0"

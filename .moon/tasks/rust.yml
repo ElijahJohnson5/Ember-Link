@@ -1,0 +1,42 @@
+# fileGroups:
+#   sources:
+#     - 'src/**/*'
+#     - 'Cargo.toml'
+#   tests:
+#     - 'benches/**/*'
+#     - 'tests/**/*'
+#   docker:
+#     - "Dockerfile"
+
+# tasks:
+#   dev:
+#     command: 'cargo run'
+#     inputs:
+#       - '@globs(sources)'
+#   build:
+#     command: 'cargo build'
+#     inputs:
+#       - '@globs(sources)'
+#   build-release:
+#     command: 'cargo build --release'
+#     inputs:
+#       - '@globs(sources)'
+#   check:
+#     command: 'cargo check --workspace'
+#     inputs:
+#       - '@globs(sources)'
+#   format:
+#     command: 'cargo fmt --all --check'
+#     inputs:
+#       - '@globs(sources)'
+#       - '@globs(tests)'
+#   lint:
+#     command: 'cargo clippy --workspace'
+#     inputs:
+#       - '@globs(sources)'
+#       - '@globs(tests)'
+#   test:
+#     command: 'cargo test --workspace'
+#     inputs:
+#       - '@globs(sources)'
+#       - '@globs(tests)'
