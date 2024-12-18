@@ -1,0 +1,11 @@
+{
+  "name": "{{ name | kebab_case }}",
+  "version": "0.0.1",
+  "module": "src/index.ts",
+  "type": "module",
+  "scripts": {},
+  "devDependencies": {},
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  }
+}
