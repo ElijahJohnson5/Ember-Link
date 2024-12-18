@@ -5,12 +5,14 @@
   "type": "module",
   "scripts": {
     "build": "tsc",
-    "test": "node dist/src/index"
+    "start": "node dist/src/index"
   },
   "peerDependencies": {
     "typescript": "^5.0.0"
   },
   "dependencies": {
+    "@automerge/automerge-repo": "^1.2.1",
+    "@automerge/automerge-repo-network-websocket": "^1.2.1",
     "robot3": "^1.0.1",
     "xstate": "^5.19.0"
   },
