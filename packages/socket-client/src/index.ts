@@ -1,23 +1,8 @@
-// import {
-//   createMachine,
-//   guard,
-//   immediate,
-//   interpret,
-//   invoke,
-//   reduce,
-//   state,
-//   transition,
-// } from "robot3";
-
 import {
   assign,
   createActor,
-  createMachine,
-  enqueueActions,
   EventObject,
   fromCallback,
-  raise,
-  sendTo,
   setup,
   spawnChild,
   stopChild,
@@ -52,24 +37,17 @@ const machine = setup({
   actors: {
     websocketCallback: fromCallback<EventObject, { websocket: WebSocket }>(
       ({ sendBack, input }) => {
-        console.log("Creating websocket");
         sendBack({ type: "webSocketCreated", value: input.websocket });
 
         const openHandler = () => {
           sendBack({ type: "open" });
         };
 
-        const errorHandler = (e) => {
-          console.log(e);
-
+        const errorHandler = (e: Event) => {
           sendBack({ type: "error", value: e });
         };
 
         const closeHandler = (e: CloseEvent) => {
-          console.log(e.code);
-          console.log(e.reason);
-          console.log(e.wasClean);
-
           sendBack({ type: "close", value: e });
         };
 
@@ -84,6 +62,15 @@ const machine = setup({
         };
       },
     ),
+  },
+  guards: {
+    reconnectGuard: ({ context }) => {
+      if (context.ws?.readyState === 1) {
+        return false;
+      }
+
+      return true;
+    }
   },
   delays: {
     reconnectTimeout: ({ context }) => {
@@ -108,6 +95,7 @@ const machine = setup({
     },
     CreateWebSocket: {
       entry: [
+        // We want the callbacks to persit through states
         stopChild("websocket-callback"),
         spawnChild("websocketCallback", {
           id: "websocket-callback",
@@ -124,13 +112,14 @@ const machine = setup({
             },
           }),
         },
-
         open: {
           target: "Open",
         },
-
         error: { target: "Reconnecting" },
-        close: { target: "Reconnecting" },
+        close: { 
+          target: "Reconnecting",
+          guard: "reconnectGuard"
+         },
       },
     },
     Open: {
@@ -141,13 +130,7 @@ const machine = setup({
         close: { target: "Reconnecting" },
         error: {
           target: "Reconnecting",
-          guard: ({ context }) => {
-            if (context.ws?.readyState === 1) {
-              return false;
-            }
-
-            return true;
-          },
+          guard: "reconnectGuard"
         },
       },
     },
@@ -169,78 +152,13 @@ const machine = setup({
   },
 });
 
-// const openConnection = () => {
-//   const machine = createMachine(
-//     {
-//       INITIAL: state(
-//         transition(
-//           "connect",
-//           "INITIAL.URL_SET",
-//           reduce((ctx: Context, ev: { url: string }) => ({
-//             ...ctx,
-//             url: ev.url,
-//           })),
-//         ),
-//       ),
-//       "INITIAL.URL_SET": state(
-//         immediate(
-//           "CREATE_WS",
-//           guard((ctx: Context) => {
-//             console.log(ctx);
+const test = createActor(machine);
 
-//             return Boolean(ctx.url);
-//           }),
-//         ),
-//         immediate("INITIAL"),
-//       ),
-//       CREATE_WS: state(
-//         immediate(
-//           "TEST",
-//           reduce((ctx: Context, e) => {
-//             console.log(this);
-
-//             return {
-//               ...ctx,
-//               ws: createWebsocket(ctx, e),
-//             };
-//           }),
-//         ),
-//       ),
-//       TEST: state(),
-//       OPEN: state(
-//         transition("close", "CLOSED"),
-//         transition("timeout", "RECONNECTING"),
-//         transition("error", "RECONNECTING"),
-//       ),
-//       RECONNECTING: state(
-//         transition("connected", "OPEN"),
-//         transition("error", "RECONNECTING"),
-//         transition("close", "CLOSED"),
-//       ),
-//       CLOSED: state(),
-//     },
-//     context,
-//   );
-
-//   const testService = interpret(machine, () => {
-//     console.log(testService.machine);
-//   });
-
-//   return testService;
-// };
-
-await new Promise((resolve, reject) => {
-  // openConnection().send({ type: "connect", url: "ws://localhost:9000" });
-
-  const test = createActor(machine);
-
-  test.subscribe((state) => {
-    console.log(state.value);
-  });
-
-  test.start();
-
-  test.send({ type: "connect", value: "ws://localhost:9000" });
-
-  setTimeout(resolve, 30000);
+test.subscribe((state) => {
+  console.log(state.value);
 });
+
+test.start();
+
+test.send({ type: "connect", value: "ws://localhost:9000" });
+
