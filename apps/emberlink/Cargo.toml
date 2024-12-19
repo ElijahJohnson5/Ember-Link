@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 automerge = "0.5.12"
+automerge_repo = { version = "0.2.0", features = ["tokio"] }
 futures-util = "0.3.31"
 tokio = { version = "1.42.0", features = ["full"] }
 tokio-tungstenite = "0.26.0"

@@ -30,6 +30,10 @@ async fn accept_connection(stream: TcpStream) {
     let (mut write, mut read) = ws_stream.split();
 
     write.send(Message::Ping("".into())).await.unwrap();
+    write
+        .send(Message::Text("TEST MESSAGE".into()))
+        .await
+        .unwrap();
 
     loop {
         tokio::select! {
