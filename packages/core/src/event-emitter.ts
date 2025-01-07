@@ -1,4 +1,7 @@
-import { EventEmitter, Listener } from "tseep";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unsafe-function-type */
+
+import { EventEmitter, Listener } from 'tseep';
 
 export type Observable<T extends { [event in string | symbol]: Listener }> = {
   subscribe(event: keyof T, callback: T[keyof T]): () => void;
@@ -8,16 +11,15 @@ export type Observable<T extends { [event in string | symbol]: Listener }> = {
   waitUntil(event: keyof T): Promise<Parameters<T[keyof T]>>;
 };
 
-export type Emitter<T extends { [event in string | symbol]: Listener }> =
-  Observable<T> & {
-    emit(event: keyof T, ...args: Parameters<T[keyof T]>): boolean;
+export type Emitter<T extends { [event in string | symbol]: Listener }> = Observable<T> & {
+  emit(event: keyof T, ...args: Parameters<T[keyof T]>): boolean;
 
-    count(): number;
-    observable: Observable<T>;
-  };
+  count(): number;
+  observable: Observable<T>;
+};
 
 export const createEventEmitter = <
-  T extends { [event in string | symbol]: Listener },
+  T extends { [event in string | symbol]: Listener }
 >(): Emitter<T> => {
   const events = new EventEmitter<T>();
 
@@ -45,11 +47,9 @@ export const createEventEmitter = <
     let unsub: () => void | undefined;
 
     return new Promise<Parameters<T[keyof T]>>((res) => {
-      let callback: T[keyof T] = <any>(
-        function (...args: Parameters<T[keyof T]>) {
-          res(args);
-        }
-      );
+      const callback: T[keyof T] = <any>function (...args: Parameters<T[keyof T]>) {
+        res(args);
+      };
 
       unsub = subscribe(event, callback);
     }).finally(() => unsub?.());
@@ -65,17 +65,17 @@ export const createEventEmitter = <
     observable: {
       subscribe,
       subscribeOnce,
-      waitUntil,
-    },
+      waitUntil
+    }
   };
 };
 
 export const createBufferedEventEmitter = <
-  T extends { [event in string | symbol]: Listener },
+  T extends { [event in string | symbol]: Listener }
 >() => {
   const eventEmitter = createEventEmitter<T>();
 
-  let buffer: Record<keyof T, Parameters<T[keyof T]>[]> = {} as Record<
+  const buffer: Record<keyof T, Parameters<T[keyof T]>[]> = {} as Record<
     keyof T,
     Parameters<T[keyof T]>[] | null
   >;
@@ -108,6 +108,6 @@ export const createBufferedEventEmitter = <
     ...eventEmitter,
     emit: emitOrBuffer,
     pause,
-    resume,
+    resume
   };
 };

@@ -1,6 +1,6 @@
 // What the api should look like
 
-import { Channel, createChannel } from "./channel.js";
+import { Channel, createChannel } from './channel.js';
 
 /*
 
@@ -16,9 +16,6 @@ let unsub = channel.events.subscribe("presence", (presenceData) => {
   // Do stuff with the presence
 });
 
-
-
-
 */
 
 interface CreateClientOptions {
@@ -26,7 +23,7 @@ interface CreateClientOptions {
   apiKey?: string;
 }
 
-export function createClient({ baseUrl, apiKey }: CreateClientOptions) {
+export function createClient({ baseUrl }: CreateClientOptions) {
   const channels = new Map<string, Channel>();
 
   function joinChannel(channelName: string) {
@@ -36,7 +33,7 @@ export function createClient({ baseUrl, apiKey }: CreateClientOptions) {
 
     const channel = createChannel({
       channelName,
-      baseUrl,
+      baseUrl
     });
 
     channels.set(channelName, channel);
@@ -45,6 +42,6 @@ export function createClient({ baseUrl, apiKey }: CreateClientOptions) {
   }
 
   return {
-    joinChannel,
+    joinChannel
   };
 }

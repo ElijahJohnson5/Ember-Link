@@ -1,6 +1,6 @@
 export enum ServerCode {
   YDOC_UPDATE = 0,
-  JOIN_CHANNEL = 1,
+  JOIN_CHANNEL = 1
 }
 
 export type YDocUpdate = {
