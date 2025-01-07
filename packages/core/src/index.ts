@@ -1,6 +1,7 @@
-import { createSpace } from "./space.js";
+import { createClient } from "./client.js";
 
-const space = createSpace({
+const client = createClient({
   baseUrl: "ws://localhost:9000",
-  spaceId: "space",
 });
+
+const channel = client.joinChannel("test");

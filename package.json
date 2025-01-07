@@ -1,6 +1,6 @@
 {
   "name": "ember-link",
-  "packageManager": "yarn@4.5.3",
+  "packageManager": "yarn@4.6.0",
   "private": true,
   "author": "Elijah Johnson <elijahjohnson987@gmail.com>",
   "license": "MIT",

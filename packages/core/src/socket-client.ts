@@ -42,9 +42,7 @@ type Events =
   | { type: "open" }
   | { type: "pong" }
   | { type: "disconnect" }
-  | { type: "emitOpen" }
   | { type: "destroy" }
-  | { type: "emitMessage"; value: MessageEvent }
   | { type: "close"; value: CloseEvent }
   | { type: "error"; value: Event }
   | { type: "webSocketCreated"; value: WebSocket }
@@ -52,7 +50,7 @@ type Events =
 
 function createWebSocketStateMachine() {
   const messageEventEmitter = createBufferedEventEmitter<MessageEventMap>();
-  messageEventEmitter.pause();
+  messageEventEmitter.pause("message");
 
   const machine = setup({
     types: {
@@ -70,7 +68,6 @@ function createWebSocketStateMachine() {
 
           const openHandler = () => {
             sendBack({ type: "open" });
-            sendBack({ type: "emitOpen" });
           };
 
           const errorHandler = (e: Event) => {
@@ -123,14 +120,6 @@ function createWebSocketStateMachine() {
     initial: "Initial",
     // Global handlers for any state
     on: {
-      emitOpen: {
-        actions: emit({ type: "open" }),
-      },
-      emitMessage: {
-        actions: enqueueActions(({ enqueue, event }) => {
-          enqueue.emit({ type: "message", event: event.value });
-        }),
-      },
       destroy: {
         target: ".Destroyed",
       },
@@ -182,11 +171,11 @@ function createWebSocketStateMachine() {
             reconnectAttempt: 0,
           }),
           () => {
-            messageEventEmitter.resume();
+            messageEventEmitter.resume("message");
           },
         ],
         exit: () => {
-          messageEventEmitter.pause();
+          messageEventEmitter.pause("message");
         },
         on: {
           close: { target: "Reconnecting" },
@@ -220,10 +209,10 @@ function createWebSocketStateMachine() {
       },
       OpenWaitingPong: {
         entry: () => {
-          messageEventEmitter.resume();
+          messageEventEmitter.resume("message");
         },
         exit: () => {
-          messageEventEmitter.pause();
+          messageEventEmitter.pause("message");
         },
         on: {
           pong: {
@@ -281,7 +270,7 @@ function createWebSocketStateMachine() {
   return {
     machine: actor,
     events: {
-      message: messageEventEmitter.observable,
+      ...messageEventEmitter.observable,
     },
   };
 }
@@ -290,9 +279,7 @@ export class ManagedSocket {
   private url: string;
   private machine: ReturnType<typeof createWebSocketStateMachine>["machine"];
 
-  public readonly events: {
-    readonly message: Observable<MessageEventMap>;
-  };
+  public readonly events: Observable<MessageEventMap>;
 
   constructor(url: string) {
     this.url = url;

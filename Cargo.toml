@@ -2,5 +2,5 @@
 resolver="2"
 
 members = [
-  "apps/emberlink",
+  "apps/ember-link",
 ]

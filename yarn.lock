@@ -5,9 +5,9 @@ __metadata:
   version: 8
   cacheKey: 10c0
 
-"core@workspace:^, core@workspace:packages/core":
+"@ember-link/core@workspace:packages/core":
   version: 0.0.0-use.local
-  resolution: "core@workspace:packages/core"
+  resolution: "@ember-link/core@workspace:packages/core"
   dependencies:
     tseep: "npm:^1.3.1"
     typescript: "npm:^5.7.2"
@@ -67,13 +67,3 @@ __metadata:
   checksum: 10c0/42a55786d517462b927209cbf96e168f4e287d0248bc460e3ba05a51c4a7761c2a5b81c2e8f53d22007571933ee11f62eaa7d8303caec481bd0f47814e68ad53
   languageName: node
   linkType: hard
-
-"yjs@workspace:packages/yjs":
-  version: 0.0.0-use.local
-  resolution: "yjs@workspace:packages/yjs"
-  dependencies:
-    core: "workspace:^"
-  peerDependencies:
-    typescript: ^5.0.0
-  languageName: unknown
-  linkType: soft

@@ -75,27 +75,30 @@ export const createBufferedEventEmitter = <
 >() => {
   const eventEmitter = createEventEmitter<T>();
 
-  let buffer: { event: keyof T; args: Parameters<T[keyof T]> }[] | null = null;
+  let buffer: Record<keyof T, Parameters<T[keyof T]>[]> = {} as Record<
+    keyof T,
+    Parameters<T[keyof T]>[] | null
+  >;
 
-  function pause() {
-    buffer = [];
+  function pause(event: keyof T) {
+    buffer[event] = [];
   }
 
-  function resume() {
-    if (!buffer) {
+  function resume(eventName: keyof T) {
+    if (!buffer[eventName]) {
       return;
     }
 
-    for (const event of buffer) {
-      eventEmitter.emit(event.event, ...event.args);
+    for (const event of buffer[eventName]) {
+      eventEmitter.emit(eventName, ...event);
     }
 
-    buffer = null;
+    buffer[eventName] = null;
   }
 
   function emitOrBuffer(event: keyof T, ...args: Parameters<T[keyof T]>) {
-    if (buffer) {
-      buffer.push({ event, args });
+    if (buffer[event]) {
+      buffer[event].push(args);
     } else {
       eventEmitter.emit(event, ...args);
     }
