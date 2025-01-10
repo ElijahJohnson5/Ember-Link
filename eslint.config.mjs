@@ -18,5 +18,8 @@ export default [
         { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }
       ]
     }
+  },
+  {
+    ignores: ['packages/protocol/bindings/*', 'packages/protocol/build/*']
   }
 ];

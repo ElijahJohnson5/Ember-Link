@@ -71,16 +71,12 @@ export class Presence {
         const now = time.getUnixTime();
         if (
           this.getLocalState() !== null &&
-          outdatedTimeout / 2 <=
-            now - /** @type {{lastUpdated:number}} */ this.meta.get(this.clientId).lastUpdated
+          outdatedTimeout / 2 <= now - this.meta.get(this.clientId).lastUpdated
         ) {
           // renew local clock
           this.setLocalState(this.getLocalState());
         }
-        /**
-         * @type {Array<number>}
-         */
-        const remove = [];
+        const remove: number[] = [];
         this.meta.forEach((meta, clientid) => {
           if (
             clientid !== this.clientId &&
