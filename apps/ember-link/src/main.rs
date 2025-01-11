@@ -9,6 +9,7 @@ use channel_registry::ChannelRegistry;
 use futures_util::SinkExt;
 use futures_util::{future, StreamExt, TryStreamExt};
 use participant::actor::{ParticipantHandle, ParticipantMessage};
+use protocol::client::ClientMessage;
 use regex::Regex;
 use tokio::net::{TcpListener, TcpStream};
 use tokio_tungstenite::tungstenite::{self, Message};
@@ -104,10 +105,16 @@ async fn accept_connection(
                                 Message::Ping(data) => write.send(Message::Pong(data)).await.unwrap(),
                                 Message::Pong(data) => println!("Received pong"),
                                 Message::Text(data) => {
-                                    let test = data.to_string();
+                                    let data = data.to_string();
 
-                                    if test == "ping" {
+                                    println!("{}", data);
+
+                                    if data == "ping" {
                                         write.send(Message::Text("pong".into())).await.unwrap();
+                                    } else {
+                                        let message: ClientMessage = serde_json::from_str(&data).unwrap();
+
+                                        println!("{:?}", message);
                                     }
                                 },
                                 Message::Binary(data) => {

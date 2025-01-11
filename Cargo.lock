@@ -233,6 +233,7 @@ dependencies = [
  "automerge",
  "automerge_repo",
  "futures-util",
+ "protocol",
  "regex",
  "serde",
  "serde_json",

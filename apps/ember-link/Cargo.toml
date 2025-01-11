@@ -13,3 +13,6 @@ serde_json = "1.0.134"
 tokio = { version = "1.42.0", features = ["full"] }
 tokio-tungstenite = "0.26.0"
 uuid = { version = "1.11.0", features = ["v4"] }
+
+
+protocol = { path = "../../packages/protocol" }

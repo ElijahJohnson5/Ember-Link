@@ -31,7 +31,7 @@ export function createClient({ baseUrl }: CreateClientOptions) {
       return channels.get(channelName);
     }
 
-    const channel = createChannel({
+    const { channel, leave } = createChannel({
       channelName,
       baseUrl
     });

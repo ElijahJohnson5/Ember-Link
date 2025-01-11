@@ -5,9 +5,11 @@ import {
   fromCallback,
   setup,
   spawnChild,
+  StateFrom,
   stopChild
 } from 'xstate';
 import { createBufferedEventEmitter, Observable } from './event-emitter.js';
+import { ClientMessage } from '@ember-link/protocol';
 
 const calcBackoff = (attempt: number, randSeed: number, maxVal = 30000): number => {
   if (attempt === 0) {
@@ -16,15 +18,21 @@ const calcBackoff = (attempt: number, randSeed: number, maxVal = 30000): number 
   return Math.min(maxVal, attempt ** 2 * 1000) + 2000 * randSeed;
 };
 
+export type Status = 'initial' | 'connected' | 'reconnecting' | 'connecting' | 'closed';
+
 interface Context {
   url?: string;
   ws?: WebSocket;
   reconnectAttempt: number;
+  successCount: number;
   randSeed: number;
 }
 
 type MessageEventMap = {
-  message: (event: MessageEvent) => void;
+  message: (event: MessageEvent<string | Blob>) => void;
+  open: () => void;
+  disconnect: () => void;
+  statusChange: (status: Status) => void;
 };
 
 type Events =
@@ -39,14 +47,13 @@ type Events =
   | { type: 'message'; value: string | ArrayBufferLike | Blob | ArrayBufferView };
 
 function createWebSocketStateMachine() {
-  const messageEventEmitter = createBufferedEventEmitter<MessageEventMap>();
-  messageEventEmitter.pause('message');
+  const eventEmitter = createBufferedEventEmitter<MessageEventMap>();
+  eventEmitter.pause('message');
 
   const machine = setup({
     types: {
       context: {} as Context,
-      events: {} as Events,
-      emitted: {} as { type: 'message'; event: MessageEvent } | { type: 'open' }
+      events: {} as Events
     },
     actors: {
       websocketCallback: fromCallback<EventObject, { websocket: WebSocket }>(
@@ -71,7 +78,7 @@ function createWebSocketStateMachine() {
               return sendBack({ type: 'pong' });
             }
 
-            messageEventEmitter.emit('message', e);
+            eventEmitter.emit('message', e);
           };
 
           input.websocket.addEventListener('open', openHandler);
@@ -156,14 +163,15 @@ function createWebSocketStateMachine() {
       Open: {
         entry: [
           assign({
-            reconnectAttempt: 0
+            reconnectAttempt: 0,
+            successCount: ({ context }) => context.successCount + 1
           }),
           () => {
-            messageEventEmitter.resume('message');
+            eventEmitter.resume('message');
           }
         ],
         exit: () => {
-          messageEventEmitter.pause('message');
+          eventEmitter.pause('message');
         },
         on: {
           close: { target: 'Reconnecting' },
@@ -197,10 +205,10 @@ function createWebSocketStateMachine() {
       },
       OpenWaitingPong: {
         entry: () => {
-          messageEventEmitter.resume('message');
+          eventEmitter.resume('message');
         },
         exit: () => {
-          messageEventEmitter.pause('message');
+          eventEmitter.pause('message');
         },
         on: {
           pong: {
@@ -245,21 +253,51 @@ function createWebSocketStateMachine() {
 
     context: {
       reconnectAttempt: 0,
+      successCount: 0,
       randSeed: Math.random()
     }
   });
 
+  function valueToStatus(value: StateFrom<typeof machine>['value'], successCount: number): Status {
+    switch (value) {
+      case 'Open':
+      case 'OpenWaitingPong':
+        return 'connected';
+      case 'Initial':
+        return 'initial';
+      case 'CreateWebSocket':
+      case 'Reconnecting':
+        return successCount > 0 ? 'reconnecting' : 'connecting';
+      case 'Destroyed':
+        return 'closed';
+    }
+  }
+
   const actor = createActor(machine);
 
-  actor.subscribe((machine) => {
+  let lastStatus: Status | null = null;
+
+  actor.subscribe((snapshot) => {
+    const currentStatus = valueToStatus(snapshot.value, snapshot.context.successCount);
+
+    if (lastStatus !== currentStatus) {
+      // Emit a change status event;
+      eventEmitter.emit('statusChange', currentStatus);
+    }
+
     // Create event emitters for status
+    if (lastStatus === 'connected' && currentStatus !== 'connected') {
+      eventEmitter.emit('disconnect');
+    } else if (lastStatus !== 'connected' && currentStatus === 'connected') {
+      eventEmitter.emit('open');
+    }
+
+    lastStatus = currentStatus;
   });
 
   return {
     machine: actor,
-    events: {
-      ...messageEventEmitter.observable
-    }
+    events: eventEmitter.observable
   };
 }
 
@@ -282,8 +320,8 @@ export class ManagedSocket {
     this.machine.send({ type: 'connect', value: this.url });
   }
 
-  message(data: string | ArrayBufferLike | Blob | ArrayBufferView) {
-    this.machine.send({ type: 'message', value: data });
+  message(data: ClientMessage) {
+    this.machine.send({ type: 'message', value: JSON.stringify(data) });
   }
 
   disconnect() {

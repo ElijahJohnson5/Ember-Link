@@ -1,7 +1,7 @@
-import { effect, signal } from 'alien-signals';
-import { encodeAwarenessUpdate, Presence } from './presence.js';
+import { Observable } from './event-emitter.js';
+import { ManagedPresence, PresenceEvents } from './presence.js';
 import { ManagedSocket } from './socket-client.js';
-import { createEventEmitter } from './event-emitter.js';
+import { ServerMessage } from '@ember-link/protocol';
 
 interface SpaceConfig {
   channelName: string;
@@ -9,51 +9,46 @@ interface SpaceConfig {
 }
 
 export type Channel = {
-  events: Record<string, unknown>;
+  events: {
+    myPresence: Observable<PresenceEvents>;
+  };
 };
 
-export function createChannel(config: SpaceConfig): Channel {
+export function createChannel(config: SpaceConfig): { channel: Channel; leave: () => void } {
   const managedSocket = new ManagedSocket(`${config.baseUrl}/channel/${config.channelName}`);
 
-  const myPresence = signal({
-    name: 'test'
-  });
-
-  const emitter = createEventEmitter<{
-    myPresence: (value: { name: string }) => void;
-  }>();
-
-  effect(() => {
-    emitter.emit('myPresence', myPresence.get());
-  });
-
-  const presence = new Presence();
-
-  const observable = presence.observable();
-
-  observable.subscribe('update', ({ added, removed, updated }, _origin) => {
-    const changedClients = added.concat(updated).concat(removed);
-
-    const update = encodeAwarenessUpdate(presence, changedClients);
-
-    managedSocket.message(update);
-  });
-
-  presence.setLocalState({
-    custom: {
-      x: 50,
-      y: 50
-    }
-  });
+  const presence = new ManagedPresence();
 
   managedSocket.events.subscribe('message', (e) => {
-    console.log(e.data);
-    //observable.subscribe("")
+    if (e.type === 'text') {
+      // We know the data is a string if we get here
+      const message: ServerMessage = JSON.parse(e.data as string);
+
+      if (message.type === 'updatePresence') {
+        presence.update({});
+      }
+
+      console.log(message);
+    }
   });
 
   managedSocket.connect();
 
-  myPresence.set({ name: 'test 2' });
+  managedSocket.events.subscribe('open', () => {
+    managedSocket.message({
+      client_id: 123,
+      type: 'newPresence'
+    });
+  });
 
-  return;
+  function leave() {}
+
+  return {
+    channel: {
+      events: {
+        myPresence: presence.events
+      }
+    },
+    leave
+  };
 }

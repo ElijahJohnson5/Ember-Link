@@ -11,6 +11,7 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
+    "@ember-link/protocol": "workspace:^",
     "alien-signals": "^0.4.12",
     "lib0": "^0.2.99",
     "tseep": "^1.3.1",

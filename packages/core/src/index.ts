@@ -5,3 +5,7 @@ const client = createClient({
 });
 
 const channel = client.joinChannel('test');
+
+channel.events.myPresence.subscribe('update', () => {
+  console.log('Update');
+});

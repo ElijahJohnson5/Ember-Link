@@ -9,6 +9,7 @@ import * as math from 'lib0/math';
 import * as f from 'lib0/function';
 import { uint53 } from 'lib0/random.js';
 import { createEventEmitter, Emitter, Observable } from './event-emitter.js';
+import { effect, signal, Signal } from 'alien-signals';
 
 export const outdatedTimeout = 30000;
 
@@ -31,11 +32,11 @@ export const outdatedTimeout = 30000;
  * @extends {Observable<string>}
  */
 
-interface PresenceState {
+export interface PresenceState {
   custom?: Record<string, unknown>;
 }
 
-type PresenceEvents = {
+type PresenceEvents2 = {
   destroy: () => void;
   update: (
     clients: { updated: number[]; added: number[]; removed: number[] },
@@ -47,16 +48,54 @@ type PresenceEvents = {
   ) => void;
 };
 
+export type PresenceEvents = {
+  update: (state: PresenceState) => void;
+};
+
 interface MetaClientState {
   clock: number;
   lastUpdated: number;
 }
 
-export class Presence {
+function createPresence(initialPresence: PresenceState) {
+  const state = signal<PresenceState>(initialPresence);
+  const emitter = createEventEmitter<PresenceEvents>();
+
+  effect(() => {
+    emitter.emit('update', state.get());
+  });
+
+  return {
+    state,
+    events: emitter.observable
+  };
+}
+
+export class ManagedPresence {
+  private state: Signal<PresenceState>;
+  public readonly events: Observable<PresenceEvents>;
+
+  constructor(initialPresence?: PresenceState) {
+    const { state, events } = createPresence(initialPresence || {});
+
+    this.events = events;
+    this.state = state;
+  }
+
+  update(newPresence: PresenceState) {
+    this.state.set(newPresence);
+  }
+
+  get() {
+    return this.state.get();
+  }
+}
+
+export class Presence2 {
   clientId: number;
   states: Map<number, PresenceState>;
   meta: Map<number, MetaClientState>;
-  emitter: Emitter<PresenceEvents>;
+  emitter: Emitter<PresenceEvents2>;
   private checkInterval: ReturnType<typeof setInterval>;
 
   constructor() {
@@ -96,7 +135,7 @@ export class Presence {
     this.setLocalState({});
   }
 
-  observable(): Observable<PresenceEvents> {
+  observable(): Observable<PresenceEvents2> {
     return {
       subscribe: this.emitter.subscribe,
       subscribeOnce: this.emitter.subscribeOnce,
@@ -208,7 +247,7 @@ export const removeAwarenessStates = (awareness, clients, origin) => {
  * @return {Uint8Array}
  */
 export const encodeAwarenessUpdate = (
-  presence: Presence,
+  presence: Presence2,
   clients: number[],
   states = presence.states
 ) => {
@@ -246,7 +285,7 @@ export const modifyAwarenessUpdate = (
   return encoding.toUint8Array(encoder);
 };
 
-export const applyPresenceUpdate = (presence: Presence, update: Uint8Array, origin: string) => {
+export const applyPresenceUpdate = (presence: Presence2, update: Uint8Array, origin: string) => {
   const decoder = decoding.createDecoder(update);
   const timestamp = time.getUnixTime();
   const added = [];
