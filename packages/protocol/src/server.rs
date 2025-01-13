@@ -1,10 +1,32 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use crate::PresenceState;
+
 #[derive(Clone, Deserialize, Debug, Serialize, TS)]
-#[serde(tag = "type", rename_all = "camelCase")]
 #[ts(export, export_to = "../src/bindings/index.ts")]
+#[serde(
+    rename_all_fields = "camelCase",
+    rename_all = "camelCase",
+    tag = "type"
+)]
 pub enum ServerMessage {
-    UpdatePresence { client_id: i64 },
-    NewPresence { client_id: i64 },
+    NewPresence(NewPresenceMessage),
+    AssignId(AssignIdMessage),
+}
+
+#[derive(Clone, Deserialize, Debug, Serialize, TS)]
+#[ts(export, export_to = "../src/bindings/server/index.ts")]
+#[serde(rename_all = "camelCase")]
+pub struct NewPresenceMessage {
+    pub id: String,
+    pub clock: i32,
+    pub data: PresenceState,
+}
+
+#[derive(Clone, Deserialize, Debug, Serialize, TS)]
+#[ts(export, export_to = "../src/bindings/server/index.ts")]
+#[serde(rename_all = "camelCase")]
+pub struct AssignIdMessage {
+    pub id: String,
 }

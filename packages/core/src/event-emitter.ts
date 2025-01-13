@@ -4,11 +4,11 @@
 import { EventEmitter, Listener } from 'tseep';
 
 export type Observable<T extends { [event in string | symbol]: Listener }> = {
-  subscribe(event: keyof T, callback: T[keyof T]): () => void;
+  subscribe<Key extends keyof T>(event: Key, callback: T[Key]): () => void;
 
-  subscribeOnce(event: keyof T, callback: T[keyof T]): () => void;
+  subscribeOnce<Key extends keyof T>(event: Key, callback: T[Key]): () => void;
 
-  waitUntil(event: keyof T): Promise<Parameters<T[keyof T]>>;
+  waitUntil<Key extends keyof T>(event: Key): Promise<Parameters<T[Key]>>;
 };
 
 export type Emitter<T extends { [event in string | symbol]: Listener }> = Observable<T> & {

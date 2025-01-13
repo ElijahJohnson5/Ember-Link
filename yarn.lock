@@ -10,8 +10,8 @@ __metadata:
   resolution: "@ember-link/core@workspace:packages/core"
   dependencies:
     "@ember-link/protocol": "workspace:^"
-    alien-signals: "npm:^0.4.12"
     lib0: "npm:^0.2.99"
+    oby: "npm:^15.1.2"
     tseep: "npm:^1.3.1"
     typescript: "npm:^5.7.2"
     xstate: "npm:^5.19.0"
@@ -331,13 +331,6 @@ __metadata:
     json-schema-traverse: "npm:^0.4.1"
     uri-js: "npm:^4.2.2"
   checksum: 10c0/41e23642cbe545889245b9d2a45854ebba51cda6c778ebced9649420d9205f2efb39cb43dbc41e358409223b1ea43303ae4839db682c848b891e4811da1a5a71
-  languageName: node
-  linkType: hard
-
-"alien-signals@npm:^0.4.12":
-  version: 0.4.12
-  resolution: "alien-signals@npm:0.4.12"
-  checksum: 10c0/858c07fc66d4d6bb58062d7fb4d64a327b86592bae37ed5fd90ea28314a04109cca005b3cc63abe8bfd035f3d16e05d0e61611955a50f2f0c667c11cf204381a
   languageName: node
   linkType: hard
 
@@ -959,6 +952,13 @@ __metadata:
   version: 1.4.0
   resolution: "natural-compare@npm:1.4.0"
   checksum: 10c0/f5f9a7974bfb28a91afafa254b197f0f22c684d4a1731763dda960d2c8e375b36c7d690e0d9dc8fba774c537af14a7e979129bca23d88d052fbeb9466955e447
+  languageName: node
+  linkType: hard
+
+"oby@npm:^15.1.2":
+  version: 15.1.2
+  resolution: "oby@npm:15.1.2"
+  checksum: 10c0/1279cc169b817da4d557ad017c24a009f25b233dee636d1d76b6c075020a7b57435c559958a772425f4f9f4fe381132a5c3e22b9ff8a23e31155107a03cdc107
   languageName: node
   linkType: hard
 

@@ -20,6 +20,10 @@ export default [
     }
   },
   {
-    ignores: ['packages/protocol/src/bindings/*', 'packages/protocol/build/*']
+    ignores: [
+      'packages/protocol/src/bindings/*',
+      'packages/protocol/build/*',
+      'packages/protocol/bindings/*'
+    ]
   }
 ];

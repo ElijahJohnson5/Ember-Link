@@ -6,8 +6,8 @@
   "private": true,
   "exports": {
     ".": {
-      "types": "./build/index.d.ts",
-      "default": "./build/index.d.ts"
+      "types": "./build/src/index.d.ts",
+      "default": "./build/src/index.d.ts"
     }
   },
   "scripts": {
