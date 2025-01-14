@@ -1,29 +1,31 @@
 import { createClient } from './client.js';
 
-const client = createClient({
-  baseUrl: 'ws://localhost:9000'
-});
+export { createClient } from './client.js';
 
-const channel = client.joinChannel('test');
+// const client = createClient({
+//   baseUrl: 'ws://localhost:9000'
+// });
 
-channel.events.others.subscribe('join', () => {
-  console.log('User joined 1');
-});
+// const channel = client.joinChannel('test');
 
-channel.events.subscribe('presence', () => {
-  console.log('Presence 1');
-});
+// channel.events.others.subscribe('join', () => {
+//   console.log('User joined 1');
+// });
 
-const client2 = createClient({
-  baseUrl: 'ws://localhost:9000'
-});
+// channel.events.subscribe('presence', () => {
+//   console.log('Presence 1');
+// });
 
-const channel2 = client2.joinChannel('test');
+// const client2 = createClient({
+//   baseUrl: 'ws://localhost:9000'
+// });
 
-channel2.events.others.subscribe('join', () => {
-  console.log('User joined 2');
-});
+// const channel2 = client2.joinChannel('test');
 
-channel2.events.subscribe('presence', () => {
-  console.log('Presence 2');
-});
+// channel2.events.others.subscribe('join', () => {
+//   console.log('User joined 2');
+// });
+
+// channel2.events.subscribe('presence', () => {
+//   console.log('Presence 2');
+// });

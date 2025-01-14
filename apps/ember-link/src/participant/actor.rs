@@ -126,7 +126,6 @@ impl Participant {
                     .add_presence(self.id.clone(), data.data, data.clock);
             }
             ParticipantMessage::ServerMessage { data } => {
-                println!("Sending Server message {:?}", data);
                 self.socket_write_sink
                     .send(Message::text(serde_json::to_string(&data).unwrap()))
                     .await

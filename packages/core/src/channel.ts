@@ -11,6 +11,7 @@ interface SpaceConfig {
 }
 
 export type Channel = {
+  updatePresence: (state: PresenceState) => void;
   events: Observable<ChannelEvents> & {
     others: Observable<OtherEvents>;
   };
@@ -64,8 +65,14 @@ export function createChannel(config: SpaceConfig): { channel: Channel; leave: (
 
   function leave() {}
 
+  function updatePresence(state: PresenceState) {
+    presence.state(state);
+    managedSocket.message(presence.getNewPresenceMessage());
+  }
+
   return {
     channel: {
+      updatePresence,
       events: { ...eventEmitter.observable, others: otherEventEmitter.observable }
     },
     leave

@@ -11,5 +11,6 @@ use ts_rs::TS;
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "../src/bindings/index.ts")]
 pub struct PresenceState {
+    #[ts(type = "Record<string, unknown>")]
     custom: HashMap<String, Value>,
 }

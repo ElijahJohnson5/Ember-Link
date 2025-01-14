@@ -40,7 +40,7 @@ export class ManagedOthers {
         if (outdatedTimeout <= now - meta.lastUpdated && this.states.has(clientId)) {
           const state = this.states.get(clientId);
 
-          this.emitter.emit('leave', state);
+          this.emitter.emit('leave', { ...state, clientId: clientId });
         }
       });
     }, outdatedTimeout);
@@ -51,7 +51,7 @@ export class ManagedOthers {
     const prevState = this.states.get(clientId);
     const currClock = clientMeta === undefined ? 0 : clientMeta.clock;
 
-    console.log(`Clock: ${clock}, currClock: ${currClock}`);
+    // console.log(`Clock: ${clock}, currClock: ${currClock}`);
 
     if (currClock < clock || (currClock === clock && state === null && prevState)) {
       if (state === null) {
@@ -66,11 +66,11 @@ export class ManagedOthers {
       });
 
       if (clientMeta === undefined && state !== null) {
-        this.emitter.emit('join', state);
+        this.emitter.emit('join', { ...state, clientId: clientId });
       } else if (clientMeta !== undefined && state === null) {
-        this.emitter.emit('leave', state);
+        this.emitter.emit('leave', { ...state, clientId: clientId });
       } else if (state !== null) {
-        this.emitter.emit('update', state);
+        this.emitter.emit('update', { ...state, clientId: clientId });
       }
     }
   }

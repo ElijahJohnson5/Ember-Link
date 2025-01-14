@@ -146,8 +146,6 @@ async fn handle_message(
         Message::Text(data) => {
             let data = data.to_string();
 
-            println!("{}", data);
-
             if data == "ping" {
                 participant
                     .sender
@@ -157,8 +155,6 @@ async fn handle_message(
                     .unwrap();
             } else {
                 let message: ClientMessage = serde_json::from_str(&data).unwrap();
-
-                println!("{:?}", message);
 
                 handle_client_message(participant, message);
             }

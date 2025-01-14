@@ -7,6 +7,12 @@
     "build": "tsc",
     "start": "node dist/src/index"
   },
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "default": "./dist/src/index.d.ts"
+    }
+  },
   "peerDependencies": {
     "typescript": "^5.0.0"
   },
@@ -20,8 +26,5 @@
   "devDependencies": {
     "typescript": "^5.7.2"
   },
-  "types": "./dist/src/index.d.ts",
-  "exports": {
-    ".": "./dist/src/index.js"
-  }
+  "types": "./dist/src/index.d.ts"
 }
