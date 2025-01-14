@@ -43,6 +43,10 @@ export function createChannel(config: SpaceConfig): { channel: Channel; leave: (
         participantId(message.id);
       } else if (message.type === 'newPresence') {
         managedOthers.setOther(message.id, message.clock, message.data);
+      } else if (message.type === 'initialPresence') {
+        for (const presence of message.presences) {
+          managedOthers.setOther(presence.id, presence.clock, presence.data);
+        }
       }
     }
   });

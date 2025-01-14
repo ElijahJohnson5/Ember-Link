@@ -39,7 +39,7 @@ impl ChannelRegistry {
         org_id: String,
         combined_id: String,
     ) -> Result<Channel, String> {
-        let channel = Channel::new(combined_id);
+        let channel = Channel::new(combined_id.clone());
 
         match entry {
             Entry::Occupied(mut entry) => {
@@ -49,6 +49,21 @@ impl ChannelRegistry {
                 entry.insert(channel.downgrade());
             }
         }
+
+        channel
+            .on_close({
+                let id = combined_id;
+                let channels = self.channels.clone();
+
+                move || {
+                    tokio::spawn(async move {
+                        {
+                            channels.lock().await.remove(&id);
+                        }
+                    });
+                }
+            })
+            .detach();
 
         Ok(channel)
     }

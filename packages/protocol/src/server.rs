@@ -12,6 +12,7 @@ use crate::PresenceState;
 )]
 pub enum ServerMessage {
     NewPresence(NewPresenceMessage),
+    InitialPresence(InitialPresenceMessage),
     AssignId(AssignIdMessage),
 }
 
@@ -22,6 +23,13 @@ pub struct NewPresenceMessage {
     pub id: String,
     pub clock: i32,
     pub data: PresenceState,
+}
+
+#[derive(Clone, Deserialize, Debug, Serialize, TS)]
+#[ts(export, export_to = "../src/bindings/server/index.ts")]
+#[serde(rename_all = "camelCase")]
+pub struct InitialPresenceMessage {
+    pub presences: Vec<NewPresenceMessage>,
 }
 
 #[derive(Clone, Deserialize, Debug, Serialize, TS)]

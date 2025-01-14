@@ -7,10 +7,12 @@ edition = "2021"
 automerge = "0.5.12"
 automerge_repo = { version = "0.2.0", features = ["tokio"] }
 futures-util = "0.3.31"
+nohash-hasher = "0.2.0"
+parking_lot = "0.12.3"
+protocol = { path = "../../packages/protocol" }
 regex = "1.11.1"
 serde = { version = "1.0.217", features = ["derive"] }
 serde_json = "1.0.134"
-protocol = { path = "../../packages/protocol" }
 tokio = { version = "1.42.0", features = ["full"] }
 tokio-tungstenite = "0.26.0"
 uuid = { version = "1.11.0", features = ["v4"] }

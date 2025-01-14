@@ -1,5 +1,6 @@
 mod channel;
 mod channel_registry;
+mod event_listener_primitives;
 mod participant;
 
 use std::sync::Arc;
@@ -175,13 +176,7 @@ fn handle_client_message(participant: &ParticipantHandle, msg: ClientMessage) {
             // TODO broadcast to the channel and store in the channel
             participant
                 .sender
-                .send(ParticipantMessage::BroadcastMessage {
-                    data: ServerMessage::NewPresence(NewPresenceMessage {
-                        id: participant.id.clone(),
-                        clock: msg.clock,
-                        data: msg.data,
-                    }),
-                })
+                .send(ParticipantMessage::MyPresence { data: msg })
                 .unwrap();
         }
     }

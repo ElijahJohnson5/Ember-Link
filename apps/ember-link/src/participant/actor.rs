@@ -1,5 +1,9 @@
 use futures_util::{stream::SplitSink, SinkExt};
-use protocol::server::ServerMessage;
+use protocol::{
+    client::PresenceMessage,
+    server::{NewPresenceMessage, ServerMessage},
+    PresenceState,
+};
 use tokio::{net::TcpStream, sync::mpsc};
 use tokio_tungstenite::{
     tungstenite::{Bytes, Message},
@@ -24,7 +28,7 @@ pub struct WeakParticipantHandle {
 pub enum ParticipantMessage {
     PingMessage { data: Bytes },
     TextPingMessage { data: String },
-    BroadcastMessage { data: ServerMessage },
+    MyPresence { data: PresenceMessage },
     ServerMessage { data: ServerMessage },
 }
 
@@ -32,7 +36,7 @@ impl ParticipantHandle {
     pub fn new(
         id: uuid::Uuid,
         channel: Channel,
-        socketWriteSink: SplitSink<WebSocketStream<TcpStream>, Message>,
+        socket_write_sink: SplitSink<WebSocketStream<TcpStream>, Message>,
     ) -> Self {
         let (sender, receiver) = mpsc::unbounded_channel();
 
@@ -43,7 +47,7 @@ impl ParticipantHandle {
 
         channel.add_participant(id.to_string(), new.downgrade());
 
-        let participant = Participant::new(id.to_string(), receiver, channel, socketWriteSink);
+        let participant = Participant::new(id.to_string(), receiver, channel, socket_write_sink);
 
         tokio::spawn(run_participant(participant));
 
@@ -71,7 +75,8 @@ pub struct Participant {
     id: String,
     receiver: mpsc::UnboundedReceiver<ParticipantMessage>,
     channel: Channel,
-    socketWriteSink: SplitSink<WebSocketStream<TcpStream>, Message>,
+    socket_write_sink: SplitSink<WebSocketStream<TcpStream>, Message>,
+    presence: Option<PresenceState>,
 }
 
 impl Participant {
@@ -79,37 +84,50 @@ impl Participant {
         id: String,
         receiver: mpsc::UnboundedReceiver<ParticipantMessage>,
         channel: Channel,
-        socketWriteSink: SplitSink<WebSocketStream<TcpStream>, Message>,
+        socket_write_sink: SplitSink<WebSocketStream<TcpStream>, Message>,
     ) -> Self {
         Self {
             id,
             receiver,
             channel,
-            socketWriteSink,
+            socket_write_sink,
+            presence: None,
         }
     }
 
     async fn handle_message(&mut self, msg: ParticipantMessage) {
         match msg {
             ParticipantMessage::PingMessage { data } => {
-                self.socketWriteSink
+                self.socket_write_sink
                     .send(Message::Pong(data))
                     .await
                     .unwrap();
             }
             ParticipantMessage::TextPingMessage { data } => {
-                self.socketWriteSink
+                self.socket_write_sink
                     .send(Message::text(data))
                     .await
                     .unwrap();
             }
-            ParticipantMessage::BroadcastMessage { data } => {
-                println!("Broadcasting message {:?}", data);
-                self.channel.broadcast(data, Some(&self.id));
+            ParticipantMessage::MyPresence { data } => {
+                // TODO: Maybe keep an internal clock to make sure we should actually update the data
+                self.presence.replace(data.data.clone());
+
+                self.channel.broadcast(
+                    ServerMessage::NewPresence(NewPresenceMessage {
+                        id: self.id.clone(),
+                        clock: data.clock,
+                        data: data.data.clone(),
+                    }),
+                    Some(&self.id),
+                );
+
+                self.channel
+                    .add_presence(self.id.clone(), data.data, data.clock);
             }
             ParticipantMessage::ServerMessage { data } => {
                 println!("Sending Server message {:?}", data);
-                self.socketWriteSink
+                self.socket_write_sink
                     .send(Message::text(serde_json::to_string(&data).unwrap()))
                     .await
                     .expect("Could not send message");

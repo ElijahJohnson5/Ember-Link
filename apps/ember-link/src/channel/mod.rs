@@ -1,16 +1,35 @@
 use std::{
     collections::HashMap,
     fmt,
-    sync::{Arc, Mutex, Weak},
+    sync::{Arc, Weak},
 };
 
-use protocol::server::ServerMessage;
+use parking_lot::Mutex;
+use protocol::{
+    server::{InitialPresenceMessage, NewPresenceMessage, ServerMessage},
+    PresenceState,
+};
 
-use crate::participant::actor::{ParticipantHandle, ParticipantMessage, WeakParticipantHandle};
+use crate::{
+    event_listener_primitives::{handler_id::HandlerId, once::BagOnce, regular::Bag},
+    participant::{
+        self,
+        actor::{ParticipantMessage, WeakParticipantHandle},
+    },
+};
+
+#[derive(Default)]
+struct Handlers {
+    participant_added: Bag<Arc<dyn Fn(&String) + Send + Sync>, String>,
+    participant_removed: Bag<Arc<dyn Fn(&String) + Send + Sync>, String>,
+    closed: BagOnce<Box<dyn FnOnce() + Send>>,
+}
 
 struct Inner {
     id: String,
     participant_handles: Mutex<HashMap<String, WeakParticipantHandle>>,
+    participant_presence_state: Mutex<HashMap<String, (PresenceState, i32)>>,
+    handlers: Handlers,
 }
 
 impl fmt::Debug for Inner {
@@ -22,6 +41,8 @@ impl fmt::Debug for Inner {
 impl Drop for Inner {
     fn drop(&mut self) {
         println!("Channel {} closed", self.id);
+
+        self.handlers.closed.call_simple();
     }
 }
 
@@ -38,18 +59,14 @@ impl Channel {
             inner: Arc::new(Inner {
                 id,
                 participant_handles: Mutex::default(),
+                participant_presence_state: Mutex::default(),
+                handlers: Handlers::default(),
             }),
         }
     }
 
     pub fn broadcast(&self, message: ServerMessage, exclude_id: Option<&String>) {
-        for (key, value) in self
-            .inner
-            .participant_handles
-            .lock()
-            .expect("Could not get lock for participant handles")
-            .iter()
-        {
+        for (key, value) in self.inner.participant_handles.lock().iter() {
             if exclude_id.is_some_and(|id| *id == *key) {
                 continue;
             }
@@ -71,20 +88,81 @@ impl Channel {
         }
     }
 
+    pub fn add_presence(&self, participant_id: String, state: PresenceState, clock: i32) {
+        self.inner
+            .participant_presence_state
+            .lock()
+            .insert(participant_id, (state, clock));
+    }
+
     pub fn add_participant(&self, participant_id: String, participant: WeakParticipantHandle) {
         self.inner
             .participant_handles
             .lock()
-            .expect("Could not get lock for participant handles")
-            .insert(participant_id, participant);
+            .insert(participant_id.clone(), participant.clone());
+
+        self.inner
+            .handlers
+            .participant_added
+            .call_simple(&participant_id);
+
+        match participant.upgrade() {
+            Some(participant) => {
+                participant
+                    .sender
+                    .send(ParticipantMessage::ServerMessage {
+                        data: ServerMessage::InitialPresence(self.initial_presence_message()),
+                    })
+                    .unwrap();
+            }
+            _ => {}
+        }
     }
 
     pub fn remove_participant(&self, participant_id: &str) {
+        self.inner.participant_handles.lock().remove(participant_id);
+
         self.inner
-            .participant_handles
-            .lock()
-            .expect("Could not get lock for participant handles")
-            .remove(participant_id);
+            .handlers
+            .participant_removed
+            .call_simple(&participant_id.to_string());
+    }
+
+    pub fn on_participant_added<F: Fn(&String) + Send + Sync + 'static>(
+        &self,
+        callback: F,
+    ) -> HandlerId {
+        self.inner
+            .handlers
+            .participant_added
+            .add(Arc::new(callback))
+    }
+
+    pub fn on_participant_removed<F: Fn(&String) + Send + Sync + 'static>(
+        &self,
+        callback: F,
+    ) -> HandlerId {
+        self.inner
+            .handlers
+            .participant_removed
+            .add(Arc::new(callback))
+    }
+
+    pub fn on_close<F: FnOnce() + Send + 'static>(&self, callback: F) -> HandlerId {
+        self.inner.handlers.closed.add(Box::new(callback))
+    }
+
+    fn initial_presence_message(&self) -> InitialPresenceMessage {
+        let mut presences: Vec<NewPresenceMessage> = Vec::default();
+        for (key, (state, clock)) in self.inner.participant_presence_state.lock().iter() {
+            presences.push(NewPresenceMessage {
+                id: key.clone(),
+                clock: clock.clone(),
+                data: state.clone(),
+            });
+        }
+
+        InitialPresenceMessage { presences }
     }
 
     /// Get `WeakChannel` that can later be upgraded to `Channel`, but will not prevent channel from
