@@ -1,22 +1,27 @@
-import { createEventEmitter, Observable } from './event-emitter.js';
+import { createEventEmitter, Observable } from '@ember-link/event-emitter';
 import { ManagedPresence } from './presence.js';
 import { ManagedSocket } from './socket-client.js';
 import { ServerMessage, PresenceState } from '@ember-link/protocol';
 import $ from 'oby';
 import { ManagedOthers, OtherEvents } from './others.js';
-import { IStorageProvider } from '@ember-link/storage';
+import { IStorage, IStorageProvider } from '@ember-link/storage';
 
-interface ChannelConfig<S extends IStorageProvider> {
+export interface ChannelConfig<S extends IStorageProvider> {
   channelName: string;
   baseUrl: string;
-  // TODO: Implement Loro crdt and Automerge
-  // https://github.com/loro-dev/loro
-  // https://automerge.org/
-  storageProvider?: S;
+  options?: {
+    initialPresence?: PresenceState;
+
+    // TODO: Implement Loro crdt and Automerge
+    // https://github.com/loro-dev/loro
+    // https://automerge.org/
+    storageProvider?: S;
+  };
 }
 
 export type Channel = {
   updatePresence: (state: PresenceState) => void;
+  getStorage: () => IStorage;
   events: Observable<ChannelEvents> & {
     others: Observable<OtherEvents>;
   };
@@ -24,6 +29,7 @@ export type Channel = {
 
 type ChannelEvents = {
   presence: (self: PresenceState) => void;
+  others: (others: Array<PresenceState>) => void;
 };
 
 export function createChannel<S extends IStorageProvider>({
@@ -43,6 +49,10 @@ export function createChannel<S extends IStorageProvider>({
 
   $.effect(() => {
     eventEmitter.emit('presence', presence.state());
+  });
+
+  $.effect(() => {
+    eventEmitter.emit('others', managedOthers.signal());
   });
 
   managedSocket.events.subscribe('message', (e) => {
@@ -71,7 +81,26 @@ export function createChannel<S extends IStorageProvider>({
     managedSocket.message(presence.getNewPresenceMessage());
   });
 
+  const storage = config.options?.storageProvider?.getStorage();
+
+  if (storage) {
+    storage.events.subscribe('update', (event) => {
+      managedSocket.message({
+        type: 'storageUpdate',
+        update: Array.from(event)
+      });
+    });
+  }
+
   managedSocket.connect();
+
+  function getStorage() {
+    if (storage) {
+      return storage;
+    }
+
+    throw new Error('A storage provider must be configured to use storage');
+  }
 
   function leave() {}
 
@@ -83,6 +112,7 @@ export function createChannel<S extends IStorageProvider>({
   return {
     channel: {
       updatePresence,
+      getStorage,
       events: { ...eventEmitter.observable, others: otherEventEmitter.observable }
     },
     leave

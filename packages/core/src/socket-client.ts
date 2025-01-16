@@ -8,7 +8,7 @@ import {
   StateFrom,
   stopChild
 } from 'xstate';
-import { createBufferedEventEmitter, Observable } from './event-emitter.js';
+import { createBufferedEventEmitter, Observable } from '@ember-link/event-emitter';
 import { ClientMessage } from '@ember-link/protocol';
 
 const calcBackoff = (attempt: number, randSeed: number, maxVal = 30000): number => {

@@ -1,11 +1,12 @@
 {
-  "name": "javascript-live-cursors",
+  "name": "javascript-todos",
   "packageManager": "yarn@4.6.0",
   "scripts": {
     "build": "esbuild app.ts --bundle --outfile=static/app.js"
   },
   "dependencies": {
-    "@ember-link/core": "workspace:^"
+    "@ember-link/core": "workspace:^",
+    "@ember-link/yjs-storage": "workspace:^"
   },
   "devDependencies": {
     "esbuild": "^0.24.2",

@@ -1,6 +1,6 @@
 {
   "name": "ember-link",
-  "packageManager": "yarn@4.6.0",
+  "packageManager": "yarn@4.5.3",
   "private": true,
   "author": "Elijah Johnson <elijahjohnson987@gmail.com>",
   "license": "MIT",
@@ -20,6 +20,6 @@
     "typescript-eslint": "^8.19.1"
   },
   "engines": {
-    "node": ">= 22.12.0"
+    "node": "22.12.0"
   }
 }

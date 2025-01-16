@@ -9,8 +9,10 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@ember-link/core@workspace:packages/core"
   dependencies:
+    "@ember-link/event-emitter": "workspace:^"
     "@ember-link/protocol": "workspace:^"
     "@ember-link/storage": "workspace:^"
+    esbuild: "npm:^0.24.2"
     lib0: "npm:^0.2.99"
     oby: "npm:^15.1.2"
     tseep: "npm:^1.3.1"
@@ -18,6 +20,16 @@ __metadata:
     xstate: "npm:^5.19.0"
   peerDependencies:
     typescript: ^5.0.0
+  languageName: unknown
+  linkType: soft
+
+"@ember-link/event-emitter@workspace:*, @ember-link/event-emitter@workspace:^, @ember-link/event-emitter@workspace:packages/event-emitter":
+  version: 0.0.0-use.local
+  resolution: "@ember-link/event-emitter@workspace:packages/event-emitter"
+  dependencies:
+    esbuild: "npm:^0.24.2"
+    tseep: "npm:^1.3.1"
+    typescript: "npm:^5.7.3"
   languageName: unknown
   linkType: soft
 
@@ -33,15 +45,18 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@ember-link/storage@workspace:packages/storage"
   dependencies:
+    "@ember-link/event-emitter": "workspace:*"
     typescript: "npm:^5.7.3"
   languageName: unknown
   linkType: soft
 
-"@ember-link/yjs-storage@workspace:packages/yjs-storage":
+"@ember-link/yjs-storage@workspace:^, @ember-link/yjs-storage@workspace:packages/yjs-storage":
   version: 0.0.0-use.local
   resolution: "@ember-link/yjs-storage@workspace:packages/yjs-storage"
   dependencies:
+    "@ember-link/event-emitter": "workspace:^"
     "@ember-link/storage": "workspace:^"
+    esbuild: "npm:^0.24.2"
     typescript: "npm:^5.7.3"
     yjs: "npm:^13.6.23"
   languageName: unknown
@@ -1106,11 +1121,22 @@ __metadata:
   languageName: node
   linkType: hard
 
-"javascript-live-cursors@workspace:examples/javascript-live-cursors":
+"javascript-cursors@workspace:examples/javascript-cursors":
   version: 0.0.0-use.local
-  resolution: "javascript-live-cursors@workspace:examples/javascript-live-cursors"
+  resolution: "javascript-cursors@workspace:examples/javascript-cursors"
   dependencies:
     "@ember-link/core": "workspace:^"
+    esbuild: "npm:^0.24.2"
+    typescript: "npm:^5.7.3"
+  languageName: unknown
+  linkType: soft
+
+"javascript-todos@workspace:examples/javascript-todos":
+  version: 0.0.0-use.local
+  resolution: "javascript-todos@workspace:examples/javascript-todos"
+  dependencies:
+    "@ember-link/core": "workspace:^"
+    "@ember-link/yjs-storage": "workspace:^"
     esbuild: "npm:^0.24.2"
     typescript: "npm:^5.7.3"
   languageName: unknown
@@ -1482,7 +1508,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"typescript@npm:^5.2.2, typescript@npm:^5.7.3":
+"typescript@npm:^5.2.2, typescript@npm:^5.7.2, typescript@npm:^5.7.3":
   version: 5.7.3
   resolution: "typescript@npm:5.7.3"
   bin:
@@ -1492,33 +1518,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"typescript@npm:^5.7.2":
-  version: 5.7.2
-  resolution: "typescript@npm:5.7.2"
-  bin:
-    tsc: bin/tsc
-    tsserver: bin/tsserver
-  checksum: 10c0/a873118b5201b2ef332127ef5c63fb9d9c155e6fdbe211cbd9d8e65877283797cca76546bad742eea36ed7efbe3424a30376818f79c7318512064e8625d61622
-  languageName: node
-  linkType: hard
-
-"typescript@patch:typescript@npm%3A^5.2.2#optional!builtin<compat/typescript>, typescript@patch:typescript@npm%3A^5.7.3#optional!builtin<compat/typescript>":
+"typescript@patch:typescript@npm%3A^5.2.2#optional!builtin<compat/typescript>, typescript@patch:typescript@npm%3A^5.7.2#optional!builtin<compat/typescript>, typescript@patch:typescript@npm%3A^5.7.3#optional!builtin<compat/typescript>":
   version: 5.7.3
   resolution: "typescript@patch:typescript@npm%3A5.7.3#optional!builtin<compat/typescript>::version=5.7.3&hash=5786d5"
   bin:
     tsc: bin/tsc
     tsserver: bin/tsserver
   checksum: 10c0/6fd7e0ed3bf23a81246878c613423730c40e8bdbfec4c6e4d7bf1b847cbb39076e56ad5f50aa9d7ebd89877999abaee216002d3f2818885e41c907caaa192cc4
-  languageName: node
-  linkType: hard
-
-"typescript@patch:typescript@npm%3A^5.7.2#optional!builtin<compat/typescript>":
-  version: 5.7.2
-  resolution: "typescript@patch:typescript@npm%3A5.7.2#optional!builtin<compat/typescript>::version=5.7.2&hash=5786d5"
-  bin:
-    tsc: bin/tsc
-    tsserver: bin/tsserver
-  checksum: 10c0/f3b8082c9d1d1629a215245c9087df56cb784f9fb6f27b5d55577a20e68afe2a889c040aacff6d27e35be165ecf9dca66e694c42eb9a50b3b2c451b36b5675cb
   languageName: node
   linkType: hard
 

@@ -1,4 +1,4 @@
-import { createClient } from '../../packages/core';
+import { createClient } from '@ember-link/core';
 
 const client = createClient({
   baseUrl: 'ws://localhost:9000'

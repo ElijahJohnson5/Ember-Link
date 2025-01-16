@@ -2,13 +2,6 @@
  * @module awareness-protocol
  */
 
-import * as encoding from 'lib0/encoding';
-import * as decoding from 'lib0/decoding';
-import * as time from 'lib0/time';
-import * as math from 'lib0/math';
-import * as f from 'lib0/function';
-import { uint53 } from 'lib0/random.js';
-import { createEventEmitter, Emitter, Observable } from './event-emitter.js';
 import { ClientMessage, PresenceState } from '@ember-link/protocol';
 import $, { ObservableReadonly, type Observable as Signal } from 'oby';
 

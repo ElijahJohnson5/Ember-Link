@@ -14,3 +14,10 @@ pub struct PresenceState {
     #[ts(type = "Record<string, unknown>")]
     custom: HashMap<String, Value>,
 }
+
+#[derive(Clone, Deserialize, Debug, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../src/bindings/index.ts")]
+pub struct StorageUpdateMessage {
+    pub update: Vec<u8>,
+}

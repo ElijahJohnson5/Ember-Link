@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::PresenceState;
+use crate::{PresenceState, StorageUpdateMessage};
 
 #[derive(Clone, Deserialize, Debug, Serialize, TS)]
 #[serde(
@@ -12,6 +12,7 @@ use crate::PresenceState;
 #[ts(export, export_to = "../src/bindings/index.ts")]
 pub enum ClientMessage {
     Presence(PresenceMessage),
+    StorageUpdate(StorageUpdateMessage),
 }
 
 #[derive(Clone, Deserialize, Debug, Serialize, TS)]

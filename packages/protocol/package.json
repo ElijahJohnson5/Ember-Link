@@ -1,17 +1,10 @@
 {
   "name": "@ember-link/protocol",
   "version": "1.0.0",
-  "types": "./build/index.d.ts",
   "license": "MIT",
   "private": true,
-  "exports": {
-    ".": {
-      "types": "./build/src/index.d.ts",
-      "default": "./build/src/index.d.ts"
-    }
-  },
   "scripts": {
-    "build": "tsc --emitDeclarationOnly --outDir build"
+    "build": "tsc"
   },
   "devDependencies": {
     "typescript": "^5.2.2"

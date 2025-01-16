@@ -13,5 +13,24 @@
     "moduleDetection": "force",
     "allowImportingTsExtensions": true
   },
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules"
+  ],
+  "references": [
+    {
+      "path": "packages/core"
+    },
+    {
+      "path": "packages/event-emitter"
+    },
+    {
+      "path": "packages/protocol"
+    },
+    {
+      "path": "packages/storage"
+    },
+    {
+      "path": "packages/yjs-storage"
+    }
+  ]
 }

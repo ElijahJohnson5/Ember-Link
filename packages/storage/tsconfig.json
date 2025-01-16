@@ -1,12 +1,17 @@
 {
   "extends": ["../../tsconfig.json"],
   "compilerOptions": {
-    "emitDeclarationOnly": true,
-    "outDir": "dist",
-    "rootDir": ".",
+    "outDir": "dist/",
     "paths": {
-      "~/*": ["./src/*"]
+      "~/*": ["./src/*"],
+      "@ember-link/event-emitter": ["../event-emitter/src/index.ts"],
+      "@ember-link/event-emitter/*": ["../event-emitter/src/*"]
     }
   },
-  "exclude": ["dist/"]
+  "include": ["../event-emitter/**/*", "./src/**/*"],
+  "references": [
+    {
+      "path": "../event-emitter"
+    }
+  ]
 }

@@ -1,2 +1,8 @@
 language: 'typescript'
 type: 'library'
+
+tasks:
+  build:
+    command: 'yarn build'
+    deps:
+      - 'storage:build'

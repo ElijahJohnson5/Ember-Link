@@ -2,7 +2,7 @@ import { ObservableReadonly } from 'oby';
 import { MetaClientState, outdatedTimeout } from './presence.js';
 import { ReactiveMap } from './reactive-map.js';
 import $ from 'oby';
-import { Emitter } from './event-emitter.js';
+import { Emitter } from '@ember-link/event-emitter';
 import { PresenceState } from '@ember-link/protocol';
 
 export type OtherEvents = {

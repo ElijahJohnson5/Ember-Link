@@ -10,7 +10,8 @@ use futures_util::SinkExt;
 use futures_util::StreamExt;
 use participant::actor::{ParticipantHandle, ParticipantMessage};
 use protocol::client::ClientMessage;
-use protocol::server::{AssignIdMessage, NewPresenceMessage, ServerMessage};
+use protocol::server::{AssignIdMessage, ServerMessage};
+use protocol::StorageUpdateMessage;
 use regex::Regex;
 use tokio::net::{TcpListener, TcpStream};
 use tokio_tungstenite::tungstenite::{self, Message};
@@ -154,6 +155,7 @@ async fn handle_message(
                     })
                     .unwrap();
             } else {
+                println!("{data}");
                 let message: ClientMessage = serde_json::from_str(&data).unwrap();
 
                 handle_client_message(participant, message);
@@ -173,6 +175,14 @@ fn handle_client_message(participant: &ParticipantHandle, msg: ClientMessage) {
             participant
                 .sender
                 .send(ParticipantMessage::MyPresence { data: msg })
+                .unwrap();
+        }
+        ClientMessage::StorageUpdate(msg) => {
+            participant
+                .sender
+                .send(ParticipantMessage::ServerMessage {
+                    data: ServerMessage::StorageUpdate(StorageUpdateMessage { update: msg.update }),
+                })
                 .unwrap();
         }
     }

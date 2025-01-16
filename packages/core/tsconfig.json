@@ -1,12 +1,28 @@
 {
   "extends": ["../../tsconfig.json"],
   "compilerOptions": {
-    "allowImportingTsExtensions": false,
-    "emitDeclarationOnly": false,
     "outDir": "dist/",
     "paths": {
-      "~/*": ["./src/*"]
+      "~/*": ["./src/*"],
+      "@ember-link/event-emitter": ["../event-emitter/src/index.ts"],
+      "@ember-link/event-emitter/*": ["../event-emitter/src/*"],
+      "@ember-link/protocol": ["../protocol/src/index.ts"],
+      "@ember-link/protocol/*": ["../protocol/src/*"],
+      "@ember-link/storage": ["../storage/src/index.ts"],
+      "@ember-link/storage/*": ["../storage/src/*"]
     }
   },
-  "exclude": ["dist/"]
+  "exclude": ["dist/"],
+  "references": [
+    {
+      "path": "../storage"
+    },
+    {
+      "path": "../event-emitter"
+    },
+    {
+      "path": "../protocol"
+    }
+  ],
+  "include": ["../protocol/**/*", "../storage/**/*", "../event-emitter/**/*", "./src/**/*"]
 }

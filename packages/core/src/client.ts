@@ -1,7 +1,7 @@
 // What the api should look like
 
 import { IStorageProvider } from '@ember-link/storage';
-import { Channel, createChannel } from './channel.js';
+import { Channel, ChannelConfig, createChannel } from './channel.js';
 
 /*
 
@@ -27,15 +27,18 @@ interface CreateClientOptions {
 export function createClient({ baseUrl }: CreateClientOptions) {
   const channels = new Map<string, Channel>();
 
-  function joinChannel<S extends IStorageProvider>(channelName: string, storageProvider?: S) {
+  function joinChannel<S extends IStorageProvider>(
+    channelName: string,
+    options?: ChannelConfig<S>['options']
+  ) {
     if (channels.has(channelName)) {
-      return channels.get(channelName);
+      return channels.get(channelName)!;
     }
 
     const { channel, leave } = createChannel<S>({
       channelName,
       baseUrl,
-      storageProvider
+      options
     });
 
     channels.set(channelName, channel);

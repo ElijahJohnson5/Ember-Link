@@ -4,8 +4,8 @@
   "module": "src/index.ts",
   "type": "module",
   "scripts": {},
-  "devDependencies": {},
-  "peerDependencies": {
-    "typescript": "^5.0.0"
-  }
+  "devDependencies": {
+    "typescript": "^5.7.3"
+  },
+  "peerDependencies": {}
 }

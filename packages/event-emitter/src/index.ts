@@ -18,6 +18,11 @@ export type Emitter<T extends { [event in string | symbol]: Listener }> = Observ
   observable: Observable<T>;
 };
 
+export type BufferedEmitter<T extends { [event in string | symbol]: Listener }> = Emitter<T> & {
+  pause(event: keyof T): void;
+  resume(event: keyof T): void;
+};
+
 export const createEventEmitter = <
   T extends { [event in string | symbol]: Listener }
 >(): Emitter<T> => {
@@ -72,7 +77,7 @@ export const createEventEmitter = <
 
 export const createBufferedEventEmitter = <
   T extends { [event in string | symbol]: Listener }
->() => {
+>(): BufferedEmitter<T> => {
   const eventEmitter = createEventEmitter<T>();
 
   const buffer: Record<keyof T, Parameters<T[keyof T]>[]> = {} as Record<
@@ -102,6 +107,8 @@ export const createBufferedEventEmitter = <
     } else {
       eventEmitter.emit(event, ...args);
     }
+
+    return true;
   }
 
   return {
