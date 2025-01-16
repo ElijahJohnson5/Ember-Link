@@ -11,7 +11,7 @@ use crate::{PresenceState, StorageUpdateMessage};
     tag = "type"
 )]
 pub enum ServerMessage {
-    NewPresence(NewPresenceMessage),
+    Presence(ServerPresenceMessage),
     InitialPresence(InitialPresenceMessage),
     AssignId(AssignIdMessage),
     StorageUpdate(StorageUpdateMessage),
@@ -20,17 +20,17 @@ pub enum ServerMessage {
 #[derive(Clone, Deserialize, Debug, Serialize, TS)]
 #[ts(export, export_to = "../src/bindings/server/index.ts")]
 #[serde(rename_all = "camelCase")]
-pub struct NewPresenceMessage {
+pub struct ServerPresenceMessage {
     pub id: String,
     pub clock: i32,
-    pub data: PresenceState,
+    pub data: Option<PresenceState>,
 }
 
 #[derive(Clone, Deserialize, Debug, Serialize, TS)]
 #[ts(export, export_to = "../src/bindings/server/index.ts")]
 #[serde(rename_all = "camelCase")]
 pub struct InitialPresenceMessage {
-    pub presences: Vec<NewPresenceMessage>,
+    pub presences: Vec<ServerPresenceMessage>,
 }
 
 #[derive(Clone, Deserialize, Debug, Serialize, TS)]

@@ -1,7 +1,7 @@
 import $, { Observable } from 'oby';
 
 export class ReactiveMap<K = unknown, V = unknown> implements Map<K, V> {
-  private collection = $<number>(0, { equals: false });
+  private collection = $<null>(null, { equals: false });
   private storages = new Map<K, Observable<null>>();
   private vals: Map<K, V>;
 

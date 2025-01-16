@@ -6,16 +6,13 @@ use std::{
 
 use parking_lot::Mutex;
 use protocol::{
-    server::{InitialPresenceMessage, NewPresenceMessage, ServerMessage},
+    server::{InitialPresenceMessage, ServerMessage, ServerPresenceMessage},
     PresenceState,
 };
 
 use crate::{
     event_listener_primitives::{handler_id::HandlerId, once::BagOnce, regular::Bag},
-    participant::{
-        self,
-        actor::{ParticipantMessage, WeakParticipantHandle},
-    },
+    participant::actor::{ParticipantMessage, WeakParticipantHandle},
 };
 
 #[derive(Default)]
@@ -121,7 +118,8 @@ impl Channel {
 
     pub fn remove_participant(&self, participant_id: &str) {
         self.inner.participant_handles.lock().remove(participant_id);
-        self.inner
+        let state = self
+            .inner
             .participant_presence_state
             .lock()
             .remove(participant_id);
@@ -130,6 +128,20 @@ impl Channel {
             .handlers
             .participant_removed
             .call_simple(&participant_id.to_string());
+
+        match state {
+            Some((_, clock)) => {
+                self.broadcast(
+                    ServerMessage::Presence(ServerPresenceMessage {
+                        clock: clock,
+                        data: None,
+                        id: participant_id.to_string(),
+                    }),
+                    Some(&participant_id.to_string()),
+                );
+            }
+            None => {}
+        }
     }
 
     pub fn on_participant_added<F: Fn(&String) + Send + Sync + 'static>(
@@ -157,12 +169,12 @@ impl Channel {
     }
 
     fn initial_presence_message(&self) -> InitialPresenceMessage {
-        let mut presences: Vec<NewPresenceMessage> = Vec::default();
+        let mut presences: Vec<ServerPresenceMessage> = Vec::default();
         for (key, (state, clock)) in self.inner.participant_presence_state.lock().iter() {
-            presences.push(NewPresenceMessage {
+            presences.push(ServerPresenceMessage {
                 id: key.clone(),
                 clock: clock.clone(),
-                data: state.clone(),
+                data: Some(state.clone()),
             });
         }
 

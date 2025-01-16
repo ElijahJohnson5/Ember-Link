@@ -1,8 +1,8 @@
 use futures_util::{stream::SplitSink, SinkExt};
 use protocol::{
-    client::PresenceMessage,
-    server::{NewPresenceMessage, ServerMessage},
-    PresenceState,
+    client::ClientPresenceMessage,
+    server::{ServerMessage, ServerPresenceMessage},
+    PresenceState, StorageUpdateMessage,
 };
 use tokio::{net::TcpStream, sync::mpsc};
 use tokio_tungstenite::{
@@ -28,7 +28,8 @@ pub struct WeakParticipantHandle {
 pub enum ParticipantMessage {
     PingMessage { data: Bytes },
     TextPingMessage { data: String },
-    MyPresence { data: PresenceMessage },
+    MyPresence { data: ClientPresenceMessage },
+    StorageUpdate { data: StorageUpdateMessage },
     ServerMessage { data: ServerMessage },
 }
 
@@ -114,16 +115,20 @@ impl Participant {
                 self.presence.replace(data.data.clone());
 
                 self.channel.broadcast(
-                    ServerMessage::NewPresence(NewPresenceMessage {
+                    ServerMessage::Presence(ServerPresenceMessage {
                         id: self.id.clone(),
                         clock: data.clock,
-                        data: data.data.clone(),
+                        data: Some(data.data.clone()),
                     }),
                     Some(&self.id),
                 );
 
                 self.channel
                     .add_presence(self.id.clone(), data.data, data.clock);
+            }
+            ParticipantMessage::StorageUpdate { data } => {
+                self.channel
+                    .broadcast(ServerMessage::StorageUpdate(data), Some(&self.id));
             }
             ParticipantMessage::ServerMessage { data } => {
                 self.socket_write_sink

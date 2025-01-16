@@ -45,10 +45,12 @@ export function createChannel<S extends IStorageProvider>({
   const participantId = $<string | null>(null);
 
   const eventEmitter = createEventEmitter<ChannelEvents>();
-  const presence = new ManagedPresence();
+  const presence = new ManagedPresence(config.options?.initialPresence);
 
   $.effect(() => {
     eventEmitter.emit('presence', presence.state());
+
+    managedSocket.message(presence.getNewPresenceMessage());
   });
 
   $.effect(() => {
@@ -62,12 +64,14 @@ export function createChannel<S extends IStorageProvider>({
 
       if (message.type === 'assignId') {
         participantId(message.id);
-      } else if (message.type === 'newPresence') {
+      } else if (message.type === 'presence') {
         managedOthers.setOther(message.id, message.clock, message.data);
       } else if (message.type === 'initialPresence') {
         for (const presence of message.presences) {
           managedOthers.setOther(presence.id, presence.clock, presence.data);
         }
+      } else if (message.type === 'storageUpdate') {
+        storage.applyUpdate(Uint8Array.from(message.update));
       }
     }
   });
@@ -106,7 +110,6 @@ export function createChannel<S extends IStorageProvider>({
 
   function updatePresence(state: PresenceState) {
     presence.state(state);
-    managedSocket.message(presence.getNewPresenceMessage());
   }
 
   return {

@@ -155,10 +155,16 @@ async fn handle_message(
                     })
                     .unwrap();
             } else {
-                println!("{data}");
-                let message: ClientMessage = serde_json::from_str(&data).unwrap();
+                match serde_json::from_str(&data) {
+                    Ok(message) => {
+                        handle_client_message(participant, message);
+                    }
 
-                handle_client_message(participant, message);
+                    Err(e) => {
+                        println!("Could not parse message: {}", e);
+                        println!("{data}")
+                    }
+                };
             }
         }
         Message::Binary(_data) => {}
@@ -180,9 +186,7 @@ fn handle_client_message(participant: &ParticipantHandle, msg: ClientMessage) {
         ClientMessage::StorageUpdate(msg) => {
             participant
                 .sender
-                .send(ParticipantMessage::ServerMessage {
-                    data: ServerMessage::StorageUpdate(StorageUpdateMessage { update: msg.update }),
-                })
+                .send(ParticipantMessage::StorageUpdate { data: msg })
                 .unwrap();
         }
     }

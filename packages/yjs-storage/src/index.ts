@@ -114,6 +114,7 @@ export function createYJSStorageProvider(): IStorageProvider {
 
   const doc = new Y.Doc();
 
+  // TODO: Figure out setting origin here and apply update so we don't send extra data
   doc.on('update', (data) => {
     eventEmitter.emit('update', data);
   });
@@ -130,6 +131,10 @@ export function createYJSStorageProvider(): IStorageProvider {
 
     subscribe: (object, callback) => {
       return object.subscribe(callback);
+    },
+
+    applyUpdate: (event) => {
+      Y.applyUpdate(doc, event);
     },
 
     events: eventEmitter.observable

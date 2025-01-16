@@ -37,13 +37,14 @@ export class ManagedOthers {
       const now = new Date().getTime();
 
       this.meta.forEach((meta, clientId) => {
-        if (outdatedTimeout <= now - meta.lastUpdated && this.states.has(clientId)) {
+        if (outdatedTimeout / 2 <= now - meta.lastUpdated && this.states.has(clientId)) {
           const state = this.states.get(clientId);
 
+          this.states.delete(clientId);
           this.emitter.emit('leave', { ...state, clientId: clientId });
         }
       });
-    }, outdatedTimeout);
+    }, outdatedTimeout / 10);
   }
 
   setOther(clientId: string, clock: number, state: PresenceState | null) {
@@ -51,10 +52,8 @@ export class ManagedOthers {
     const prevState = this.states.get(clientId);
     const currClock = clientMeta === undefined ? 0 : clientMeta.clock;
 
-    // console.log(`Clock: ${clock}, currClock: ${currClock}`);
-
-    if (currClock < clock || (currClock === clock && state === null && prevState)) {
-      if (state === null) {
+    if (currClock < clock || (currClock === clock && !state && prevState)) {
+      if (!state) {
         this.states.delete(clientId);
       } else {
         this.states.set(clientId, state);
