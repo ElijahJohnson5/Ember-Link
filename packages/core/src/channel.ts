@@ -4,10 +4,15 @@ import { ManagedSocket } from './socket-client.js';
 import { ServerMessage, PresenceState } from '@ember-link/protocol';
 import $ from 'oby';
 import { ManagedOthers, OtherEvents } from './others.js';
+import { IStorageProvider } from '@ember-link/storage';
 
-interface SpaceConfig {
+interface ChannelConfig<S extends IStorageProvider> {
   channelName: string;
   baseUrl: string;
+  // TODO: Implement Loro crdt and Automerge
+  // https://github.com/loro-dev/loro
+  // https://automerge.org/
+  storageProvider?: S;
 }
 
 export type Channel = {
@@ -21,7 +26,12 @@ type ChannelEvents = {
   presence: (self: PresenceState) => void;
 };
 
-export function createChannel(config: SpaceConfig): { channel: Channel; leave: () => void } {
+export function createChannel<S extends IStorageProvider>({
+  ...config
+}: ChannelConfig<S>): {
+  channel: Channel;
+  leave: () => void;
+} {
   const managedSocket = new ManagedSocket(`${config.baseUrl}/channel/${config.channelName}`);
 
   const otherEventEmitter = createEventEmitter<OtherEvents>();

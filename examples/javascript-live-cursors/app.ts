@@ -15,12 +15,12 @@ channel.events.subscribe('presence', (presence) => {
 
   text.innerHTML = cursor
     ? `${cursor.x} × ${cursor.y}`
-    : 'Move your cursor to broadcast its position to other people in the room.';
+    : 'Move your cursor to broadcast its position to other people in the channel.';
 });
 
 /**
  * Subscribe to every others presence updates.
- * The callback will be called if you or someone else enters or leaves the room
+ * The callback will be called if you or someone else enters or leaves the channel
  * or when someone presence is updated
  */
 channel.events.others.subscribe('join', (user) => {
@@ -62,7 +62,15 @@ document.addEventListener('pointerleave', (e) => {
 const COLORS = ['#DC2626', '#D97706', '#059669', '#7C3AED', '#DB2777'];
 
 // Update cursor position based on user presence
-function updateCursor(user) {
+function updateCursor(user: {
+  clientId: string;
+  custom: {
+    cursor: {
+      x: number;
+      y: number;
+    };
+  };
+}) {
   const cursor = getCursorOrCreate(user.clientId);
 
   if (user.custom?.cursor) {
@@ -73,7 +81,7 @@ function updateCursor(user) {
   }
 }
 
-function getCursorOrCreate(connectionId): HTMLElement {
+function getCursorOrCreate(connectionId: string): HTMLElement {
   let cursor: HTMLElement | null = document.getElementById(`cursor-${connectionId}`);
 
   if (cursor == null) {
@@ -86,8 +94,8 @@ function getCursorOrCreate(connectionId): HTMLElement {
   return cursor;
 }
 
-function deleteCursor(user) {
-  const cursor = document.getElementById(`cursor-${user.otherId}`);
+function deleteCursor(user: { clientId: string }) {
+  const cursor = document.getElementById(`cursor-${user.clientId}`);
   if (cursor) {
     cursor.parentNode!.removeChild(cursor);
   }

@@ -1,0 +1,16 @@
+{
+  "name": "@ember-link/yjs-storage",
+  "version": "0.0.1",
+  "module": "src/index.ts",
+  "type": "module",
+  "scripts": {
+    "build": "tsc"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3"
+  },
+  "dependencies": {
+    "@ember-link/storage": "workspace:^",
+    "yjs": "^13.6.23"
+  }
+}

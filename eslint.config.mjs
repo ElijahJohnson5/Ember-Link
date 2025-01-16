@@ -24,7 +24,8 @@ export default [
       'packages/protocol/src/bindings/*',
       'packages/protocol/build/*',
       'packages/protocol/bindings/*',
-      'examples/javascript-live-cursors/static/app.js'
+      'examples/javascript-live-cursors/static/app.js',
+      '**/dist/*'
     ]
   }
 ];

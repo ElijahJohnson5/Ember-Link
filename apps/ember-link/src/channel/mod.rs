@@ -121,6 +121,10 @@ impl Channel {
 
     pub fn remove_participant(&self, participant_id: &str) {
         self.inner.participant_handles.lock().remove(participant_id);
+        self.inner
+            .participant_presence_state
+            .lock()
+            .remove(participant_id);
 
         self.inner
             .handlers
@@ -174,14 +178,14 @@ impl Channel {
     }
 }
 
-/// Similar to `Room`, but doesn't prevent room from being destroyed
+/// Similar to `Channel`, but doesn't prevent channel from being destroyed
 #[derive(Debug, Clone)]
 pub struct WeakChannel {
     inner: Weak<Inner>,
 }
 
 impl WeakChannel {
-    /// Upgrade `WeakRoom` to `Room`, may return `None` if underlying room was destroyed already
+    /// Upgrade `WeakChannel` to `Channel`, may return `None` if underlying Channel was destroyed already
     pub fn upgrade(&self) -> Option<Channel> {
         self.inner.upgrade().map(|inner| Channel { inner })
     }
