@@ -1,14 +1,16 @@
 mod channel;
 mod channel_registry;
+mod event_listener_primitives;
 mod participant;
 
 use std::sync::Arc;
 
-use channel::actor::{ChannelHandle, ChannelMessage};
 use channel_registry::ChannelRegistry;
 use futures_util::SinkExt;
-use futures_util::{future, StreamExt, TryStreamExt};
+use futures_util::StreamExt;
 use participant::actor::{ParticipantHandle, ParticipantMessage};
+use protocol::client::ClientMessage;
+use protocol::server::{AssignIdMessage, NewPresenceMessage, ServerMessage};
 use regex::Regex;
 use tokio::net::{TcpListener, TcpStream};
 use tokio_tungstenite::tungstenite::{self, Message};
@@ -83,16 +85,28 @@ async fn accept_connection(
         addr, path, &caps["channel_name"]
     );
 
-    let channel_handle = channel_registry
+    let (mut write, mut read) = ws_stream.split();
+
+    let channel = channel_registry
         .get_or_create_channel(caps["channel_name"].to_string(), "test".into())
         .await
         .expect("Could not create or get channel");
 
-    let participant_handle = ParticipantHandle::new();
+    let participant_id = uuid::Uuid::new_v4();
 
-    let (mut write, mut read) = ws_stream.split();
+    write
+        .send(Message::text(
+            serde_json::to_string(&ServerMessage::AssignId(AssignIdMessage {
+                id: participant_id.to_string(),
+            }))
+            .unwrap(),
+        ))
+        .await
+        .unwrap();
 
     write.send(Message::Ping("".into())).await.unwrap();
+
+    let participant_handle = ParticipantHandle::new(participant_id, channel, write);
 
     loop {
         tokio::select! {
@@ -100,20 +114,8 @@ async fn accept_connection(
                 match msg {
                     Some(msg) => {
                         match msg {
-                            Ok(msg) => match msg {
-                                Message::Ping(data) => write.send(Message::Pong(data)).await.unwrap(),
-                                Message::Pong(data) => println!("Received pong"),
-                                Message::Text(data) => {
-                                    let test = data.to_string();
-
-                                    if test == "ping" {
-                                        write.send(Message::Text("pong".into())).await.unwrap();
-                                    }
-                                },
-                                Message::Binary(data) => {
-                                },
-
-                                _ => break,
+                            Ok(msg) => {
+                                handle_message(&participant_handle, msg).await.unwrap()
                             }
                             Err(error) => {
                                 println!("{}", error.to_string());
@@ -128,4 +130,50 @@ async fn accept_connection(
     }
 
     println!("Disconnected");
+}
+
+async fn handle_message(
+    participant: &ParticipantHandle,
+    msg: tokio_tungstenite::tungstenite::Message,
+) -> Result<(), String> {
+    match msg {
+        Message::Ping(data) => {
+            participant
+                .sender
+                .send(ParticipantMessage::PingMessage { data: data })
+                .unwrap();
+        }
+        Message::Text(data) => {
+            let data = data.to_string();
+
+            if data == "ping" {
+                participant
+                    .sender
+                    .send(ParticipantMessage::TextPingMessage {
+                        data: "pong".into(),
+                    })
+                    .unwrap();
+            } else {
+                let message: ClientMessage = serde_json::from_str(&data).unwrap();
+
+                handle_client_message(participant, message);
+            }
+        }
+        Message::Binary(_data) => {}
+        _ => {}
+    }
+
+    Ok(())
+}
+
+fn handle_client_message(participant: &ParticipantHandle, msg: ClientMessage) {
+    match msg {
+        ClientMessage::Presence(msg) => {
+            // TODO broadcast to the channel and store in the channel
+            participant
+                .sender
+                .send(ParticipantMessage::MyPresence { data: msg })
+                .unwrap();
+        }
+    }
 }

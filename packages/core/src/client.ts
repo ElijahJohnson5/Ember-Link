@@ -1,6 +1,7 @@
 // What the api should look like
 
-import { Channel, createChannel } from "./channel.js";
+import { IStorageProvider } from '@ember-link/storage';
+import { Channel, createChannel } from './channel.js';
 
 /*
 
@@ -16,9 +17,6 @@ let unsub = channel.events.subscribe("presence", (presenceData) => {
   // Do stuff with the presence
 });
 
-
-
-
 */
 
 interface CreateClientOptions {
@@ -26,17 +24,18 @@ interface CreateClientOptions {
   apiKey?: string;
 }
 
-export function createClient({ baseUrl, apiKey }: CreateClientOptions) {
+export function createClient({ baseUrl }: CreateClientOptions) {
   const channels = new Map<string, Channel>();
 
-  function joinChannel(channelName: string) {
+  function joinChannel<S extends IStorageProvider>(channelName: string, storageProvider?: S) {
     if (channels.has(channelName)) {
       return channels.get(channelName);
     }
 
-    const channel = createChannel({
+    const { channel, leave } = createChannel<S>({
       channelName,
       baseUrl,
+      storageProvider
     });
 
     channels.set(channelName, channel);
@@ -45,6 +44,6 @@ export function createClient({ baseUrl, apiKey }: CreateClientOptions) {
   }
 
   return {
-    joinChannel,
+    joinChannel
   };
 }

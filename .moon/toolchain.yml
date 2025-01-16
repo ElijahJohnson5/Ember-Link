@@ -1,5 +1,5 @@
 # https://moonrepo.dev/docs/config/toolchain
-$schema: "https://moonrepo.dev/schemas/toolchain.json"
+$schema: 'https://moonrepo.dev/schemas/toolchain.json'
 
 # Extend and inherit an external configuration file. Must be a valid HTTPS URL or file system path.
 # extends: './shared/toolchain.yml'
@@ -10,15 +10,15 @@ $schema: "https://moonrepo.dev/schemas/toolchain.json"
 node:
   # The version to use. Must be a semantic version that includes major, minor, and patch.
   # We suggest using the latest active LTS version: https://nodejs.org/en/about/releases
-  version: "22.12.0"
+  version: '22.12.0'
 
   # The package manager to use when managing dependencies.
   # Accepts "npm" (default), "pnpm", or "yarn".
-  packageManager: "yarn"
+  packageManager: 'yarn'
 
   # The version of the package manager (above) to use.
   yarn:
-    version: "4.5.3"
+    version: '4.5.3'
 
   # Add `node.version` as a constraint in the root `package.json` `engines`.
   addEnginesConstraint: true
@@ -54,7 +54,7 @@ typescript:
 
   # Name of the config file in the workspace root that defines shared compiler
   # options for all project reference based config files.
-  rootOptionsConfigFileName: "tsconfig.options.json"
+  rootOptionsConfigFileName: 'tsconfig.options.json'
 
   # Update a project's `tsconfig.json` to route the `outDir` compiler option
   # to moon's `.moon/cache` directory.
@@ -73,7 +73,7 @@ typescript:
 # Configures Rust within the toolchain.
 rust:
   # The Rust toolchain to use. Must be a semantic version that includes major, minor, and patch.
-  version: "1.83.0"
+  version: '1.83.0'
 
   # List of Cargo binaries to install globally and make available to tasks.
   bins: []

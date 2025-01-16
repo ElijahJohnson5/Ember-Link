@@ -1,40 +1,135 @@
-use tokio::sync::mpsc::{self};
+use futures_util::{stream::SplitSink, SinkExt};
+use protocol::{
+    client::PresenceMessage,
+    server::{NewPresenceMessage, ServerMessage},
+    PresenceState,
+};
+use tokio::{net::TcpStream, sync::mpsc};
+use tokio_tungstenite::{
+    tungstenite::{Bytes, Message},
+    WebSocketStream,
+};
+
+use crate::channel::Channel;
 
 #[derive(Clone)]
 pub struct ParticipantHandle {
+    pub id: String,
     pub sender: mpsc::UnboundedSender<ParticipantMessage>,
+}
+
+#[derive(Clone)]
+pub struct WeakParticipantHandle {
+    pub id: String,
+    pub sender: mpsc::WeakUnboundedSender<ParticipantMessage>,
 }
 
 #[derive(Debug)]
 pub enum ParticipantMessage {
-    TestMessage { message: String },
-}
-
-pub struct Participant {
-    receiver: mpsc::UnboundedReceiver<ParticipantMessage>,
+    PingMessage { data: Bytes },
+    TextPingMessage { data: String },
+    MyPresence { data: PresenceMessage },
+    ServerMessage { data: ServerMessage },
 }
 
 impl ParticipantHandle {
-    pub fn new() -> Self {
+    pub fn new(
+        id: uuid::Uuid,
+        channel: Channel,
+        socket_write_sink: SplitSink<WebSocketStream<TcpStream>, Message>,
+    ) -> Self {
         let (sender, receiver) = mpsc::unbounded_channel();
 
-        let participant = Participant::new(receiver);
+        let new = Self {
+            id: id.to_string(),
+            sender: sender.clone(),
+        };
+
+        channel.add_participant(id.to_string(), new.downgrade());
+
+        let participant = Participant::new(id.to_string(), receiver, channel, socket_write_sink);
 
         tokio::spawn(run_participant(participant));
 
-        Self { sender }
+        new
+    }
+
+    pub fn downgrade(&self) -> WeakParticipantHandle {
+        WeakParticipantHandle {
+            id: self.id.clone(),
+            sender: self.sender.downgrade(),
+        }
     }
 }
 
+impl WeakParticipantHandle {
+    pub fn upgrade(&self) -> Option<ParticipantHandle> {
+        self.sender.upgrade().map(|sender| ParticipantHandle {
+            sender,
+            id: self.id.clone(),
+        })
+    }
+}
+
+pub struct Participant {
+    id: String,
+    receiver: mpsc::UnboundedReceiver<ParticipantMessage>,
+    channel: Channel,
+    socket_write_sink: SplitSink<WebSocketStream<TcpStream>, Message>,
+    presence: Option<PresenceState>,
+}
+
 impl Participant {
-    pub fn new(receiver: mpsc::UnboundedReceiver<ParticipantMessage>) -> Self {
-        Self { receiver }
+    pub fn new(
+        id: String,
+        receiver: mpsc::UnboundedReceiver<ParticipantMessage>,
+        channel: Channel,
+        socket_write_sink: SplitSink<WebSocketStream<TcpStream>, Message>,
+    ) -> Self {
+        Self {
+            id,
+            receiver,
+            channel,
+            socket_write_sink,
+            presence: None,
+        }
     }
 
     async fn handle_message(&mut self, msg: ParticipantMessage) {
         match msg {
-            ParticipantMessage::TestMessage { message } => {
-                println!("Test message {}", message);
+            ParticipantMessage::PingMessage { data } => {
+                self.socket_write_sink
+                    .send(Message::Pong(data))
+                    .await
+                    .unwrap();
+            }
+            ParticipantMessage::TextPingMessage { data } => {
+                self.socket_write_sink
+                    .send(Message::text(data))
+                    .await
+                    .unwrap();
+            }
+            ParticipantMessage::MyPresence { data } => {
+                // TODO: Maybe keep an internal clock to make sure we should actually update the data
+                self.presence.replace(data.data.clone());
+
+                self.channel.broadcast(
+                    ServerMessage::NewPresence(NewPresenceMessage {
+                        id: self.id.clone(),
+                        clock: data.clock,
+                        data: data.data.clone(),
+                    }),
+                    Some(&self.id),
+                );
+
+                self.channel
+                    .add_presence(self.id.clone(), data.data, data.clock);
+            }
+            ParticipantMessage::ServerMessage { data } => {
+                self.socket_write_sink
+                    .send(Message::text(serde_json::to_string(&data).unwrap()))
+                    .await
+                    .expect("Could not send message");
             }
         }
     }
@@ -54,5 +149,7 @@ async fn run_participant(mut participant: Participant) {
         }
     }
 
-    println!("Participant finished");
+    participant.channel.remove_participant(&participant.id);
+
+    println!("Participant {} finished", participant.id);
 }

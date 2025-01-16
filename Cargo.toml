@@ -3,4 +3,5 @@ resolver="2"
 
 members = [
   "apps/ember-link",
+  "packages/protocol",
 ]

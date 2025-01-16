@@ -7,18 +7,25 @@
     "build": "tsc",
     "start": "node dist/src/index"
   },
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "default": "./dist/src/index.d.ts"
+    }
+  },
   "peerDependencies": {
     "typescript": "^5.0.0"
   },
   "dependencies": {
+    "@ember-link/protocol": "workspace:^",
+    "@ember-link/storage": "workspace:^",
+    "lib0": "^0.2.99",
+    "oby": "^15.1.2",
     "tseep": "^1.3.1",
     "xstate": "^5.19.0"
   },
   "devDependencies": {
     "typescript": "^5.7.2"
   },
-  "types": "./dist/src/index.d.ts",
-  "exports": {
-    ".": "./dist/src/index.js"
-  }
+  "types": "./dist/src/index.d.ts"
 }
