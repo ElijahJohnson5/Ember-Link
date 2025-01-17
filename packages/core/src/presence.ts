@@ -1,26 +1,27 @@
-import { ClientMessage, PresenceState } from '@ember-link/protocol';
-import $, { ObservableReadonly, type Observable as Signal } from 'oby';
+import { ClientMessage } from '@ember-link/protocol';
+import $, { type Observable as Signal } from 'oby';
+import { DefaultPresence } from '.';
 
 export const outdatedTimeout = 30000;
 
-export type PresenceEvents = {
-  update: (state: PresenceState) => void;
+export type PresenceEvents<P extends Record<string, unknown> = DefaultPresence> = {
+  update: (state: P) => void;
 };
 
 export interface MetaClientState {
   clock: number;
   lastUpdated: number;
 }
-export class ManagedPresence {
-  public state: Signal<PresenceState>;
+
+export class ManagedPresence<P extends Record<string, unknown> = DefaultPresence> {
+  public state: Signal<P>;
 
   private meta: MetaClientState;
-  private clock: ObservableReadonly<number>;
   // TODO cleanup interval when destroyed or something like that
   private checkInterval: ReturnType<typeof setInterval>;
 
-  constructor(initialPresence?: PresenceState) {
-    this.state = $<PresenceState>(initialPresence ?? { custom: {} }, {
+  constructor(initialPresence?: P) {
+    this.state = $<P>(initialPresence ?? ({} as P), {
       equals: () => false
     });
     this.meta = {
@@ -46,7 +47,7 @@ export class ManagedPresence {
     }, outdatedTimeout / 10);
   }
 
-  getNewPresenceMessage(): Extract<ClientMessage, { type: 'presence' }> {
+  getPresenceMessage(): Extract<ClientMessage<P>, { type: 'presence' }> {
     return {
       clock: this.meta.clock,
       data: this.state(),

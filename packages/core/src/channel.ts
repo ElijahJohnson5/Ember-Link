@@ -1,16 +1,20 @@
 import { createEventEmitter, Observable } from '@ember-link/event-emitter';
 import { ManagedPresence } from './presence.js';
 import { ManagedSocket } from './socket-client.js';
-import { ServerMessage, PresenceState } from '@ember-link/protocol';
+import { ServerMessage } from '@ember-link/protocol';
 import $ from 'oby';
 import { ManagedOthers, OtherEvents } from './others.js';
 import { IStorage, IStorageProvider } from '@ember-link/storage';
+import { DefaultPresence } from './index.js';
 
-export interface ChannelConfig<S extends IStorageProvider> {
+export interface ChannelConfig<
+  S extends IStorageProvider,
+  P extends Record<string, unknown> = DefaultPresence
+> {
   channelName: string;
   baseUrl: string;
   options?: {
-    initialPresence?: PresenceState;
+    initialPresence?: P;
 
     // TODO: Implement Loro crdt and Automerge
     // https://github.com/loro-dev/loro
@@ -19,22 +23,25 @@ export interface ChannelConfig<S extends IStorageProvider> {
   };
 }
 
-export type Channel = {
-  updatePresence: (state: PresenceState) => void;
+export type Channel<P extends Record<string, unknown> = DefaultPresence> = {
+  updatePresence: (state: P) => void;
   getStorage: () => IStorage;
   events: Observable<ChannelEvents> & {
     others: Observable<OtherEvents>;
   };
 };
 
-type ChannelEvents = {
-  presence: (self: PresenceState) => void;
-  others: (others: Array<PresenceState>) => void;
+type ChannelEvents<P extends Record<string, unknown> = DefaultPresence> = {
+  presence: (self: P) => void;
+  others: (others: Array<P>) => void;
 };
 
-export function createChannel<S extends IStorageProvider>({
+export function createChannel<
+  S extends IStorageProvider,
+  P extends Record<string, unknown> = DefaultPresence
+>({
   ...config
-}: ChannelConfig<S>): {
+}: ChannelConfig<S, P>): {
   channel: Channel;
   leave: () => void;
 } {
@@ -50,7 +57,7 @@ export function createChannel<S extends IStorageProvider>({
   $.effect(() => {
     eventEmitter.emit('presence', presence.state());
 
-    managedSocket.message(presence.getNewPresenceMessage());
+    managedSocket.message(presence.getPresenceMessage());
   });
 
   $.effect(() => {
@@ -60,7 +67,7 @@ export function createChannel<S extends IStorageProvider>({
   managedSocket.events.subscribe('message', (e) => {
     if (typeof e.data === 'string') {
       // We know the data is a string if we get here
-      const message: ServerMessage = JSON.parse(e.data as string);
+      const message: ServerMessage<P> = JSON.parse(e.data as string);
 
       if (message.type === 'assignId') {
         participantId(message.id);
@@ -82,7 +89,7 @@ export function createChannel<S extends IStorageProvider>({
   });
 
   managedSocket.events.subscribe('open', () => {
-    managedSocket.message(presence.getNewPresenceMessage());
+    managedSocket.message(presence.getPresenceMessage());
   });
 
   const storage = config.options?.storageProvider?.getStorage();
@@ -106,9 +113,11 @@ export function createChannel<S extends IStorageProvider>({
     throw new Error('A storage provider must be configured to use storage');
   }
 
-  function leave() {}
+  function leave() {
+    managedSocket.destroy();
+  }
 
-  function updatePresence(state: PresenceState) {
+  function updatePresence(state: P) {
     presence.state(state);
   }
 

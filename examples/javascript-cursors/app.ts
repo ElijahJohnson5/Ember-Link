@@ -1,17 +1,28 @@
-import { createClient } from '@ember-link/core';
+import { createClient, User } from '@ember-link/core';
+
+declare global {
+  interface EmberLink {
+    Presence: {
+      cursor: {
+        x: number;
+        y: number;
+      } | null;
+    };
+  }
+}
 
 const client = createClient({
   baseUrl: 'ws://localhost:9000'
 });
 
-const channel = client.joinChannel('test');
+const { channel } = client.joinChannel('test');
 
 const cursorsContainer = document.getElementById('cursors-container')!;
 const text = document.getElementById('text')!;
 
 channel.events.subscribe('presence', (presence) => {
   const cursor: { x: number; y: number } | null =
-    (presence?.custom?.cursor as { x: number; y: number }) ?? null;
+    (presence?.cursor as { x: number; y: number }) ?? null;
 
   text.innerHTML = cursor
     ? `${cursor.x} × ${cursor.y}`
@@ -49,32 +60,22 @@ channel.events.others.subscribe('reset', () => {
 
 document.addEventListener('pointermove', (event) => {
   channel.updatePresence({
-    custom: {
-      cursor: { x: Math.round(event.clientX), y: Math.round(event.clientY) }
-    }
+    cursor: { x: Math.round(event.clientX), y: Math.round(event.clientY) }
   });
 });
 
-document.addEventListener('pointerleave', (e) => {
-  channel.updatePresence({ custom: { cursor: null } });
+document.addEventListener('pointerleave', () => {
+  channel.updatePresence({ cursor: null });
 });
 
 const COLORS = ['#DC2626', '#D97706', '#059669', '#7C3AED', '#DB2777'];
 
 // Update cursor position based on user presence
-function updateCursor(user: {
-  clientId: string;
-  custom: {
-    cursor: {
-      x: number;
-      y: number;
-    };
-  };
-}) {
+function updateCursor(user: User) {
   const cursor = getCursorOrCreate(user.clientId);
 
-  if (user.custom?.cursor) {
-    cursor.style.transform = `translateX(${user.custom.cursor.x}px) translateY(${user.custom.cursor.y}px)`;
+  if (user.cursor) {
+    cursor.style.transform = `translateX(${user.cursor.x}px) translateY(${user.cursor.y}px)`;
     cursor.style.opacity = '1';
   } else {
     cursor.style.opacity = '0';
@@ -94,7 +95,7 @@ function getCursorOrCreate(connectionId: string): HTMLElement {
   return cursor;
 }
 
-function deleteCursor(user: { clientId: string }) {
+function deleteCursor(user: User) {
   const cursor = document.getElementById(`cursor-${user.clientId}`);
   if (cursor) {
     cursor.parentNode!.removeChild(cursor);

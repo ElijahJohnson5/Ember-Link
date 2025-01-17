@@ -5,10 +5,8 @@ use std::{
 };
 
 use parking_lot::Mutex;
-use protocol::{
-    server::{InitialPresenceMessage, ServerMessage, ServerPresenceMessage},
-    PresenceState,
-};
+use protocol::server::{InitialPresenceMessage, ServerMessage, ServerPresenceMessage};
+use serde_json::Value;
 
 use crate::{
     event_listener_primitives::{handler_id::HandlerId, once::BagOnce, regular::Bag},
@@ -25,7 +23,7 @@ struct Handlers {
 struct Inner {
     id: String,
     participant_handles: Mutex<HashMap<String, WeakParticipantHandle>>,
-    participant_presence_state: Mutex<HashMap<String, (PresenceState, i32)>>,
+    participant_presence_state: Mutex<HashMap<String, (Value, i32)>>,
     handlers: Handlers,
 }
 
@@ -62,7 +60,7 @@ impl Channel {
         }
     }
 
-    pub fn broadcast(&self, message: ServerMessage, exclude_id: Option<&String>) {
+    pub fn broadcast(&self, message: ServerMessage<Value>, exclude_id: Option<&String>) {
         for (key, value) in self.inner.participant_handles.lock().iter() {
             if exclude_id.is_some_and(|id| *id == *key) {
                 continue;
@@ -85,7 +83,7 @@ impl Channel {
         }
     }
 
-    pub fn add_presence(&self, participant_id: String, state: PresenceState, clock: i32) {
+    pub fn add_presence(&self, participant_id: String, state: Value, clock: i32) {
         self.inner
             .participant_presence_state
             .lock()
@@ -168,8 +166,8 @@ impl Channel {
         self.inner.handlers.closed.add(Box::new(callback))
     }
 
-    fn initial_presence_message(&self) -> InitialPresenceMessage {
-        let mut presences: Vec<ServerPresenceMessage> = Vec::default();
+    fn initial_presence_message(&self) -> InitialPresenceMessage<Value> {
+        let mut presences: Vec<ServerPresenceMessage<Value>> = Vec::default();
         for (key, (state, clock)) in self.inner.participant_presence_state.lock().iter() {
             presences.push(ServerPresenceMessage {
                 id: key.clone(),

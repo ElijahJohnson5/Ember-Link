@@ -53,7 +53,7 @@ class YArrayStorage<T> implements ArrayStorage<T> {
   }
 
   forEach(callback: (value: T, index: number, array: ArrayStorage<T>) => void) {
-    return this.yArray.forEach((value, index, array) => {
+    return this.yArray.forEach((value, index) => {
       callback(value, index, this);
     });
   }

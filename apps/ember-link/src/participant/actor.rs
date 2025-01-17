@@ -2,8 +2,9 @@ use futures_util::{stream::SplitSink, SinkExt};
 use protocol::{
     client::ClientPresenceMessage,
     server::{ServerMessage, ServerPresenceMessage},
-    PresenceState, StorageUpdateMessage,
+    StorageUpdateMessage,
 };
+use serde_json::Value;
 use tokio::{net::TcpStream, sync::mpsc};
 use tokio_tungstenite::{
     tungstenite::{Bytes, Message},
@@ -28,9 +29,9 @@ pub struct WeakParticipantHandle {
 pub enum ParticipantMessage {
     PingMessage { data: Bytes },
     TextPingMessage { data: String },
-    MyPresence { data: ClientPresenceMessage },
+    MyPresence { data: ClientPresenceMessage<Value> },
     StorageUpdate { data: StorageUpdateMessage },
-    ServerMessage { data: ServerMessage },
+    ServerMessage { data: ServerMessage<Value> },
 }
 
 impl ParticipantHandle {
@@ -77,7 +78,7 @@ pub struct Participant {
     receiver: mpsc::UnboundedReceiver<ParticipantMessage>,
     channel: Channel,
     socket_write_sink: SplitSink<WebSocketStream<TcpStream>, Message>,
-    presence: Option<PresenceState>,
+    presence: Option<Value>,
 }
 
 impl Participant {

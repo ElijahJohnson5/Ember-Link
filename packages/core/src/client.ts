@@ -2,6 +2,7 @@
 
 import { IStorageProvider } from '@ember-link/storage';
 import { Channel, ChannelConfig, createChannel } from './channel.js';
+import { DefaultPresence } from './index.js';
 
 /*
 
@@ -24,26 +25,28 @@ interface CreateClientOptions {
   apiKey?: string;
 }
 
-export function createClient({ baseUrl }: CreateClientOptions) {
-  const channels = new Map<string, Channel>();
+export function createClient<P extends Record<string, unknown> = DefaultPresence>({
+  baseUrl
+}: CreateClientOptions) {
+  const channels = new Map<string, { channel: Channel; leave: () => void }>();
 
   function joinChannel<S extends IStorageProvider>(
     channelName: string,
-    options?: ChannelConfig<S>['options']
+    options?: ChannelConfig<S, P>['options']
   ) {
     if (channels.has(channelName)) {
       return channels.get(channelName)!;
     }
 
-    const { channel, leave } = createChannel<S>({
+    const { channel, leave } = createChannel<S, P>({
       channelName,
       baseUrl,
       options
     });
 
-    channels.set(channelName, channel);
+    channels.set(channelName, { channel, leave });
 
-    return channel;
+    return { channel, leave };
   }
 
   return {

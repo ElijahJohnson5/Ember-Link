@@ -11,8 +11,8 @@ use futures_util::StreamExt;
 use participant::actor::{ParticipantHandle, ParticipantMessage};
 use protocol::client::ClientMessage;
 use protocol::server::{AssignIdMessage, ServerMessage};
-use protocol::StorageUpdateMessage;
 use regex::Regex;
+use serde_json::Value;
 use tokio::net::{TcpListener, TcpStream};
 use tokio_tungstenite::tungstenite::{self, Message};
 use tokio_tungstenite::WebSocketStream;
@@ -97,7 +97,7 @@ async fn accept_connection(
 
     write
         .send(Message::text(
-            serde_json::to_string(&ServerMessage::AssignId(AssignIdMessage {
+            serde_json::to_string(&ServerMessage::AssignId::<Value>(AssignIdMessage {
                 id: participant_id.to_string(),
             }))
             .unwrap(),
@@ -174,7 +174,7 @@ async fn handle_message(
     Ok(())
 }
 
-fn handle_client_message(participant: &ParticipantHandle, msg: ClientMessage) {
+fn handle_client_message(participant: &ParticipantHandle, msg: ClientMessage<Value>) {
     match msg {
         ClientMessage::Presence(msg) => {
             // TODO broadcast to the channel and store in the channel

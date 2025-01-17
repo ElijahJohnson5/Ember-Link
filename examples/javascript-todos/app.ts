@@ -1,13 +1,21 @@
 import { createClient } from '@ember-link/core';
 import { createYJSStorageProvider, YjsStorageProvider } from '@ember-link/yjs-storage';
 
+declare global {
+  interface EmberLink {
+    Presence: {
+      isTyping: boolean;
+    };
+  }
+}
+
 async function run() {
   const client = createClient({
     baseUrl: 'ws://localhost:9000'
   });
 
-  const channel = client.joinChannel<YjsStorageProvider>('todos', {
-    initialPresence: { custom: { isTyping: false } },
+  const { channel } = client.joinChannel<YjsStorageProvider>('todos', {
+    initialPresence: { isTyping: false },
     storageProvider: createYJSStorageProvider()
   });
 
@@ -21,7 +29,7 @@ async function run() {
 
     console.log(others);
 
-    someoneIsTyping.innerHTML = others.some((other) => other.custom?.isTyping)
+    someoneIsTyping.innerHTML = others.some((other) => other.isTyping)
       ? 'Someone is typing...'
       : '';
   });
@@ -32,16 +40,16 @@ async function run() {
 
   todoInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
-      channel.updatePresence({ custom: { isTyping: false } });
+      channel.updatePresence({ isTyping: false });
       todos.push({ text: todoInput.value });
       todoInput.value = '';
     } else {
-      channel.updatePresence({ custom: { isTyping: true } });
+      channel.updatePresence({ isTyping: true });
     }
   });
 
   todoInput.addEventListener('blur', () => {
-    channel.updatePresence({ custom: { isTyping: false } });
+    channel.updatePresence({ isTyping: false });
   });
 
   function render() {

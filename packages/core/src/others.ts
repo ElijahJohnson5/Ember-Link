@@ -3,24 +3,25 @@ import { MetaClientState, outdatedTimeout } from './presence.js';
 import { ReactiveMap } from './reactive-map.js';
 import $ from 'oby';
 import { Emitter } from '@ember-link/event-emitter';
-import { PresenceState } from '@ember-link/protocol';
+import { DefaultPresence } from './index.js';
+import { User } from './user.js';
 
-export type OtherEvents = {
-  leave: (user: Record<string, unknown>) => void;
-  join: (user: Record<string, unknown>) => void;
-  update: (user: Record<string, unknown>) => void;
+export type OtherEvents<P extends Record<string, unknown> = DefaultPresence> = {
+  leave: (user: User<P>) => void;
+  join: (user: User<P>) => void;
+  update: (user: User<P>) => void;
   reset: () => void;
 };
 
-export class ManagedOthers {
+export class ManagedOthers<P extends Record<string, unknown> = DefaultPresence> {
   private emitter: Emitter<OtherEvents>;
   // TODO handle cleaning up the interval
   private checkInterval: ReturnType<typeof setInterval>;
 
-  readonly states: ReactiveMap<string, PresenceState>;
+  readonly states: ReactiveMap<string, P>;
   readonly meta: ReactiveMap<string, MetaClientState>;
 
-  public readonly signal: ObservableReadonly<PresenceState[]>;
+  public readonly signal: ObservableReadonly<P[]>;
 
   constructor(emitter: Emitter<OtherEvents>) {
     this.states = new ReactiveMap();
@@ -28,7 +29,7 @@ export class ManagedOthers {
 
     this.emitter = emitter;
     this.signal = $.memo(() => {
-      return Array.from(this.states.entries()).map(([clientId, state]) => {
+      return Array.from(this.states.entries()).map(([_clientId, state]) => {
         return state;
       });
     });
@@ -47,7 +48,7 @@ export class ManagedOthers {
     }, outdatedTimeout / 10);
   }
 
-  setOther(clientId: string, clock: number, state: PresenceState | null) {
+  setOther(clientId: string, clock: number, state: P | null) {
     const clientMeta = this.meta.get(clientId);
     const prevState = this.states.get(clientId);
     const currClock = clientMeta === undefined ? 0 : clientMeta.clock;

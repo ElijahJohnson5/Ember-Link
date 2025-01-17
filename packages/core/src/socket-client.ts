@@ -10,6 +10,7 @@ import {
 } from 'xstate';
 import { createBufferedEventEmitter, Observable } from '@ember-link/event-emitter';
 import { ClientMessage } from '@ember-link/protocol';
+import { DefaultPresence } from '.';
 
 const calcBackoff = (attempt: number, randSeed: number, maxVal = 30000): number => {
   if (attempt === 0) {
@@ -303,7 +304,7 @@ function createWebSocketStateMachine() {
   };
 }
 
-export class ManagedSocket {
+export class ManagedSocket<P extends Record<string, unknown> = DefaultPresence> {
   private url: string;
   private machine: ReturnType<typeof createWebSocketStateMachine>['machine'];
 
@@ -322,7 +323,7 @@ export class ManagedSocket {
     this.machine.send({ type: 'connect', value: this.url });
   }
 
-  message(data: ClientMessage) {
+  message(data: ClientMessage<P>) {
     this.machine.send({ type: 'message', value: JSON.stringify(data) });
   }
 
