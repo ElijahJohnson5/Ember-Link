@@ -1,11 +1,17 @@
 mod channel;
 mod channel_registry;
+mod config;
+mod environment;
 mod event_listener_primitives;
 mod participant;
+mod webhook_processor;
 
 use std::sync::Arc;
 
 use channel_registry::ChannelRegistry;
+use config::Config;
+use envconfig::Envconfig;
+use environment::Environment;
 use futures_util::SinkExt;
 use futures_util::StreamExt;
 use participant::actor::{ParticipantHandle, ParticipantMessage};
@@ -19,20 +25,40 @@ use tokio_tungstenite::WebSocketStream;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    dotenvy::dotenv()?;
+
     let listener = TcpListener::bind("127.0.0.1:9000").await.unwrap();
 
     let channel_registry: Arc<ChannelRegistry> = Arc::default();
+
+    let config = Config::init_from_env().unwrap();
+
+    let environment = Environment::from_config(&config).await;
+
+    if let Some(webhook_processor) = environment.webhook_processor() {
+        channel_registry
+            .on_channel_created({
+                move |_channel_id, _num| {
+                    webhook_processor
+                        .cast(webhook_processor::actor::WebhookMessage::PrintHelloWorld)
+                        .expect("Could not send message to webhook processor")
+                }
+            })
+            .detach();
+    }
 
     let channel_name_regex = Regex::new("/channel/(?<channel_name>[a-zA-Z0-9_-]+)")
         .expect("Channel name regex is invalid");
 
     while let Ok((stream, _)) = listener.accept().await {
-        let handle = tokio::spawn(accept_connection(
+        let _handle = tokio::spawn(accept_connection(
             stream,
             channel_registry.clone(),
             channel_name_regex.clone(),
         ));
     }
+
+    environment.cleanup().await;
 
     Ok(())
 }

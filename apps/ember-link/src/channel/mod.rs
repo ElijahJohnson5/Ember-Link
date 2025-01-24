@@ -9,7 +9,7 @@ use protocol::server::{InitialPresenceMessage, ServerMessage, ServerPresenceMess
 use serde_json::Value;
 
 use crate::{
-    event_listener_primitives::{handler_id::HandlerId, once::BagOnce, regular::Bag},
+    event_listener_primitives::{Bag, BagOnce, HandlerId},
     participant::actor::{ParticipantMessage, WeakParticipantHandle},
 };
 

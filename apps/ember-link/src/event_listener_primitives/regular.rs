@@ -11,6 +11,7 @@ mod private {
     // This struct is intentionally made `!Sized` with `[()]` such that we have no overlap with
     // `Sized` arguments in specialized versions of `call_simple` implementations below
     #[derive(Debug)]
+    #[allow(dead_code)]
     pub struct Private([()]);
 }
 
@@ -154,6 +155,7 @@ where
 
 impl<F: Fn() + Send + Sync + ?Sized + 'static> Bag<Arc<F>> {
     /// Call each handler without arguments and keep handlers in the bag
+    #[allow(dead_code)]
     pub fn call_simple(&self) {
         self.call(|handler| handler())
     }
@@ -190,6 +192,7 @@ where
     F: Fn(&A1, &A2, &A3) + Send + Sync + ?Sized + 'static,
 {
     /// Call each handler without arguments and keep handlers in the bag
+    #[allow(dead_code)]
     pub fn call_simple(&self, a1: &A1, a2: &A2, a3: &A3) {
         self.call(|handler| handler(a1, a2, a3))
     }
@@ -204,6 +207,7 @@ where
     F: Fn(&A1, &A2, &A3, &A4) + Send + Sync + ?Sized + 'static,
 {
     /// Call each handler without arguments and keep handlers in the bag
+    #[allow(dead_code)]
     pub fn call_simple(&self, a1: &A1, a2: &A2, a3: &A3, a4: &A4) {
         self.call(|handler| handler(a1, a2, a3, a4))
     }
@@ -219,6 +223,7 @@ where
     F: Fn(&A1, &A2, &A3, &A4, &A5) + Send + Sync + ?Sized + 'static,
 {
     /// Call each handler without arguments and keep handlers in the bag
+    #[allow(dead_code)]
     pub fn call_simple(&self, a1: &A1, a2: &A2, a3: &A3, a4: &A4, a5: &A5) {
         self.call(|handler| handler(a1, a2, a3, a4, a5))
     }
