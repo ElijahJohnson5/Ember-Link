@@ -6,4 +6,5 @@ tasks:
     command: 'yarn build'
     deps:
       - 'event-emitter:build'
+      - 'protocol:build'
       - 'storage:build'
