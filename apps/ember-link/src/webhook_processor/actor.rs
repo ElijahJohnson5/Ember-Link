@@ -1,4 +1,110 @@
+use std::{
+    cmp,
+    sync::Arc,
+    time::{Duration, Instant},
+};
+
 use ractor::{Actor, ActorProcessingErr, ActorRef};
+use tokio::{sync::RwLock, task::JoinHandle};
+
+struct WebhookBatcher;
+
+struct WebhookBatcherState {
+    messages: Arc<RwLock<Vec<WebhookMessage>>>,
+    webhook_url: String,
+    client: reqwest::Client,
+    last_send: Instant,
+}
+
+struct WebhookBatcherArguments {
+    messages: Arc<RwLock<Vec<WebhookMessage>>>,
+    webhook_url: String,
+}
+
+enum WebhookBatcherMessage {
+    TrySendWebhook,
+    SendWebhook,
+}
+
+impl Actor for WebhookBatcher {
+    type State = WebhookBatcherState;
+    type Msg = WebhookBatcherMessage;
+    type Arguments = WebhookBatcherArguments;
+
+    async fn pre_start(
+        &self,
+        myself: ActorRef<Self::Msg>,
+        arguments: Self::Arguments,
+    ) -> Result<Self::State, ActorProcessingErr> {
+        myself.send_interval(Duration::from_millis(300), || Self::Msg::TrySendWebhook);
+
+        Ok(WebhookBatcherState {
+            messages: arguments.messages,
+            webhook_url: arguments.webhook_url,
+            client: reqwest::Client::new(),
+            last_send: Instant::now(),
+        })
+    }
+
+    async fn handle(
+        &self,
+        _myself: ActorRef<Self::Msg>,
+        msg: Self::Msg,
+        state: &mut Self::State,
+    ) -> Result<(), ActorProcessingErr> {
+        match msg {
+            Self::Msg::TrySendWebhook => {
+                if state.last_send.elapsed() > Duration::from_millis(300) {
+                    self.send_webhook(state).await?
+                }
+            }
+            Self::Msg::SendWebhook => self.send_webhook(state).await?,
+        }
+
+        Ok(())
+    }
+}
+
+impl WebhookBatcher {
+    pub async fn send_webhook(
+        &self,
+        state: &mut WebhookBatcherState,
+    ) -> Result<(), ActorProcessingErr> {
+        let (future, end_range) = {
+            let messages = state.messages.read().await;
+            let end_range = cmp::min(messages.len(), 300);
+
+            if messages.len() > 0 {
+                let messages = &messages[0..end_range];
+                (
+                    state
+                        .client
+                        .post(state.webhook_url.clone())
+                        .body(format!("Sending: {}", messages.len()))
+                        .send(),
+                    end_range,
+                )
+            } else {
+                return Ok(());
+            }
+        };
+
+        match future.await {
+            Err(e) => {
+                println!("{}", e);
+            }
+            Ok(response) => {
+                println!("{:?}", response);
+                println!("Sent webhook");
+
+                state.messages.write().await.drain(0..end_range);
+                state.last_send = Instant::now();
+            }
+        }
+
+        Ok(())
+    }
+}
 
 pub struct WebhookProcessor;
 
@@ -8,9 +114,8 @@ pub enum WebhookMessage {
 }
 
 pub struct WebhookProcessorState {
-    client: reqwest::Client,
-    webhook_url: String,
-    messages: Vec<WebhookMessage>,
+    messages: Arc<RwLock<Vec<WebhookMessage>>>,
+    webhook_batcher: ActorRef<WebhookBatcherMessage>,
 }
 
 impl Actor for WebhookProcessor {
@@ -20,13 +125,26 @@ impl Actor for WebhookProcessor {
 
     async fn pre_start(
         &self,
-        _myself: ActorRef<Self::Msg>,
+        myself: ActorRef<Self::Msg>,
         arguments: Self::Arguments,
     ) -> Result<Self::State, ActorProcessingErr> {
+        let messages: Arc<RwLock<Vec<WebhookMessage>>> = Arc::default();
+
+        let (webhook_batcher, _) = Actor::spawn_linked(
+            None,
+            WebhookBatcher,
+            WebhookBatcherArguments {
+                messages: messages.clone(),
+                webhook_url: arguments,
+            },
+            myself.get_cell(),
+        )
+        .await
+        .expect("Could not start webhook batcher");
+
         Ok(WebhookProcessorState {
-            client: reqwest::Client::new(),
-            webhook_url: arguments,
-            messages: Vec::default(),
+            messages: messages,
+            webhook_batcher,
         })
     }
 
@@ -38,19 +156,19 @@ impl Actor for WebhookProcessor {
     ) -> Result<(), ActorProcessingErr> {
         match msg {
             Self::Msg::PrintHelloWorld => {
-                // Batch 300 at a time
-                if state.messages.len() >= 300 {
+                let len = {
+                    let mut messages = state.messages.write().await;
+                    messages.push(msg);
+
+                    messages.len()
+                };
+
+                if len >= 300 {
                     state
-                        .client
-                        .post(state.webhook_url.clone())
-                        .body(format!("Sending: {} messages", state.messages.len()))
-                        .send()
-                        .await?;
-
-                    state.messages.clear();
+                        .webhook_batcher
+                        .cast(WebhookBatcherMessage::SendWebhook)
+                        .expect("Could not send message to webhook batcher");
                 }
-
-                state.messages.push(msg);
             }
             _ => {}
         }
