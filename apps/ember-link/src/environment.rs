@@ -1,10 +1,8 @@
+use protocol::WebhookMessage;
 use ractor::ActorRef;
 use tokio::task::JoinHandle;
 
-use crate::{
-    config::Config,
-    webhook_processor::{actor::WebhookMessage, start_webhook_processor},
-};
+use crate::{config::Config, webhook_processor::start_webhook_processor};
 
 pub struct Environment {
     webhook_processor_actor: Option<WebhookProcessorActor>,

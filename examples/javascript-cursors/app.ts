@@ -12,7 +12,7 @@ declare global {
 }
 
 const client = createClient({
-  baseUrl: 'ws://localhost:9000'
+  baseUrl: 'http://localhost:9000'
 });
 
 const { channel } = client.joinChannel('test');

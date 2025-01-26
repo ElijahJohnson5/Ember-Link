@@ -4,8 +4,9 @@ use std::{
     time::{Duration, Instant},
 };
 
+use protocol::WebhookMessage;
 use ractor::{Actor, ActorProcessingErr, ActorRef};
-use tokio::{sync::RwLock, task::JoinHandle};
+use tokio::sync::RwLock;
 
 struct WebhookBatcher;
 
@@ -54,7 +55,7 @@ impl Actor for WebhookBatcher {
     ) -> Result<(), ActorProcessingErr> {
         match msg {
             Self::Msg::TrySendWebhook => {
-                if state.last_send.elapsed() > Duration::from_millis(300) {
+                if state.last_send.elapsed() >= Duration::from_millis(300) {
                     self.send_webhook(state).await?
                 }
             }
@@ -80,7 +81,7 @@ impl WebhookBatcher {
                     state
                         .client
                         .post(state.webhook_url.clone())
-                        .body(format!("Sending: {}", messages.len()))
+                        .json(messages)
                         .send(),
                     end_range,
                 )
@@ -107,11 +108,6 @@ impl WebhookBatcher {
 }
 
 pub struct WebhookProcessor;
-
-#[derive(Debug)]
-pub enum WebhookMessage {
-    PrintHelloWorld,
-}
 
 pub struct WebhookProcessorState {
     messages: Arc<RwLock<Vec<WebhookMessage>>>,
@@ -154,23 +150,18 @@ impl Actor for WebhookProcessor {
         msg: Self::Msg,
         state: &mut Self::State,
     ) -> Result<(), ActorProcessingErr> {
-        match msg {
-            Self::Msg::PrintHelloWorld => {
-                let len = {
-                    let mut messages = state.messages.write().await;
-                    messages.push(msg);
+        let len = {
+            let mut messages = state.messages.write().await;
+            messages.push(msg);
 
-                    messages.len()
-                };
+            messages.len()
+        };
 
-                if len >= 300 {
-                    state
-                        .webhook_batcher
-                        .cast(WebhookBatcherMessage::SendWebhook)
-                        .expect("Could not send message to webhook batcher");
-                }
-            }
-            _ => {}
+        if len >= 300 {
+            state
+                .webhook_batcher
+                .cast(WebhookBatcherMessage::SendWebhook)
+                .expect("Could not send message to webhook batcher");
         }
 
         Ok(())

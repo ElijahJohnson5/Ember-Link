@@ -12,10 +12,13 @@ pub struct StorageUpdateMessage {
 }
 
 #[derive(Clone, Deserialize, Debug, Serialize, TS)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", tag = "type")]
 #[ts(export, export_to = "../src/bindings/index.ts")]
 pub enum WebhookMessage {
     NewChannel(NewChannel),
+    CloseChannel(CloseChannel),
+    NewParticipant(NewParticipant),
+    RemoveParticipant(RemoveParticipant),
 }
 
 #[derive(Clone, Deserialize, Debug, Serialize, TS)]
@@ -24,4 +27,28 @@ pub enum WebhookMessage {
 pub struct NewChannel {
     pub channel_id: String,
     pub num_channels: usize,
+}
+
+#[derive(Clone, Deserialize, Debug, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../src/bindings/index.ts")]
+pub struct CloseChannel {
+    pub channel_id: String,
+    pub num_channels: usize,
+}
+
+#[derive(Clone, Deserialize, Debug, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../src/bindings/index.ts")]
+pub struct NewParticipant {
+    pub channel_id: String,
+    pub participant_id: String,
+}
+
+#[derive(Clone, Deserialize, Debug, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../src/bindings/index.ts")]
+pub struct RemoveParticipant {
+    pub channel_id: String,
+    pub participant_id: String,
 }

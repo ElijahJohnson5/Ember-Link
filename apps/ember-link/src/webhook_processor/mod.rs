@@ -1,4 +1,5 @@
-use actor::{WebhookMessage, WebhookProcessor};
+use actor::WebhookProcessor;
+use protocol::WebhookMessage;
 use ractor::{Actor, ActorRef};
 
 pub mod actor;
