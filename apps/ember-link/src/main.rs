@@ -22,12 +22,16 @@ use serde_json::Value;
 use tokio::net::{TcpListener, TcpStream};
 use tokio_tungstenite::tungstenite::{self, Message};
 use tokio_tungstenite::WebSocketStream;
+use tracing::instrument;
+use tracing_subscriber::FmtSubscriber;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenvy::dotenv()?;
+    tracing::subscriber::set_global_default(FmtSubscriber::default())?;
 
     let listener = TcpListener::bind("127.0.0.1:9000").await.unwrap();
+    tracing::info!("Starting server on 127.0.0.1:9000");
 
     let config = Config::init_from_env().unwrap();
 
@@ -79,6 +83,7 @@ async fn handle_raw_socket(
     )
 }
 
+#[instrument(skip_all)]
 async fn accept_connection(stream: TcpStream, channel_registry: Arc<ChannelRegistry>) {
     let addr = stream
         .peer_addr()
@@ -89,23 +94,30 @@ async fn accept_connection(stream: TcpStream, channel_registry: Arc<ChannelRegis
     let params = params.expect("Could not get query params from connection");
 
     if !params.contains_key(&"channel_name".to_string()) {
-        println!("Could not find channel name in query params");
+        tracing::warn!("Could not find channel name in query params");
         return;
     }
 
-    let ws_stream = ws_stream.expect("Error during the websocket handshake occurred");
+    let ws_stream = match ws_stream {
+        Err(e) => {
+            tracing::error!("Error during the websocket handshake occurred: {e}");
+            return;
+        }
+        Ok(ws_stream) => ws_stream,
+    };
 
-    println!(
+    tracing::info!(
         "New WebSocket connection: {}, query params: {:?}, channel_name: {}",
-        addr, params, params["channel_name"]
+        addr,
+        params,
+        params["channel_name"]
     );
 
     let (mut write, mut read) = ws_stream.split();
 
     let channel = channel_registry
         .get_or_create_channel(params["channel_name"].to_string())
-        .await
-        .expect("Could not create or get channel");
+        .await;
 
     let participant_id = uuid::Uuid::new_v4();
 
@@ -144,7 +156,7 @@ async fn accept_connection(stream: TcpStream, channel_registry: Arc<ChannelRegis
         }
     }
 
-    println!("Disconnected");
+    tracing::info!("Disconnected");
 }
 
 async fn handle_message(
@@ -175,8 +187,7 @@ async fn handle_message(
                     }
 
                     Err(e) => {
-                        println!("Could not parse message: {}", e);
-                        println!("{data}")
+                        tracing::error!(data = data, "Could not parse message: {}", e);
                     }
                 };
             }

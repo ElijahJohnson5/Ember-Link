@@ -157,5 +157,5 @@ async fn run_participant(mut participant: Participant) {
 
     participant.channel.remove_participant(&participant.id);
 
-    println!("Participant {} finished", participant.id);
+    tracing::info!("Participant {} finished", participant.id);
 }

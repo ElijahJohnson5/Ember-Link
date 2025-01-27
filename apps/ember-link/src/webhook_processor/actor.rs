@@ -7,6 +7,7 @@ use std::{
 use protocol::WebhookMessage;
 use ractor::{Actor, ActorProcessingErr, ActorRef};
 use tokio::sync::RwLock;
+use tracing::instrument;
 
 struct WebhookBatcher;
 
@@ -67,6 +68,7 @@ impl Actor for WebhookBatcher {
 }
 
 impl WebhookBatcher {
+    #[instrument(skip(self, state))]
     pub async fn send_webhook(
         &self,
         state: &mut WebhookBatcherState,
@@ -92,15 +94,22 @@ impl WebhookBatcher {
 
         match future.await {
             Err(e) => {
-                println!("{}", e);
+                tracing::error!("Could not send webhook: {}", e);
             }
-            Ok(response) => {
-                println!("{:?}", response);
-                println!("Sent webhook");
-
-                state.messages.write().await.drain(0..end_range);
-                state.last_send = Instant::now();
-            }
+            Ok(response) => match response.error_for_status() {
+                Err(e) => {
+                    tracing::warn!("Webhook could not be send: {}", e);
+                }
+                Ok(_response) => {
+                    tracing::info!(
+                        num_sent = end_range,
+                        duration_since_last_send_ms = state.last_send.elapsed().as_millis(),
+                        "Sent webhook"
+                    );
+                    state.messages.write().await.drain(0..end_range);
+                    state.last_send = Instant::now();
+                }
+            },
         }
 
         Ok(())

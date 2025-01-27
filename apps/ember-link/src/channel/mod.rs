@@ -35,7 +35,7 @@ impl fmt::Debug for Inner {
 
 impl Drop for Inner {
     fn drop(&mut self) {
-        println!("Channel {} closed", self.id);
+        tracing::info!("Channel {} closed", self.id);
 
         self.handlers.closed.call_simple();
     }
@@ -48,7 +48,7 @@ pub struct Channel {
 
 impl Channel {
     pub fn new(id: String) -> Self {
-        println!("Creating channel {}", id);
+        tracing::info!("Creating channel {}", id);
 
         Self {
             inner: Arc::new(Inner {

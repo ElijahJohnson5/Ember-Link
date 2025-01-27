@@ -5,6 +5,7 @@ use std::{
     collections::{hash_map::Entry, HashMap},
     sync::Arc,
 };
+use tracing::instrument;
 
 use crate::{
     channel::{Channel, WeakChannel},
@@ -47,28 +48,33 @@ impl ChannelRegistry {
         new
     }
 
-    pub async fn get_or_create_channel(&self, channel_name: String) -> Result<Channel, String> {
+    #[instrument(skip(self))]
+    pub async fn get_or_create_channel(&self, channel_name: String) -> Channel {
         let mut channels = self.channels.lock().await;
 
         let len = channels.len();
 
         let channel = match channels.entry(channel_name.clone()) {
             Entry::Occupied(entry) => match entry.get().upgrade() {
-                Some(channel) => Ok(channel),
+                Some(channel) => {
+                    tracing::info!("Found existing channel");
+                    channel
+                }
                 None => self.create_channel(Entry::Occupied(entry), channel_name, len),
             },
             entry => self.create_channel(entry, channel_name, len),
-        }?;
+        };
 
-        Ok(channel)
+        channel
     }
 
+    #[instrument(skip(self, entry, old_num_channels))]
     fn create_channel(
         &self,
         entry: Entry<'_, String, WeakChannel>,
         channel_name: String,
         old_num_channels: usize,
-    ) -> Result<Channel, String> {
+    ) -> Channel {
         let channel = Channel::new(channel_name.clone());
 
         match entry {
@@ -81,6 +87,8 @@ impl ChannelRegistry {
         }
 
         if let Some(webhook_processor) = self.webhook_processor.as_ref() {
+            tracing::info!("Setting up webhook callbacks");
+
             channel
                 .on_participant_added({
                     let id = channel_name.clone();
@@ -152,7 +160,7 @@ impl ChannelRegistry {
             .channel_created
             .call_simple(&channel_name, &(old_num_channels + 1));
 
-        Ok(channel)
+        channel
     }
 
     pub fn on_channel_created<F: Fn(&String, &usize) + Send + Sync + 'static>(
