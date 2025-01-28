@@ -45,7 +45,12 @@ export function createChannel<
   channel: Channel;
   leave: () => void;
 } {
-  const managedSocket = new ManagedSocket(`${config.baseUrl}/channel/${config.channelName}`);
+  // Set all query params server is expecting
+  const url = new URL(config.baseUrl);
+
+  url.searchParams.set('channel_name', config.channelName);
+
+  const managedSocket = new ManagedSocket(url.toString());
 
   const otherEventEmitter = createEventEmitter<OtherEvents>();
   const managedOthers = new ManagedOthers(otherEventEmitter);

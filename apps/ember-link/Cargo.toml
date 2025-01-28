@@ -4,15 +4,22 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-automerge = "0.5.12"
-automerge_repo = { version = "0.2.0", features = ["tokio"] }
+dotenvy = "0.15.7"
+envconfig = "0.11.0"
 futures-util = "0.3.31"
 nohash-hasher = "0.2.0"
 parking_lot = "0.12.3"
 protocol = { path = "../../packages/protocol" }
-regex = "1.11.1"
+ractor = "0.14.7"
+reqwest = { version = "0.12.12", features = ["json"] }
 serde = { version = "1.0.217", features = ["derive"] }
 serde_json = "1.0.134"
 tokio = { version = "1.42.0", features = ["full"] }
 tokio-tungstenite = "0.26.0"
+tracing = "0.1.41"
+tracing-subscriber = "0.3.19"
+url = "2.5.4"
 uuid = { version = "1.11.0", features = ["v4"] }
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage,coverage_nightly)'] }

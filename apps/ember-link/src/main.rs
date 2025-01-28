@@ -1,38 +1,50 @@
 mod channel;
 mod channel_registry;
+mod config;
+mod environment;
 mod event_listener_primitives;
 mod participant;
+mod webhook_processor;
 
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use channel_registry::ChannelRegistry;
+use config::Config;
+use envconfig::Envconfig;
+use environment::Environment;
 use futures_util::SinkExt;
 use futures_util::StreamExt;
 use participant::actor::{ParticipantHandle, ParticipantMessage};
 use protocol::client::ClientMessage;
 use protocol::server::{AssignIdMessage, ServerMessage};
-use regex::Regex;
 use serde_json::Value;
 use tokio::net::{TcpListener, TcpStream};
 use tokio_tungstenite::tungstenite::{self, Message};
 use tokio_tungstenite::WebSocketStream;
+use tracing::instrument;
+use tracing_subscriber::FmtSubscriber;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    dotenvy::dotenv()?;
+    tracing::subscriber::set_global_default(FmtSubscriber::default())?;
+
     let listener = TcpListener::bind("127.0.0.1:9000").await.unwrap();
+    tracing::info!("Starting server on 127.0.0.1:9000");
 
-    let channel_registry: Arc<ChannelRegistry> = Arc::default();
+    let config = Config::init_from_env().unwrap();
 
-    let channel_name_regex = Regex::new("/channel/(?<channel_name>[a-zA-Z0-9_-]+)")
-        .expect("Channel name regex is invalid");
+    let environment = Environment::from_config(&config).await;
+
+    let channel_registry: Arc<ChannelRegistry> =
+        Arc::new(ChannelRegistry::new(environment.webhook_processor()));
 
     while let Ok((stream, _)) = listener.accept().await {
-        let handle = tokio::spawn(accept_connection(
-            stream,
-            channel_registry.clone(),
-            channel_name_regex.clone(),
-        ));
+        let _handle = tokio::spawn(accept_connection(stream, channel_registry.clone()));
     }
+
+    environment.cleanup().await;
 
     Ok(())
 }
@@ -41,9 +53,9 @@ async fn handle_raw_socket(
     stream: TcpStream,
 ) -> (
     Result<WebSocketStream<TcpStream>, tungstenite::Error>,
-    Option<String>,
+    Option<HashMap<String, String>>,
 ) {
-    let mut path = None;
+    let mut params: Option<HashMap<String, String>> = None;
 
     let callback = |req: &tungstenite::handshake::server::Request,
                     res: tungstenite::handshake::server::Response|
@@ -51,47 +63,61 @@ async fn handle_raw_socket(
         tungstenite::handshake::server::Response,
         tungstenite::handshake::server::ErrorResponse,
     > {
-        path = Some(req.uri().path().to_string());
+        let decoded_params: HashMap<String, String> = req
+            .uri()
+            .query()
+            .map(|v| {
+                url::form_urlencoded::parse(v.as_bytes())
+                    .into_owned()
+                    .collect()
+            })
+            .unwrap_or_else(HashMap::new);
+
+        params.replace(decoded_params);
         Ok(res)
     };
 
     (
         tokio_tungstenite::accept_hdr_async(stream, callback).await,
-        path,
+        params,
     )
 }
 
-async fn accept_connection(
-    stream: TcpStream,
-    channel_registry: Arc<ChannelRegistry>,
-    channel_name_regex: Regex,
-) {
+#[instrument(skip_all)]
+async fn accept_connection(stream: TcpStream, channel_registry: Arc<ChannelRegistry>) {
     let addr = stream
         .peer_addr()
         .expect("connected streams should have a peer address");
 
-    let (ws_stream, path) = handle_raw_socket(stream).await;
+    let (ws_stream, params) = handle_raw_socket(stream).await;
 
-    let path = path.expect("Could not get path from connection");
+    let params = params.expect("Could not get query params from connection");
 
-    let Some(caps) = channel_name_regex.captures(&path) else {
-        println!("Could not find channel name in path: {}", path);
+    if !params.contains_key(&"channel_name".to_string()) {
+        tracing::warn!("Could not find channel name in query params");
         return;
+    }
+
+    let ws_stream = match ws_stream {
+        Err(e) => {
+            tracing::error!("Error during the websocket handshake occurred: {e}");
+            return;
+        }
+        Ok(ws_stream) => ws_stream,
     };
 
-    let ws_stream = ws_stream.expect("Error during the websocket handshake occurred");
-
-    println!(
-        "New WebSocket connection: {}, path: {}, channel_name: {}",
-        addr, path, &caps["channel_name"]
+    tracing::info!(
+        "New WebSocket connection: {}, query params: {:?}, channel_name: {}",
+        addr,
+        params,
+        params["channel_name"]
     );
 
     let (mut write, mut read) = ws_stream.split();
 
     let channel = channel_registry
-        .get_or_create_channel(caps["channel_name"].to_string(), "test".into())
-        .await
-        .expect("Could not create or get channel");
+        .get_or_create_channel(params["channel_name"].to_string())
+        .await;
 
     let participant_id = uuid::Uuid::new_v4();
 
@@ -119,7 +145,7 @@ async fn accept_connection(
                                 handle_message(&participant_handle, msg).await.unwrap()
                             }
                             Err(error) => {
-                                println!("{}", error.to_string());
+                                tracing::info!(error = error.to_string());
                                 break;
                             }
                         };
@@ -130,7 +156,7 @@ async fn accept_connection(
         }
     }
 
-    println!("Disconnected");
+    tracing::info!("Disconnected");
 }
 
 async fn handle_message(
@@ -161,8 +187,7 @@ async fn handle_message(
                     }
 
                     Err(e) => {
-                        println!("Could not parse message: {}", e);
-                        println!("{data}")
+                        tracing::error!(data = data, "Could not parse message: {}", e);
                     }
                 };
             }

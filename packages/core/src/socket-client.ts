@@ -51,8 +51,6 @@ function createWebSocketStateMachine() {
   const eventEmitter = createBufferedEventEmitter<MessageEventMap>();
   eventEmitter.pause('message');
 
-  console.log('createWebSocketStateMachine');
-
   const machine = setup({
     types: {
       context: {} as Context,

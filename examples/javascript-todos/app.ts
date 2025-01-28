@@ -11,7 +11,7 @@ declare global {
 
 async function run() {
   const client = createClient({
-    baseUrl: 'ws://localhost:9000'
+    baseUrl: 'http://localhost:9000'
   });
 
   const { channel } = client.joinChannel<YjsStorageProvider>('todos', {

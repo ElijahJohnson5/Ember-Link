@@ -17,7 +17,7 @@ pub enum ServerMessage<T> {
     StorageUpdate(StorageUpdateMessage),
 }
 
-#[derive(Clone, Deserialize, Debug, Serialize, TS)]
+#[derive(Clone, Deserialize, Debug, Serialize, TS, PartialEq, Eq)]
 #[ts(export, export_to = "../src/bindings/server/index.ts")]
 #[serde(rename_all = "camelCase")]
 pub struct ServerPresenceMessage<T> {
@@ -26,7 +26,7 @@ pub struct ServerPresenceMessage<T> {
     pub data: Option<T>,
 }
 
-#[derive(Clone, Deserialize, Debug, Serialize, TS)]
+#[derive(Clone, Deserialize, Debug, Serialize, TS, PartialEq, Eq)]
 #[ts(export, export_to = "../src/bindings/server/index.ts")]
 #[serde(rename_all = "camelCase")]
 pub struct InitialPresenceMessage<T> {

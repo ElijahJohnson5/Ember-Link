@@ -1,3 +1,9 @@
-pub mod handler_id;
-pub mod once;
-pub mod regular;
+// TODO: Move this to its own package
+
+mod handler_id;
+mod once;
+mod regular;
+
+pub use handler_id::HandlerId;
+pub use once::BagOnce;
+pub use regular::Bag;
