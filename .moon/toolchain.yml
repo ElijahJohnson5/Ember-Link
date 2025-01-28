@@ -76,7 +76,8 @@ rust:
   version: '1.83.0'
 
   # List of Cargo binaries to install globally and make available to tasks.
-  bins: []
+  bins:
+    - bin: 'cargo-llvm-cov'
 
   # Sync the configured version above as a channel to the root `rust-toolchain.toml` config.
   syncToolchainConfig: true

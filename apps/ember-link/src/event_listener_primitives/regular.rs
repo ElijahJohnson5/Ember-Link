@@ -179,6 +179,7 @@ where
     F: Fn(&A1, &A2) + Send + Sync + ?Sized + 'static,
 {
     /// Call each handler without arguments and keep handlers in the bag
+    #[allow(dead_code)]
     pub fn call_simple(&self, a1: &A1, a2: &A2) {
         self.call(|handler| handler(a1, a2))
     }

@@ -145,7 +145,7 @@ async fn accept_connection(stream: TcpStream, channel_registry: Arc<ChannelRegis
                                 handle_message(&participant_handle, msg).await.unwrap()
                             }
                             Err(error) => {
-                                println!("{}", error.to_string());
+                                tracing::info!(error = error.to_string());
                                 break;
                             }
                         };

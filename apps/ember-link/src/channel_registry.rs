@@ -1,3 +1,5 @@
+#![cfg_attr(coverage_nightly, feature(coverage_attribute))]
+
 use futures_util::lock::Mutex;
 use protocol::{CloseChannel, NewChannel, NewParticipant, RemoveParticipant, WebhookMessage};
 use ractor::ActorRef;
@@ -7,45 +9,19 @@ use std::{
 };
 use tracing::instrument;
 
-use crate::{
-    channel::{Channel, WeakChannel},
-    event_listener_primitives::{Bag, HandlerId},
-};
-
-#[derive(Default)]
-struct Handlers {
-    channel_created: Bag<Arc<dyn Fn(&String, &usize) + Send + Sync>, String, usize>,
-}
+use crate::channel::{Channel, WeakChannel};
 
 pub struct ChannelRegistry {
     channels: Arc<Mutex<HashMap<String, WeakChannel>>>,
-    handlers: Handlers,
     webhook_processor: Option<ActorRef<WebhookMessage>>,
 }
 
 impl ChannelRegistry {
     pub fn new(webhook_processor: Option<ActorRef<WebhookMessage>>) -> Self {
-        let new = Self {
+        Self {
             channels: Arc::default(),
-            handlers: Handlers::default(),
             webhook_processor: webhook_processor.clone(),
-        };
-
-        if let Some(webhook_processor) = webhook_processor {
-            new.on_channel_created({
-                move |channel_id, num| {
-                    webhook_processor
-                        .cast(WebhookMessage::NewChannel(NewChannel {
-                            channel_id: channel_id.clone(),
-                            num_channels: num.clone(),
-                        }))
-                        .expect("Could not send message to webhook processor")
-                }
-            })
-            .detach();
         }
-
-        new
     }
 
     #[instrument(skip(self))]
@@ -122,6 +98,13 @@ impl ChannelRegistry {
                     }
                 })
                 .detach();
+
+            webhook_processor
+                .cast(WebhookMessage::NewChannel(NewChannel {
+                    channel_id: channel_name.clone(),
+                    num_channels: old_num_channels + 1,
+                }))
+                .expect("Could not send message to webhook processor")
         }
 
         channel
@@ -156,17 +139,243 @@ impl ChannelRegistry {
             })
             .detach();
 
-        self.handlers
-            .channel_created
-            .call_simple(&channel_name, &(old_num_channels + 1));
-
         channel
     }
+}
 
-    pub fn on_channel_created<F: Fn(&String, &usize) + Send + Sync + 'static>(
-        &self,
-        callback: F,
-    ) -> HandlerId {
-        self.handlers.channel_created.add(Arc::new(callback))
+#[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
+mod tests {
+    use std::time::Duration;
+
+    use ractor::{Actor, ActorProcessingErr};
+
+    use crate::channel::tests::create_participant;
+
+    use super::*;
+
+    struct TestWebhookActor;
+
+    #[derive(Default)]
+    struct TestWebhookActorState {
+        new_channel_message: Option<NewChannel>,
+        new_participant_message: Option<NewParticipant>,
+        remove_participant_message: Option<RemoveParticipant>,
+    }
+
+    impl Actor for TestWebhookActor {
+        type Msg = WebhookMessage;
+        type Arguments = Arc<Mutex<TestWebhookActorState>>;
+        type State = Arc<Mutex<TestWebhookActorState>>;
+
+        async fn pre_start(
+            &self,
+            _this_actor: ActorRef<Self::Msg>,
+            args: Self::Arguments,
+        ) -> Result<Self::State, ActorProcessingErr> {
+            Ok(args)
+        }
+
+        async fn handle(
+            &self,
+            _myself: ActorRef<Self::Msg>,
+            message: Self::Msg,
+            state: &mut Self::State,
+        ) -> Result<(), ActorProcessingErr> {
+            match message {
+                WebhookMessage::NewChannel(data) => {
+                    state.lock().await.new_channel_message.replace(data);
+                }
+                WebhookMessage::NewParticipant(data) => {
+                    state.lock().await.new_participant_message.replace(data);
+                }
+                WebhookMessage::RemoveParticipant(data) => {
+                    state.lock().await.remove_participant_message.replace(data);
+                }
+                _ => {}
+            }
+
+            Ok(())
+        }
+    }
+
+    #[tokio::test]
+    async fn it_creates_new_channel() {
+        let (webhook_processor, webhook_processor_handle) =
+            Actor::spawn(None, TestWebhookActor, Arc::default())
+                .await
+                .expect("Actor failed to start");
+
+        let channel_registry = ChannelRegistry::new(Some(webhook_processor.clone()));
+
+        {
+            let _ = channel_registry.get_or_create_channel("Test".into()).await;
+
+            assert!(channel_registry.channels.lock().await.contains_key("Test"));
+        }
+
+        // Give time for the drop handler to process before we close the processor to stop a panic inside of the channel registry callback for channel close
+        tokio::time::sleep(Duration::from_nanos(1)).await;
+        webhook_processor.drain().unwrap();
+        webhook_processor_handle.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn it_uses_existing_channel_if_exists() {
+        let (webhook_processor, webhook_processor_handle) =
+            Actor::spawn(None, TestWebhookActor, Arc::default())
+                .await
+                .expect("Actor failed to start");
+
+        let channel_registry = ChannelRegistry::new(Some(webhook_processor.clone()));
+
+        {
+            let _ = channel_registry.get_or_create_channel("Test".into()).await;
+
+            assert!(channel_registry.channels.lock().await.contains_key("Test"));
+
+            let _ = channel_registry.get_or_create_channel("Test".into()).await;
+
+            assert_eq!(channel_registry.channels.lock().await.len(), 1);
+        }
+
+        // Give time for the drop handler to process before we close the processor to stop a panic inside of the channel registry callback for channel close
+        tokio::time::sleep(Duration::from_nanos(1)).await;
+        webhook_processor.drain().unwrap();
+        webhook_processor_handle.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn it_creates_new_channel_if_old_was_dropped() {
+        let (webhook_processor, webhook_processor_handle) =
+            Actor::spawn(None, TestWebhookActor, Arc::default())
+                .await
+                .expect("Actor failed to start");
+
+        let channel_registry = ChannelRegistry::new(Some(webhook_processor.clone()));
+
+        {
+            let _ = channel_registry.get_or_create_channel("Test".into()).await;
+
+            assert!(channel_registry.channels.lock().await.contains_key("Test"));
+            assert_eq!(channel_registry.channels.lock().await.len(), 1);
+        }
+
+        assert!(channel_registry.channels.lock().await.contains_key("Test"));
+
+        {
+            let _ = channel_registry.get_or_create_channel("Test".into()).await;
+
+            assert!(channel_registry.channels.lock().await.contains_key("Test"));
+            assert_eq!(channel_registry.channels.lock().await.len(), 1);
+        }
+
+        // Give time for the drop handler to process before we close the processor to stop a panic inside of the channel registry callback for channel close
+        tokio::time::sleep(Duration::from_nanos(1)).await;
+        webhook_processor.drain().unwrap();
+        webhook_processor_handle.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn it_sets_callbacks_for_participant_added() {
+        let webhook_processor_state: Arc<Mutex<TestWebhookActorState>> = Arc::default();
+        let (webhook_processor, webhook_processor_handle) =
+            Actor::spawn(None, TestWebhookActor, webhook_processor_state.clone())
+                .await
+                .expect("Actor failed to start");
+
+        let channel_registry = ChannelRegistry::new(Some(webhook_processor.clone()));
+
+        {
+            let channel = channel_registry.get_or_create_channel("Test".into()).await;
+
+            assert!(channel_registry.channels.lock().await.contains_key("Test"));
+
+            let (participant, _reciever) = create_participant("participant");
+
+            channel.add_participant(participant.id.clone(), participant.downgrade());
+
+            // Let the webhook processor do its thing
+            tokio::time::sleep(Duration::from_nanos(1)).await;
+
+            let webhook_processor_state = webhook_processor_state.lock().await;
+
+            assert!(webhook_processor_state.new_participant_message.is_some());
+
+            assert_eq!(
+                webhook_processor_state
+                    .new_participant_message
+                    .clone()
+                    .unwrap()
+                    .channel_id,
+                "Test"
+            );
+
+            assert_eq!(
+                webhook_processor_state
+                    .new_participant_message
+                    .clone()
+                    .unwrap()
+                    .participant_id,
+                "participant"
+            );
+        }
+
+        // Give time for the drop handler to process before we close the processor to stop a panic inside of the channel registry callback for channel close
+        tokio::time::sleep(Duration::from_nanos(1)).await;
+        webhook_processor.drain().unwrap();
+        webhook_processor_handle.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn it_sets_callbacks_for_participant_removed() {
+        let webhook_processor_state: Arc<Mutex<TestWebhookActorState>> = Arc::default();
+        let (webhook_processor, webhook_processor_handle) =
+            Actor::spawn(None, TestWebhookActor, webhook_processor_state.clone())
+                .await
+                .expect("Actor failed to start");
+
+        let channel_registry = ChannelRegistry::new(Some(webhook_processor.clone()));
+
+        {
+            let channel = channel_registry.get_or_create_channel("Test".into()).await;
+
+            assert!(channel_registry.channels.lock().await.contains_key("Test"));
+
+            let (participant, _reciever) = create_participant("participant");
+
+            channel.add_participant(participant.id.clone(), participant.downgrade());
+            channel.remove_participant(&participant.id);
+
+            // Let the webhook processor do its thing
+            tokio::time::sleep(Duration::from_nanos(1)).await;
+
+            let webhook_processor_state = webhook_processor_state.lock().await;
+
+            assert!(webhook_processor_state.remove_participant_message.is_some());
+
+            assert_eq!(
+                webhook_processor_state
+                    .remove_participant_message
+                    .clone()
+                    .unwrap()
+                    .channel_id,
+                "Test"
+            );
+
+            assert_eq!(
+                webhook_processor_state
+                    .remove_participant_message
+                    .clone()
+                    .unwrap()
+                    .participant_id,
+                "participant"
+            );
+        }
+
+        // Give time for the drop handler to process before we close the processor to stop a panic inside of the channel registry callback for channel close
+        tokio::time::sleep(Duration::from_nanos(1)).await;
+        webhook_processor.drain().unwrap();
+        webhook_processor_handle.await.unwrap();
     }
 }
