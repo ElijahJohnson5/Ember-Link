@@ -68,7 +68,7 @@ export class ManagedOthers<P extends Record<string, unknown> = DefaultPresence> 
       if (clientMeta === undefined && state !== null) {
         this.emitter.emit('join', { ...state, clientId: clientId });
       } else if (clientMeta !== undefined && state === null) {
-        this.emitter.emit('leave', { ...state, clientId: clientId });
+        this.emitter.emit('leave', { clientId: clientId });
       } else if (state !== null) {
         this.emitter.emit('update', { ...state, clientId: clientId });
       }

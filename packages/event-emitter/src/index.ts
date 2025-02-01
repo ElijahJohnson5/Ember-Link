@@ -15,7 +15,7 @@ export type Observable<T extends { [event in string | symbol]: Listener }> = {
 export type Emitter<T extends { [event in string | symbol]: Listener }> = Observable<T> & {
   emit(event: keyof T, ...args: Parameters<T[keyof T]>): boolean;
 
-  count(): number;
+  count(event: keyof T): number;
   observable: Observable<T>;
 };
 
@@ -38,7 +38,7 @@ export const createEventEmitter = <
 
   function subscribeOnce(event: keyof T, callback: T[keyof T]) {
     function wrap<T extends Function>(fn: T): T {
-      return <any>function (...args) {
+      return <any>function (...args: any) {
         unsub();
         return fn(...args);
       };
@@ -81,7 +81,7 @@ export const createBufferedEventEmitter = <
 >(): BufferedEmitter<T> => {
   const eventEmitter = createEventEmitter<T>();
 
-  const buffer: Record<keyof T, Parameters<T[keyof T]>[]> = {} as Record<
+  const buffer: Record<keyof T, Parameters<T[keyof T]>[] | null> = {} as Record<
     keyof T,
     Parameters<T[keyof T]>[] | null
   >;

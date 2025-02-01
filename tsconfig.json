@@ -7,15 +7,14 @@
     "incremental": true,
     "noEmitOnError": true,
     "skipLibCheck": true,
+    "strict": true,
     "module": "esnext",
     "target": "esnext",
     "moduleResolution": "bundler",
     "moduleDetection": "force",
     "allowImportingTsExtensions": true
   },
-  "exclude": [
-    "node_modules"
-  ],
+  "exclude": ["node_modules"],
   "references": [
     {
       "path": "packages/core"

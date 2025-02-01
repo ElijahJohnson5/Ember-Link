@@ -6,6 +6,7 @@ import $ from 'oby';
 import { ManagedOthers, OtherEvents } from './others';
 import { IStorage, IStorageProvider } from '@ember-link/storage';
 import { DefaultPresence } from './index';
+import { AuthValue } from './auth';
 
 export interface ChannelConfig<
   S extends IStorageProvider,
@@ -13,7 +14,7 @@ export interface ChannelConfig<
 > {
   channelName: string;
   baseUrl: string;
-  authenticate: () => Promise<Record<string, unknown>>;
+  authenticate: () => Promise<AuthValue>;
   options?: {
     initialPresence?: P;
 
@@ -44,7 +45,7 @@ export function createChannel<
   options,
   ...config
 }: ChannelConfig<S, P>): {
-  channel: Channel;
+  channel: Channel<P>;
   leave: () => void;
 } {
   // Set all query params server is expecting
@@ -85,7 +86,7 @@ export function createChannel<
           managedOthers.setOther(presence.id, presence.clock, presence.data);
         }
       } else if (message.type === 'storageUpdate') {
-        storage.applyUpdate(Uint8Array.from(message.update));
+        storage?.applyUpdate(Uint8Array.from(message.update));
       }
     }
   });

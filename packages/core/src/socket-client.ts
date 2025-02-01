@@ -13,7 +13,7 @@ import {
 import { createBufferedEventEmitter, Observable } from '@ember-link/event-emitter';
 import { ClientMessage } from '@ember-link/protocol';
 import { DefaultPresence } from '.';
-import { AuthFailedError } from './auth';
+import { AuthFailedError, AuthValue } from './auth';
 
 const calcBackoff = (attempt: number, randSeed: number, maxVal = 30000): number => {
   if (attempt === 0) {
@@ -58,7 +58,7 @@ type Events =
   | { type: 'webSocketCreated'; value: WebSocket }
   | { type: 'message'; value: string | ArrayBufferLike | Blob | ArrayBufferView };
 
-function createWebSocketStateMachine(authenticate: () => Promise<Record<string, unknown>>) {
+function createWebSocketStateMachine(authenticate: () => Promise<AuthValue>) {
   const eventEmitter = createBufferedEventEmitter<MessageEventMap>();
   eventEmitter.pause('message');
 
@@ -153,6 +153,12 @@ function createWebSocketStateMachine(authenticate: () => Promise<Record<string, 
         }
       },
       Failed: {
+        entry: [
+          assign({
+            reconnectAttempt: 0,
+            successCount: 0
+          })
+        ],
         on: {
           connect: [
             {
@@ -232,7 +238,7 @@ function createWebSocketStateMachine(authenticate: () => Promise<Record<string, 
           spawnChild('websocketCallback', {
             id: 'websocket-callback',
             input: ({ context }) => ({
-              websocket: new WebSocket(context.url)
+              websocket: new WebSocket(context.url!)
             })
           })
         ],
@@ -259,7 +265,13 @@ function createWebSocketStateMachine(authenticate: () => Promise<Record<string, 
         entry: [
           assign({
             reconnectAttempt: 0,
-            successCount: ({ context }) => context.successCount + 1
+            successCount: ({ context, event }) => {
+              if (event.type !== 'pong') {
+                return context.successCount + 1;
+              }
+
+              return context.successCount;
+            }
           }),
           () => {
             eventEmitter.resume('message');
@@ -407,7 +419,7 @@ function createWebSocketStateMachine(authenticate: () => Promise<Record<string, 
 }
 
 export interface SocketOptions {
-  authenticate: () => Promise<Record<string, unknown>>;
+  authenticate: () => Promise<AuthValue>;
 }
 
 export class ManagedSocket<P extends Record<string, unknown> = DefaultPresence> {

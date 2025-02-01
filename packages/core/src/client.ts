@@ -23,18 +23,19 @@ let unsub = channel.events.subscribe("presence", (presenceData) => {
 
 interface CreateClientOptions {
   baseUrl: string;
-  authEndpoint: AuthEndpoint;
+  authEndpoint?: AuthEndpoint;
 }
 
 export function createClient<P extends Record<string, unknown> = DefaultPresence>({
   baseUrl,
   authEndpoint
 }: CreateClientOptions) {
-  const channels = new Map<string, { channel: Channel; leave: () => void }>();
+  const channels = new Map<string, { channel: Channel<P>; leave: () => void }>();
   const auth = createAuth({
     authEndpoint,
-    onAuthenticated: () => {
+    onAuthenticated: (value) => {
       // TODO: Set user
+      console.log(value);
     }
   });
 
@@ -50,7 +51,7 @@ export function createClient<P extends Record<string, unknown> = DefaultPresence
       channelName,
       baseUrl,
       authenticate: async () => {
-        return auth.requestAuth(channelName);
+        return auth.getAuthValue(channelName);
       },
       options
     });
