@@ -1,8 +1,10 @@
 import {
+  and,
   assign,
   createActor,
   EventObject,
   fromCallback,
+  fromPromise,
   setup,
   spawnChild,
   StateFrom,
@@ -11,6 +13,7 @@ import {
 import { createBufferedEventEmitter, Observable } from '@ember-link/event-emitter';
 import { ClientMessage } from '@ember-link/protocol';
 import { DefaultPresence } from '.';
+import { AuthFailedError } from './auth';
 
 const calcBackoff = (attempt: number, randSeed: number, maxVal = 30000): number => {
   if (attempt === 0) {
@@ -19,14 +22,22 @@ const calcBackoff = (attempt: number, randSeed: number, maxVal = 30000): number 
   return Math.min(maxVal, attempt ** 2 * 1000) + 2000 * randSeed;
 };
 
-export type Status = 'initial' | 'connected' | 'reconnecting' | 'connecting' | 'closed';
+export type Status =
+  | 'initial'
+  | 'connected'
+  | 'reconnecting'
+  | 'connecting'
+  | 'closed'
+  | 'disconnected';
 
 interface Context {
   url?: string;
   ws?: WebSocket;
   reconnectAttempt: number;
+  authAttempt: number;
   successCount: number;
   randSeed: number;
+  authValue: unknown;
 }
 
 type MessageEventMap = {
@@ -47,7 +58,7 @@ type Events =
   | { type: 'webSocketCreated'; value: WebSocket }
   | { type: 'message'; value: string | ArrayBufferLike | Blob | ArrayBufferView };
 
-function createWebSocketStateMachine() {
+function createWebSocketStateMachine(authenticate: () => Promise<Record<string, unknown>>) {
   const eventEmitter = createBufferedEventEmitter<MessageEventMap>();
   eventEmitter.pause('message');
 
@@ -57,6 +68,11 @@ function createWebSocketStateMachine() {
       events: {} as Events
     },
     actors: {
+      authenticate: fromPromise(async () => {
+        const data = await authenticate();
+
+        return data;
+      }),
       websocketCallback: fromCallback<EventObject, { websocket: WebSocket }>(
         ({ sendBack, input }) => {
           input.websocket.binaryType = 'arraybuffer';
@@ -109,6 +125,10 @@ function createWebSocketStateMachine() {
       reconnectTimeout: ({ context }) => {
         const backoff = calcBackoff(context.reconnectAttempt, context.randSeed);
         return backoff;
+      },
+      authTimeout: ({ context }) => {
+        const backoff = calcBackoff(context.authAttempt, context.randSeed);
+        return backoff;
       }
     }
   }).createMachine({
@@ -124,11 +144,84 @@ function createWebSocketStateMachine() {
       Initial: {
         on: {
           connect: {
-            target: 'CreateWebSocket',
+            target: 'Auth',
             guard: ({ event }) => Boolean(event.value),
             actions: assign({
               url: ({ event }) => event.value
             })
+          }
+        }
+      },
+      Failed: {
+        on: {
+          connect: [
+            {
+              target: 'Auth',
+              guard: and([
+                ({ event }) => Boolean(event.value),
+                ({ context }) => Boolean(!context.authValue)
+              ]),
+              actions: assign({
+                url: ({ event }) => event.value
+              })
+            },
+            {
+              target: 'CreateWebSocket',
+              guard: and([
+                ({ event }) => Boolean(event.value),
+                ({ context }) => Boolean(context.authValue)
+              ]),
+              actions: assign({
+                url: ({ event }) => event.value
+              })
+            }
+          ]
+        }
+      },
+      Auth: {
+        invoke: {
+          id: 'authenticate',
+          src: 'authenticate',
+          onDone: {
+            target: 'CreateWebSocket',
+            actions: assign({ authValue: ({ event }) => event.output })
+          },
+          onError: [
+            {
+              guard: ({ event }) => {
+                if (event.error instanceof AuthFailedError) {
+                  return true;
+                }
+
+                return false;
+              },
+              target: 'Failed'
+            },
+            {
+              guard: ({ event }) => {
+                if (event.error instanceof AuthFailedError) {
+                  return false;
+                }
+
+                return true;
+              },
+              target: 'AuthBackoff'
+            }
+          ]
+        },
+        after: {
+          10000: {
+            target: 'AuthBackoff'
+          }
+        }
+      },
+      AuthBackoff: {
+        entry: assign({
+          authAttempt: ({ context }) => context.authAttempt + 1
+        }),
+        after: {
+          authTimeout: {
+            target: 'Auth'
           }
         }
       },
@@ -154,6 +247,7 @@ function createWebSocketStateMachine() {
           open: {
             target: 'Open'
           },
+          // TODO: Handle different errors
           error: { target: 'Reconnecting' },
           close: {
             target: 'Reconnecting',
@@ -254,8 +348,10 @@ function createWebSocketStateMachine() {
 
     context: {
       reconnectAttempt: 0,
+      authAttempt: 0,
       successCount: 0,
-      randSeed: Math.random()
+      randSeed: Math.random(),
+      authValue: null
     }
   });
 
@@ -264,11 +360,19 @@ function createWebSocketStateMachine() {
       case 'Open':
       case 'OpenWaitingPong':
         return 'connected';
+
       case 'Initial':
         return 'initial';
+
       case 'CreateWebSocket':
       case 'Reconnecting':
+      case 'Auth':
+      case 'AuthBackoff':
         return successCount > 0 ? 'reconnecting' : 'connecting';
+
+      case 'Failed':
+        return 'disconnected';
+
       case 'Destroyed':
         return 'closed';
     }
@@ -302,15 +406,19 @@ function createWebSocketStateMachine() {
   };
 }
 
+export interface SocketOptions {
+  authenticate: () => Promise<Record<string, unknown>>;
+}
+
 export class ManagedSocket<P extends Record<string, unknown> = DefaultPresence> {
   private url: string;
   private machine: ReturnType<typeof createWebSocketStateMachine>['machine'];
 
   public readonly events: Observable<MessageEventMap>;
 
-  constructor(url: string) {
+  constructor(url: string, options: SocketOptions) {
     this.url = url;
-    const { machine, events } = createWebSocketStateMachine();
+    const { machine, events } = createWebSocketStateMachine(options.authenticate);
 
     this.machine = machine;
     this.machine.start();

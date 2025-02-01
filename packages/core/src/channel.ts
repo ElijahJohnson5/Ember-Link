@@ -1,11 +1,11 @@
 import { createEventEmitter, Observable } from '@ember-link/event-emitter';
-import { ManagedPresence } from './presence.js';
-import { ManagedSocket } from './socket-client.js';
+import { ManagedPresence } from './presence';
+import { ManagedSocket } from './socket-client';
 import { ServerMessage } from '@ember-link/protocol';
 import $ from 'oby';
-import { ManagedOthers, OtherEvents } from './others.js';
+import { ManagedOthers, OtherEvents } from './others';
 import { IStorage, IStorageProvider } from '@ember-link/storage';
-import { DefaultPresence } from './index.js';
+import { DefaultPresence } from './index';
 
 export interface ChannelConfig<
   S extends IStorageProvider,
@@ -13,6 +13,7 @@ export interface ChannelConfig<
 > {
   channelName: string;
   baseUrl: string;
+  authenticate: () => Promise<Record<string, unknown>>;
   options?: {
     initialPresence?: P;
 
@@ -40,6 +41,7 @@ export function createChannel<
   S extends IStorageProvider,
   P extends Record<string, unknown> = DefaultPresence
 >({
+  options,
   ...config
 }: ChannelConfig<S, P>): {
   channel: Channel;
@@ -50,14 +52,14 @@ export function createChannel<
 
   url.searchParams.set('channel_name', config.channelName);
 
-  const managedSocket = new ManagedSocket(url.toString());
+  const managedSocket = new ManagedSocket(url.toString(), { authenticate: config.authenticate });
 
   const otherEventEmitter = createEventEmitter<OtherEvents>();
   const managedOthers = new ManagedOthers(otherEventEmitter);
   const participantId = $<string | null>(null);
 
   const eventEmitter = createEventEmitter<ChannelEvents>();
-  const presence = new ManagedPresence(config.options?.initialPresence);
+  const presence = new ManagedPresence(options?.initialPresence);
 
   $.effect(() => {
     eventEmitter.emit('presence', presence.state());
@@ -97,7 +99,7 @@ export function createChannel<
     managedSocket.message(presence.getPresenceMessage());
   });
 
-  const storage = config.options?.storageProvider?.getStorage();
+  const storage = options?.storageProvider?.getStorage();
 
   if (storage) {
     storage.events.subscribe('update', (event) => {

@@ -1,8 +1,9 @@
 // What the api should look like
 
 import { IStorageProvider } from '@ember-link/storage';
-import { Channel, ChannelConfig, createChannel } from './channel.js';
-import { DefaultPresence } from './index.js';
+import { Channel, ChannelConfig, createChannel } from './channel';
+import { DefaultPresence } from './index';
+import { AuthEndpoint, createAuth } from './auth';
 
 /*
 
@@ -22,13 +23,20 @@ let unsub = channel.events.subscribe("presence", (presenceData) => {
 
 interface CreateClientOptions {
   baseUrl: string;
-  apiKey?: string;
+  authEndpoint: AuthEndpoint;
 }
 
 export function createClient<P extends Record<string, unknown> = DefaultPresence>({
-  baseUrl
+  baseUrl,
+  authEndpoint
 }: CreateClientOptions) {
   const channels = new Map<string, { channel: Channel; leave: () => void }>();
+  const auth = createAuth({
+    authEndpoint,
+    onAuthenticated: () => {
+      // TODO: Set user
+    }
+  });
 
   function joinChannel<S extends IStorageProvider>(
     channelName: string,
@@ -41,6 +49,9 @@ export function createClient<P extends Record<string, unknown> = DefaultPresence
     const { channel, leave } = createChannel<S, P>({
       channelName,
       baseUrl,
+      authenticate: async () => {
+        return auth.requestAuth(channelName);
+      },
       options
     });
 

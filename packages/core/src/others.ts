@@ -1,10 +1,10 @@
 import { ObservableReadonly } from 'oby';
-import { MetaClientState, outdatedTimeout } from './presence.js';
-import { ReactiveMap } from './reactive-map.js';
+import { MetaClientState, outdatedTimeout } from './presence';
+import { ReactiveMap } from './reactive-map';
 import $ from 'oby';
 import { Emitter } from '@ember-link/event-emitter';
-import { DefaultPresence } from './index.js';
-import { User } from './user.js';
+import { DefaultPresence } from './index';
+import { User } from './user';
 
 export type OtherEvents<P extends Record<string, unknown> = DefaultPresence> = {
   leave: (user: User<P>) => void;
