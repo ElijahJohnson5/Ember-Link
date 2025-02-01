@@ -15,6 +15,7 @@ export interface ChannelConfig<
   channelName: string;
   baseUrl: string;
   authenticate: () => Promise<AuthValue>;
+  createWebSocket: (authValue: AuthValue) => WebSocket;
   options?: {
     initialPresence?: P;
 
@@ -48,12 +49,7 @@ export function createChannel<
   channel: Channel<P>;
   leave: () => void;
 } {
-  // Set all query params server is expecting
-  const url = new URL(config.baseUrl);
-
-  url.searchParams.set('channel_name', config.channelName);
-
-  const managedSocket = new ManagedSocket(url.toString(), { authenticate: config.authenticate });
+  const managedSocket = new ManagedSocket({ ...config });
 
   const otherEventEmitter = createEventEmitter<OtherEvents>();
   const managedOthers = new ManagedOthers(otherEventEmitter);

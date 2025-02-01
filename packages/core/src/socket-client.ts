@@ -14,6 +14,7 @@ import { createBufferedEventEmitter, Observable } from '@ember-link/event-emitte
 import { ClientMessage } from '@ember-link/protocol';
 import { DefaultPresence } from '.';
 import { AuthFailedError, AuthValue } from './auth';
+import { WebSocketNotFoundError } from './client';
 
 const calcBackoff = (attempt: number, randSeed: number, maxVal = 30000): number => {
   if (attempt === 0) {
@@ -31,13 +32,12 @@ export type Status =
   | 'disconnected';
 
 interface Context {
-  url?: string;
   ws?: WebSocket;
   reconnectAttempt: number;
   authAttempt: number;
   successCount: number;
   randSeed: number;
-  authValue: unknown;
+  authValue: AuthValue | null;
 }
 
 type MessageEventMap = {
@@ -47,18 +47,23 @@ type MessageEventMap = {
   statusChange: (status: Status) => void;
 };
 
+interface WebSocketCallbackInput {
+  createWebSocket: SocketOptions['createWebSocket'];
+  authValue: AuthValue;
+}
+
 type Events =
-  | { type: 'connect'; value: string }
+  | { type: 'connect' }
   | { type: 'open' }
   | { type: 'pong' }
   | { type: 'disconnect' }
   | { type: 'destroy' }
   | { type: 'close'; value: CloseEvent }
-  | { type: 'error'; value: Event }
+  | { type: 'error'; value: Event | Error }
   | { type: 'webSocketCreated'; value: WebSocket }
   | { type: 'message'; value: string | ArrayBufferLike | Blob | ArrayBufferView };
 
-function createWebSocketStateMachine(authenticate: () => Promise<AuthValue>) {
+function createWebSocketStateMachine({ authenticate, createWebSocket }: SocketOptions) {
   const eventEmitter = createBufferedEventEmitter<MessageEventMap>();
   eventEmitter.pause('message');
 
@@ -73,10 +78,19 @@ function createWebSocketStateMachine(authenticate: () => Promise<AuthValue>) {
 
         return data;
       }),
-      websocketCallback: fromCallback<EventObject, { websocket: WebSocket }>(
+      websocketCallback: fromCallback<EventObject, WebSocketCallbackInput>(
         ({ sendBack, input }) => {
-          input.websocket.binaryType = 'arraybuffer';
-          sendBack({ type: 'webSocketCreated', value: input.websocket });
+          let websocket: WebSocket;
+
+          try {
+            websocket = input.createWebSocket(input.authValue);
+          } catch (e) {
+            sendBack({ type: 'error', value: e });
+            return;
+          }
+
+          websocket.binaryType = 'arraybuffer';
+          sendBack({ type: 'webSocketCreated', value: websocket });
 
           const openHandler = () => {
             sendBack({ type: 'open' });
@@ -98,16 +112,16 @@ function createWebSocketStateMachine(authenticate: () => Promise<AuthValue>) {
             eventEmitter.emit('message', e);
           };
 
-          input.websocket.addEventListener('open', openHandler);
-          input.websocket.addEventListener('error', errorHandler);
-          input.websocket.addEventListener('close', closeHandler);
-          input.websocket.addEventListener('message', messageHandler);
+          websocket.addEventListener('open', openHandler);
+          websocket.addEventListener('error', errorHandler);
+          websocket.addEventListener('close', closeHandler);
+          websocket.addEventListener('message', messageHandler);
 
           return () => {
-            input.websocket.removeEventListener('open', openHandler);
-            input.websocket.removeEventListener('error', errorHandler);
-            input.websocket.removeEventListener('close', closeHandler);
-            input.websocket.removeEventListener('message', messageHandler);
+            websocket.removeEventListener('open', openHandler);
+            websocket.removeEventListener('error', errorHandler);
+            websocket.removeEventListener('close', closeHandler);
+            websocket.removeEventListener('message', messageHandler);
           };
         }
       )
@@ -144,11 +158,7 @@ function createWebSocketStateMachine(authenticate: () => Promise<AuthValue>) {
       Initial: {
         on: {
           connect: {
-            target: 'Auth',
-            guard: ({ event }) => Boolean(event.value),
-            actions: assign({
-              url: ({ event }) => event.value
-            })
+            target: 'Auth'
           }
         }
       },
@@ -163,23 +173,10 @@ function createWebSocketStateMachine(authenticate: () => Promise<AuthValue>) {
           connect: [
             {
               target: 'Auth',
-              guard: and([
-                ({ event }) => Boolean(event.value),
-                ({ context }) => Boolean(!context.authValue)
-              ]),
-              actions: assign({
-                url: ({ event }) => event.value
-              })
+              guard: and([({ context }) => Boolean(!context.authValue)])
             },
             {
-              target: 'CreateWebSocket',
-              guard: and([
-                ({ event }) => Boolean(event.value),
-                ({ context }) => Boolean(context.authValue)
-              ]),
-              actions: assign({
-                url: ({ event }) => event.value
-              })
+              target: 'CreateWebSocket'
             }
           ]
         }
@@ -193,24 +190,18 @@ function createWebSocketStateMachine(authenticate: () => Promise<AuthValue>) {
             actions: assign({ authValue: ({ event }) => event.output })
           },
           onError: [
+            // ORDER MATTERS
             {
+              target: 'Failed',
               guard: ({ event }) => {
                 if (event.error instanceof AuthFailedError) {
                   return true;
                 }
 
                 return false;
-              },
-              target: 'Failed'
+              }
             },
             {
-              guard: ({ event }) => {
-                if (event.error instanceof AuthFailedError) {
-                  return false;
-                }
-
-                return true;
-              },
               target: 'AuthBackoff'
             }
           ]
@@ -238,7 +229,8 @@ function createWebSocketStateMachine(authenticate: () => Promise<AuthValue>) {
           spawnChild('websocketCallback', {
             id: 'websocket-callback',
             input: ({ context }) => ({
-              websocket: new WebSocket(context.url!)
+              createWebSocket,
+              authValue: context.authValue!
             })
           })
         ],
@@ -253,8 +245,21 @@ function createWebSocketStateMachine(authenticate: () => Promise<AuthValue>) {
           open: {
             target: 'Open'
           },
-          // TODO: Handle different errors
-          error: { target: 'Reconnecting' },
+          error: [
+            {
+              target: 'Reconnecting',
+              guard: ({ event }) => {
+                if (event.value instanceof WebSocketNotFoundError) {
+                  return false;
+                }
+
+                return true;
+              }
+            },
+            {
+              target: 'Failed'
+            }
+          ],
           close: {
             target: 'Reconnecting',
             guard: 'reconnectGuard'
@@ -420,17 +425,16 @@ function createWebSocketStateMachine(authenticate: () => Promise<AuthValue>) {
 
 export interface SocketOptions {
   authenticate: () => Promise<AuthValue>;
+  createWebSocket: (authValue: AuthValue) => WebSocket;
 }
 
 export class ManagedSocket<P extends Record<string, unknown> = DefaultPresence> {
-  private url: string;
   private machine: ReturnType<typeof createWebSocketStateMachine>['machine'];
 
   public readonly events: Observable<MessageEventMap>;
 
-  constructor(url: string, options: SocketOptions) {
-    this.url = url;
-    const { machine, events } = createWebSocketStateMachine(options.authenticate);
+  constructor(options: SocketOptions) {
+    const { machine, events } = createWebSocketStateMachine(options);
 
     this.machine = machine;
     this.machine.start();
@@ -438,7 +442,7 @@ export class ManagedSocket<P extends Record<string, unknown> = DefaultPresence> 
   }
 
   connect() {
-    this.machine.send({ type: 'connect', value: this.url });
+    this.machine.send({ type: 'connect' });
   }
 
   message(data: ClientMessage<P>) {

@@ -1,4 +1,4 @@
-import { UnsecuredJWT, type UnsecuredResult, JWTPayload } from 'jose';
+import { UnsecuredJWT, type UnsecuredResult } from 'jose';
 
 interface AccessToken {
   iat: number;
@@ -6,7 +6,7 @@ interface AccessToken {
   uid: string;
 }
 
-export type AuthValue = { type: 'public' } | { type: 'private'; token: AccessToken & JWTPayload };
+export type AuthValue = { type: 'public' } | { type: 'private'; token: AuthToken };
 
 export interface NoAuthToken {
   type: 'NoAuth';
@@ -116,7 +116,7 @@ export function createAuth(options: AuthOptions) {
       // TODO: refactor to not unsecured jwts
       const parsed = UnsecuredJWT.decode<AccessToken>(data.token);
       const authToken: AuthToken = { raw: data.token, parsed, type: 'AuthToken' };
-      options.onAuthenticated?.({ type: 'private', token: parsed.payload });
+      options.onAuthenticated?.({ type: 'private', token: authToken });
       return authToken;
     } else if (auth.type === 'callback') {
       let response: Awaited<ReturnType<AuthCallback>>;
@@ -149,8 +149,9 @@ export function createAuth(options: AuthOptions) {
 
       // TODO: refactor to not unsecured jwts
       const parsed = UnsecuredJWT.decode<AccessToken>(response.token);
-      options.onAuthenticated?.({ type: 'private', token: parsed.payload });
-      return { raw: response.token, parsed, type: 'AuthToken' };
+      const authToken: AuthToken = { raw: response.token, parsed, type: 'AuthToken' };
+      options.onAuthenticated?.({ type: 'private', token: authToken });
+      return authToken;
     } else {
       options.onAuthenticated?.({ type: 'public' });
       return { type: 'NoAuth' };
@@ -166,7 +167,7 @@ export function createAuth(options: AuthOptions) {
 
     const cachedToken = getCachedToken(channelName);
     if (cachedToken !== undefined) {
-      return { type: 'private', token: cachedToken.parsed.payload };
+      return { type: 'private', token: cachedToken };
     }
 
     let promise = requestPromises.get(channelName);
@@ -191,7 +192,7 @@ export function createAuth(options: AuthOptions) {
 
       cachedTokens.push({ token: authValue, expiresAt });
 
-      return { type: 'private', token: authValue.parsed.payload };
+      return { type: 'private', token: authValue };
     } finally {
       requestPromises.delete(channelName);
     }

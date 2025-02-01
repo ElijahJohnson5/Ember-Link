@@ -14,3 +14,4 @@ export type DefaultPresence = GetOverride<'Presence'>;
 
 export { createClient } from './client';
 export { User } from './user';
+export { Channel } from './channel';

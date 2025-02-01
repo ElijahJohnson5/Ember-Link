@@ -21,6 +21,12 @@ let unsub = channel.events.subscribe("presence", (presenceData) => {
 
 */
 
+export class WebSocketNotFoundError extends Error {
+  constructor(reason: string) {
+    super(reason);
+  }
+}
+
 interface CreateClientOptions {
   baseUrl: string;
   authEndpoint?: AuthEndpoint;
@@ -52,6 +58,25 @@ export function createClient<P extends Record<string, unknown> = DefaultPresence
       baseUrl,
       authenticate: async () => {
         return auth.getAuthValue(channelName);
+      },
+      createWebSocket: (authValue) => {
+        const ws = typeof WebSocket === 'undefined' ? undefined : WebSocket;
+
+        if (!ws) {
+          throw new WebSocketNotFoundError(
+            'Could not find websocket to be able to create one, polyfills will be allowed soon'
+          );
+        }
+
+        const url = new URL(baseUrl);
+
+        url.searchParams.set('channel_name', channelName);
+
+        if (authValue.type === 'private') {
+          url.searchParams.set('token', authValue.token.raw);
+        }
+
+        return new ws(url.toString());
       },
       options
     });

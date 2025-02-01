@@ -1,0 +1,29 @@
+language: 'typescript'
+type: 'application'
+
+tasks:
+  dev:
+    command: 'yarn dev'
+    local: true
+    deps:
+      - 'core:build'
+  build:
+    command: 'yarn build'
+    deps:
+      - 'core:build'
+
+toolchain:
+  typescript:
+    # Update a project's `tsconfig.json` to route the `outDir` compiler option
+    # to moon's `.moon/cache` directory.
+    routeOutDirToCache: false
+
+    # Sync a project's `dependsOn` as project references within the
+    # project's `tsconfig.json` and the workspace root `tsconfig.json`.
+    syncProjectReferences: false
+
+    # Sync a project's project references as import aliases to the `paths`
+    # compiler option in each applicable project.
+    syncProjectReferencesToPaths: false
+
+    includeProjectReferenceSources: false
