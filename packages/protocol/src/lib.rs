@@ -52,3 +52,10 @@ pub struct RemoveParticipant {
     pub channel_id: String,
     pub participant_id: String,
 }
+
+#[derive(Clone, Copy, Deserialize, Debug, Serialize)]
+pub enum WebSocketCloseCode {
+    TokenNotFound = 3000,
+    InvalidToken = 3001,
+    InvalidSignerKey = 3002,
+}

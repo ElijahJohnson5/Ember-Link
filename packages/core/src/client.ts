@@ -30,15 +30,18 @@ export class WebSocketNotFoundError extends Error {
 interface CreateClientOptions {
   baseUrl: string;
   authEndpoint?: AuthEndpoint;
+  jwtSignerPublicKey?: string;
 }
 
 export function createClient<P extends Record<string, unknown> = DefaultPresence>({
   baseUrl,
-  authEndpoint
+  authEndpoint,
+  jwtSignerPublicKey
 }: CreateClientOptions) {
   const channels = new Map<string, { channel: Channel<P>; leave: () => void }>();
   const auth = createAuth({
     authEndpoint,
+    jwtSignerPublicKey,
     onAuthenticated: (value) => {
       // TODO: Set user
       console.log(value);

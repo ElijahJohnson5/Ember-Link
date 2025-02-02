@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { createClient, type Channel } from '@ember-link/core';
 	import { SvelteMap } from 'svelte/reactivity';
+	import { PUBLIC_JWT_SIGNER_KEY } from '$env/static/public';
 
 	const COLORS = ['#DC2626', '#D97706', '#059669', '#7C3AED', '#DB2777'];
 
@@ -11,7 +12,8 @@
 
 	const client = createClient({
 		baseUrl: 'http://localhost:9000',
-		authEndpoint: 'http://localhost:5173/api/auth'
+		authEndpoint: 'http://localhost:5173/api/auth',
+		jwtSignerPublicKey: PUBLIC_JWT_SIGNER_KEY
 	});
 
 	onMount(() => {

@@ -1,4 +1,4 @@
-import { UnsecuredJWT, type UnsecuredResult } from 'jose';
+import * as jose from 'jose';
 
 interface AccessToken {
   iat: number;
@@ -15,11 +15,12 @@ export interface NoAuthToken {
 export interface AuthToken {
   type: 'AuthToken';
   readonly raw: string;
-  readonly parsed: UnsecuredResult<AccessToken>;
+  readonly parsed: jose.JWTVerifyResult<AccessToken>;
 }
 
 interface AuthOptions {
   authEndpoint?: AuthEndpoint;
+  jwtSignerPublicKey?: string;
   onAuthenticated?: (token: AuthValue) => void;
 }
 
@@ -36,8 +37,8 @@ export class AuthFailedError extends Error {
 }
 
 type AuthType =
-  | { type: 'private'; url: string }
-  | { type: 'callback'; callback: AuthCallback }
+  | { type: 'private'; url: string; jwtSignerPublicKey: string }
+  | { type: 'callback'; callback: AuthCallback; jwtSignerPublicKey: string }
   | { type: 'none' };
 
 export function createAuth(options: AuthOptions) {
@@ -48,14 +49,28 @@ export function createAuth(options: AuthOptions) {
       type: 'none'
     };
   } else if (typeof options.authEndpoint === 'string') {
+    if (!options.jwtSignerPublicKey) {
+      throw new Error(
+        'Could not create auth, if authEndpoint is specified jwtSignerPublicKey is required'
+      );
+    }
+
     auth = {
       type: 'private',
-      url: options.authEndpoint
+      url: options.authEndpoint,
+      jwtSignerPublicKey: options.jwtSignerPublicKey
     };
   } else {
+    if (!options.jwtSignerPublicKey) {
+      throw new Error(
+        'Could not create auth, if authEndpoint is specified jwtSignerPublicKey is required'
+      );
+    }
+
     auth = {
       type: 'callback',
-      callback: options.authEndpoint
+      callback: options.authEndpoint,
+      jwtSignerPublicKey: options.jwtSignerPublicKey
     };
   }
 
@@ -114,7 +129,8 @@ export function createAuth(options: AuthOptions) {
       }
 
       // TODO: refactor to not unsecured jwts
-      const parsed = UnsecuredJWT.decode<AccessToken>(data.token);
+      const publicKey = await jose.importSPKI(auth.jwtSignerPublicKey, 'RS256');
+      const parsed = await jose.jwtVerify<AccessToken>(data.token, publicKey);
       const authToken: AuthToken = { raw: data.token, parsed, type: 'AuthToken' };
       options.onAuthenticated?.({ type: 'private', token: authToken });
       return authToken;
@@ -147,8 +163,8 @@ export function createAuth(options: AuthOptions) {
         }
       }
 
-      // TODO: refactor to not unsecured jwts
-      const parsed = UnsecuredJWT.decode<AccessToken>(response.token);
+      const publicKey = await jose.importSPKI(auth.jwtSignerPublicKey, 'RS256');
+      const parsed = await jose.jwtVerify<AccessToken>(response.token, publicKey);
       const authToken: AuthToken = { raw: response.token, parsed, type: 'AuthToken' };
       options.onAuthenticated?.({ type: 'private', token: authToken });
       return authToken;

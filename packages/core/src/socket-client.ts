@@ -5,13 +5,14 @@ import {
   EventObject,
   fromCallback,
   fromPromise,
+  log,
   setup,
   spawnChild,
   StateFrom,
   stopChild
 } from 'xstate';
 import { createBufferedEventEmitter, Observable } from '@ember-link/event-emitter';
-import { ClientMessage } from '@ember-link/protocol';
+import { ClientMessage, WebSocketCloseCode } from '@ember-link/protocol';
 import { DefaultPresence } from '.';
 import { AuthFailedError, AuthValue } from './auth';
 import { WebSocketNotFoundError } from './client';
@@ -22,6 +23,37 @@ const calcBackoff = (attempt: number, randSeed: number, maxVal = 30000): number 
   }
   return Math.min(maxVal, attempt ** 2 * 1000) + 2000 * randSeed;
 };
+
+export class ManagedSocket<P extends Record<string, unknown> = DefaultPresence> {
+  private machine: ReturnType<typeof createWebSocketStateMachine>['machine'];
+
+  public readonly events: Observable<MessageEventMap>;
+
+  constructor(options: SocketOptions) {
+    const { machine, events } = createWebSocketStateMachine(options);
+
+    this.machine = machine;
+    this.machine.start();
+    this.events = events;
+  }
+
+  connect() {
+    this.machine.send({ type: 'connect' });
+  }
+
+  message(data: ClientMessage<P>) {
+    this.machine.send({ type: 'message', value: JSON.stringify(data) });
+  }
+
+  disconnect() {
+    this.machine.send({ type: 'disconnect' });
+  }
+
+  destroy() {
+    this.machine.send({ type: 'destroy' });
+    this.machine.stop();
+  }
+}
 
 export type Status =
   | 'initial'
@@ -66,6 +98,19 @@ type Events =
 function createWebSocketStateMachine({ authenticate, createWebSocket }: SocketOptions) {
   const eventEmitter = createBufferedEventEmitter<MessageEventMap>();
   eventEmitter.pause('message');
+
+  const onCloseHandler = [
+    {
+      target: 'Reconnecting' as const,
+      actions: log<Context, Extract<Events, { type: 'close' }>, undefined, Events>(({ event }) => {
+        return `Event: ${event.value}`;
+      }),
+      guard: 'closeReconnectGuard' as const
+    },
+    {
+      target: 'Failed' as const
+    }
+  ];
 
   const machine = setup({
     types: {
@@ -130,6 +175,32 @@ function createWebSocketStateMachine({ authenticate, createWebSocket }: SocketOp
       reconnectGuard: ({ context }) => {
         if (context.ws?.readyState === 1) {
           return false;
+        }
+
+        return true;
+      },
+      closeReconnectGuard: ({ event }) => {
+        if (event.type !== 'close') {
+          return true;
+        }
+
+        switch (event.value.code) {
+          case 1000:
+          case 1001:
+          case 1011:
+          case 1013:
+          case 1012:
+            return true;
+
+          case 1015:
+            return false;
+
+          case WebSocketCloseCode.InvalidSignerKey:
+          case WebSocketCloseCode.TokenNotFound:
+            return false;
+          // Retry connecting on invalid token?
+          case WebSocketCloseCode.InvalidToken:
+            return true;
         }
 
         return true;
@@ -248,6 +319,9 @@ function createWebSocketStateMachine({ authenticate, createWebSocket }: SocketOp
           error: [
             {
               target: 'Reconnecting',
+              actions: log(({ event }) => {
+                return `Event: ${event}`;
+              }),
               guard: ({ event }) => {
                 if (event.value instanceof WebSocketNotFoundError) {
                   return false;
@@ -286,9 +360,12 @@ function createWebSocketStateMachine({ authenticate, createWebSocket }: SocketOp
           eventEmitter.pause('message');
         },
         on: {
-          close: { target: 'Reconnecting' },
+          close: onCloseHandler,
           error: {
             target: 'Reconnecting',
+            actions: log(({ event }) => {
+              return `Event: ${event.value}`;
+            }),
             guard: 'reconnectGuard'
           },
           message: {
@@ -331,6 +408,7 @@ function createWebSocketStateMachine({ authenticate, createWebSocket }: SocketOp
               target: 'Reconnecting'
             }
           },
+          close: onCloseHandler,
           message: {
             actions: ({ context, event }) => {
               context.ws?.send(event.value);
@@ -426,35 +504,4 @@ function createWebSocketStateMachine({ authenticate, createWebSocket }: SocketOp
 export interface SocketOptions {
   authenticate: () => Promise<AuthValue>;
   createWebSocket: (authValue: AuthValue) => WebSocket;
-}
-
-export class ManagedSocket<P extends Record<string, unknown> = DefaultPresence> {
-  private machine: ReturnType<typeof createWebSocketStateMachine>['machine'];
-
-  public readonly events: Observable<MessageEventMap>;
-
-  constructor(options: SocketOptions) {
-    const { machine, events } = createWebSocketStateMachine(options);
-
-    this.machine = machine;
-    this.machine.start();
-    this.events = events;
-  }
-
-  connect() {
-    this.machine.send({ type: 'connect' });
-  }
-
-  message(data: ClientMessage<P>) {
-    this.machine.send({ type: 'message', value: JSON.stringify(data) });
-  }
-
-  disconnect() {
-    this.machine.send({ type: 'disconnect' });
-  }
-
-  destroy() {
-    this.machine.send({ type: 'destroy' });
-    this.machine.stop();
-  }
 }
