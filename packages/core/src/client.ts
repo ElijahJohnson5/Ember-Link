@@ -1,8 +1,9 @@
 // What the api should look like
 
 import { IStorageProvider } from '@ember-link/storage';
-import { Channel, ChannelConfig, createChannel } from './channel.js';
-import { DefaultPresence } from './index.js';
+import { Channel, ChannelConfig, createChannel } from './channel';
+import { DefaultPresence } from './index';
+import { AuthEndpoint, createAuth } from './auth';
 
 /*
 
@@ -20,15 +21,32 @@ let unsub = channel.events.subscribe("presence", (presenceData) => {
 
 */
 
+export class WebSocketNotFoundError extends Error {
+  constructor(reason: string) {
+    super(reason);
+  }
+}
+
 interface CreateClientOptions {
   baseUrl: string;
-  apiKey?: string;
+  authEndpoint?: AuthEndpoint;
+  jwtSignerPublicKey?: string;
 }
 
 export function createClient<P extends Record<string, unknown> = DefaultPresence>({
-  baseUrl
+  baseUrl,
+  authEndpoint,
+  jwtSignerPublicKey
 }: CreateClientOptions) {
-  const channels = new Map<string, { channel: Channel; leave: () => void }>();
+  const channels = new Map<string, { channel: Channel<P>; leave: () => void }>();
+  const auth = createAuth({
+    authEndpoint,
+    jwtSignerPublicKey,
+    onAuthenticated: (value) => {
+      // TODO: Set user
+      console.log(value);
+    }
+  });
 
   function joinChannel<S extends IStorageProvider>(
     channelName: string,
@@ -41,6 +59,28 @@ export function createClient<P extends Record<string, unknown> = DefaultPresence
     const { channel, leave } = createChannel<S, P>({
       channelName,
       baseUrl,
+      authenticate: async () => {
+        return auth.getAuthValue(channelName);
+      },
+      createWebSocket: (authValue) => {
+        const ws = typeof WebSocket === 'undefined' ? undefined : WebSocket;
+
+        if (!ws) {
+          throw new WebSocketNotFoundError(
+            'Could not find websocket to be able to create one, polyfills will be allowed soon'
+          );
+        }
+
+        const url = new URL(baseUrl);
+
+        url.searchParams.set('channel_name', channelName);
+
+        if (authValue.type === 'private') {
+          url.searchParams.set('token', authValue.token.raw);
+        }
+
+        return new ws(url.toString());
+      },
       options
     });
 

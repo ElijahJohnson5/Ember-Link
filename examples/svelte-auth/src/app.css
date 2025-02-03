@@ -1,0 +1,14 @@
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
+
+body {
+	position: relative;
+	overflow: hidden;
+	display: flex;
+	margin: 0;
+	width: 100vw;
+	height: 100vh;
+	place-content: center;
+	place-items: center;
+}

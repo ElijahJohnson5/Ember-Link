@@ -1,12 +1,13 @@
 [package]
 name = "ember-link"
-version = "0.1.0"
+version = "0.0.1"
 edition = "2021"
 
 [dependencies]
 dotenvy = "0.15.7"
 envconfig = "0.11.0"
 futures-util = "0.3.31"
+josekit = "0.10.1"
 nohash-hasher = "0.2.0"
 parking_lot = "0.12.3"
 protocol = { path = "../../packages/protocol" }

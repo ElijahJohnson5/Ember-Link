@@ -12,5 +12,6 @@ type GetOverride<K extends ExtendableTypes> = unknown extends EmberLink[K]
 
 export type DefaultPresence = GetOverride<'Presence'>;
 
-export { createClient } from './client.js';
-export { User } from './user.js';
+export { createClient } from './client';
+export { User } from './user';
+export { Channel } from './channel';
