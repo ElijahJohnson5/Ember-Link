@@ -8,6 +8,7 @@ target/
 node_modules/
 
 .env
+.env.yarn
 
 dist/
 

@@ -1,9 +1,12 @@
 {
   "name": "ember-link",
+  "version": "0.0.1",
   "packageManager": "yarn@4.5.3",
-  "private": true,
   "author": "Elijah Johnson <elijahjohnson987@gmail.com>",
   "license": "MIT",
+  "scripts": {
+    "publish": "yarn workspaces foreach --all --exclude ember-link --exclude examples/* npm publish --access public"
+  },
   "workspaces": [
     "apps/*",
     "packages/*",
