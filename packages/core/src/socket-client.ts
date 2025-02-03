@@ -1,16 +1,15 @@
 import {
-  and,
   assign,
   createActor,
   EventObject,
   fromCallback,
   fromPromise,
-  log,
   setup,
   spawnChild,
   StateFrom,
   stopChild
 } from 'xstate';
+import 'xstate/guards';
 import { createBufferedEventEmitter, Observable } from '@ember-link/event-emitter';
 import { ClientMessage, WebSocketCloseCode } from '@ember-link/protocol';
 import { DefaultPresence } from '.';
@@ -25,7 +24,7 @@ const calcBackoff = (attempt: number, randSeed: number, maxVal = 30000): number 
 };
 
 export class ManagedSocket<P extends Record<string, unknown> = DefaultPresence> {
-  private machine: ReturnType<typeof createWebSocketStateMachine>['machine'];
+  public readonly machine: ReturnType<typeof createWebSocketStateMachine>['machine'];
 
   public readonly events: Observable<MessageEventMap>;
 
@@ -102,9 +101,9 @@ function createWebSocketStateMachine({ authenticate, createWebSocket }: SocketOp
   const onCloseHandler = [
     {
       target: 'Reconnecting' as const,
-      actions: log<Context, Extract<Events, { type: 'close' }>, undefined, Events>(({ event }) => {
-        return `Event: ${event.value}`;
-      }),
+      // actions: log<Context, Extract<Events, { type: 'close' }>, undefined, Events>(({ event }) => {
+      //   return `Event: ${event.value}`;
+      // }),
       guard: 'closeReconnectGuard' as const
     },
     {
@@ -131,7 +130,7 @@ function createWebSocketStateMachine({ authenticate, createWebSocket }: SocketOp
             websocket = input.createWebSocket(input.authValue);
           } catch (e) {
             sendBack({ type: 'error', value: e });
-            return;
+            return () => {};
           }
 
           websocket.binaryType = 'arraybuffer';
@@ -188,19 +187,15 @@ function createWebSocketStateMachine({ authenticate, createWebSocket }: SocketOp
           case 1000:
           case 1001:
           case 1011:
-          case 1013:
           case 1012:
+          case 1013:
+          case WebSocketCloseCode.InvalidToken:
             return true;
 
           case 1015:
-            return false;
-
           case WebSocketCloseCode.InvalidSignerKey:
           case WebSocketCloseCode.TokenNotFound:
             return false;
-          // Retry connecting on invalid token?
-          case WebSocketCloseCode.InvalidToken:
-            return true;
         }
 
         return true;
@@ -237,14 +232,15 @@ function createWebSocketStateMachine({ authenticate, createWebSocket }: SocketOp
         entry: [
           assign({
             reconnectAttempt: 0,
-            successCount: 0
+            successCount: 0,
+            authAttempt: 0
           })
         ],
         on: {
           connect: [
             {
               target: 'Auth',
-              guard: and([({ context }) => Boolean(!context.authValue)])
+              guard: ({ context }) => Boolean(!context.authValue)
             },
             {
               target: 'CreateWebSocket'
@@ -319,9 +315,6 @@ function createWebSocketStateMachine({ authenticate, createWebSocket }: SocketOp
           error: [
             {
               target: 'Reconnecting',
-              actions: log(({ event }) => {
-                return `Event: ${event}`;
-              }),
               guard: ({ event }) => {
                 if (event.value instanceof WebSocketNotFoundError) {
                   return false;
@@ -344,6 +337,7 @@ function createWebSocketStateMachine({ authenticate, createWebSocket }: SocketOp
         entry: [
           assign({
             reconnectAttempt: 0,
+            authAttempt: 0,
             successCount: ({ context, event }) => {
               if (event.type !== 'pong') {
                 return context.successCount + 1;
@@ -363,9 +357,6 @@ function createWebSocketStateMachine({ authenticate, createWebSocket }: SocketOp
           close: onCloseHandler,
           error: {
             target: 'Reconnecting',
-            actions: log(({ event }) => {
-              return `Event: ${event.value}`;
-            }),
             guard: 'reconnectGuard'
           },
           message: {

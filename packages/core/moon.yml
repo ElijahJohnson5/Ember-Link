@@ -8,3 +8,9 @@ tasks:
       - 'event-emitter:build'
       - 'protocol:build'
       - 'storage:build'
+  test:
+    command: 'yarn build'
+    deps:
+      - 'event-emitter:build'
+      - 'protocol:build'
+      - 'storage:build'

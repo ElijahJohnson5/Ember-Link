@@ -1,6 +1,6 @@
 import * as jose from 'jose';
 
-interface AccessToken {
+export interface AccessToken {
   iat: number;
   exp: number;
   uid: string;
@@ -85,6 +85,7 @@ export function createAuth(options: AuthOptions) {
       if (expiresAt <= now) {
         cachedTokens.splice(index, 1);
         index--;
+        continue;
       }
 
       return token;
