@@ -9,7 +9,7 @@ tasks:
       - 'protocol:build'
       - 'storage:build'
   test:
-    command: 'yarn build'
+    command: 'yarn test'
     deps:
       - 'event-emitter:build'
       - 'protocol:build'
