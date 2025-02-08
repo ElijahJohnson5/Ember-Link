@@ -15,12 +15,14 @@ use envconfig::Envconfig;
 use environment::Environment;
 use futures_util::SinkExt;
 use futures_util::StreamExt;
+use futures_util::TryFutureExt;
 use josekit::jws;
 use josekit::jwt;
 use participant::actor::{ParticipantHandle, ParticipantMessage};
 use protocol::client::ClientMessage;
 use protocol::server::{AssignIdMessage, ServerMessage};
 use protocol::WebSocketCloseCode;
+use serde::Deserialize;
 use serde_json::Value;
 use tokio::net::{TcpListener, TcpStream};
 use tokio_tungstenite::tungstenite::protocol::frame::coding::CloseCode;
@@ -29,6 +31,7 @@ use tokio_tungstenite::tungstenite::{self, Message};
 use tokio_tungstenite::WebSocketStream;
 use tracing::instrument;
 use tracing_subscriber::FmtSubscriber;
+use url::Url;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -132,8 +135,14 @@ async fn accept_connection(
     }
     let mut token_payload: Option<jwt::JwtPayload> = None;
 
-    if !config.allow_unauthorized && params.contains_key("token") {
-        let payload = match validate_token(params["token"].clone(), config.jwt_signer_key.clone()) {
+    if params.contains_key("token") {
+        let payload = match validate_token(
+            params["token"].clone(),
+            params.get("tenant_id").cloned(),
+            config.clone(),
+        )
+        .await
+        {
             Ok(payload) => payload,
             Err((trace_error_message, websocket_close_code)) => {
                 tracing::error!("{trace_error_message}");
@@ -264,29 +273,81 @@ fn handle_client_message(participant: &ParticipantHandle, msg: ClientMessage<Val
     }
 }
 
-fn validate_token(
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SignerKeyResponse {
+    public_signer_key: String,
+}
+
+async fn validate_token(
     token: String,
-    jwt_signer_key: Option<String>,
+    tenant_id: Option<String>,
+    config: Config,
 ) -> Result<jwt::JwtPayload, (String, WebSocketCloseCode)> {
-    if let Some(jwt_signer_key) = jwt_signer_key {
-        // Validate signature of token
-        match jws::RS256.verifier_from_pem(jwt_signer_key) {
-            Ok(jwt_verifier) => match jwt::decode_with_verifier(token, &jwt_verifier) {
-                Ok((payload, _header)) => Ok(payload),
-                Err(e) => Err((
-                    format!("Could not verify token: {e}").into(),
-                    WebSocketCloseCode::InvalidToken,
-                )),
-            },
-            Err(e) => Err((
-                format!("JWT Signer Key is invalid: {e}").into(),
+    if let Some(tenant_id) = tenant_id {
+        if let Some(jwt_signer_key_endpoint) = config.jwt_signer_key_endpoint {
+            let mut url = Url::parse(&jwt_signer_key_endpoint).map_err(|_e| {
+                (
+                    "JWT Signer Key Endpoint is invalid".into(),
+                    WebSocketCloseCode::InvalidSignerKey,
+                )
+            })?;
+
+            url.query_pairs_mut().append_pair("tenant_id", &tenant_id);
+
+            tracing::info!("{:?}", url);
+
+            let response = reqwest::get(url).await.map_err(|e| {
+                tracing::error!("Error: {e}");
+                (
+                    "JWT Signer Key Endpoint is invalid".into(),
+                    WebSocketCloseCode::InvalidSignerKey,
+                )
+            })?;
+
+            tracing::info!("Signing Key Endpoint status: {}", response.status());
+            let response = response.json::<SignerKeyResponse>().await.map_err(|e| {
+                tracing::error!("Error: {e}");
+                (
+                    "JWT Signer Key Endpoint is invalid".into(),
+                    WebSocketCloseCode::InvalidSignerKey,
+                )
+            })?;
+
+            return verify_token(&token, response.public_signer_key);
+        } else {
+            Err((
+                "JWT Signer Key Endpoint is required if you are validating tokens with multiple tenants".into(),
                 WebSocketCloseCode::InvalidSignerKey,
-            )),
+            ))
         }
+    } else if let Some(jwt_signer_key) = config.jwt_signer_key {
+        // Validate signature of token
+        return verify_token(&token, jwt_signer_key);
     } else {
         Err((
             "JWT Signer Key is required if you are validating tokens".into(),
             WebSocketCloseCode::InvalidSignerKey,
         ))
+    }
+}
+
+fn verify_token(
+    token: &String,
+    signer_key: String,
+) -> Result<jwt::JwtPayload, (String, WebSocketCloseCode)> {
+    // Validate signature of token
+    match jws::RS256.verifier_from_pem(signer_key) {
+        Ok(jwt_verifier) => match jwt::decode_with_verifier(token, &jwt_verifier) {
+            Ok((payload, _header)) => Ok(payload),
+            Err(e) => Err((
+                format!("Could not verify token: {e}").into(),
+                WebSocketCloseCode::InvalidToken,
+            )),
+        },
+        Err(e) => Err((
+            format!("JWT Signer Key is invalid: {e}").into(),
+            WebSocketCloseCode::InvalidSignerKey,
+        )),
     }
 }

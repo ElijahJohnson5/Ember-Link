@@ -16,11 +16,15 @@ export interface AuthToken {
   type: 'AuthToken';
   readonly raw: string;
   readonly parsed: jose.JWTVerifyResult<AccessToken>;
+  readonly tenantId?: string;
 }
 
 interface AuthOptions {
   authEndpoint?: AuthEndpoint;
   jwtSignerPublicKey?: string;
+  multiTenant?: {
+    tenantId: string;
+  };
   onAuthenticated?: (token: AuthValue) => void;
 }
 
@@ -42,6 +46,8 @@ type AuthType =
   | { type: 'none' };
 
 export function createAuth(options: AuthOptions) {
+  const { multiTenant } = options;
+
   let auth: AuthType;
 
   if (!options.authEndpoint) {
@@ -95,7 +101,13 @@ export function createAuth(options: AuthOptions) {
   // Returns NoAuthToken when no auth is required. Else returns the AuthToken or throws Errors
   async function requestAuth(channelName: string): Promise<AuthToken | NoAuthToken> {
     if (auth.type === 'private') {
-      const response = await fetch(auth.url, {
+      const url = new URL(auth.url);
+
+      if (multiTenant) {
+        url.searchParams.append('tenant_id', multiTenant.tenantId);
+      }
+
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -132,7 +144,12 @@ export function createAuth(options: AuthOptions) {
       // TODO: refactor to not unsecured jwts
       const publicKey = await jose.importSPKI(auth.jwtSignerPublicKey, 'RS256');
       const parsed = await jose.jwtVerify<AccessToken>(data.token, publicKey);
-      const authToken: AuthToken = { raw: data.token, parsed, type: 'AuthToken' };
+      const authToken: AuthToken = {
+        raw: data.token,
+        parsed,
+        type: 'AuthToken',
+        tenantId: multiTenant?.tenantId
+      };
       options.onAuthenticated?.({ type: 'private', token: authToken });
       return authToken;
     } else if (auth.type === 'callback') {
@@ -166,7 +183,12 @@ export function createAuth(options: AuthOptions) {
 
       const publicKey = await jose.importSPKI(auth.jwtSignerPublicKey, 'RS256');
       const parsed = await jose.jwtVerify<AccessToken>(response.token, publicKey);
-      const authToken: AuthToken = { raw: response.token, parsed, type: 'AuthToken' };
+      const authToken: AuthToken = {
+        raw: response.token,
+        parsed,
+        type: 'AuthToken',
+        tenantId: multiTenant?.tenantId
+      };
       options.onAuthenticated?.({ type: 'private', token: authToken });
       return authToken;
     } else {
