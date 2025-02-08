@@ -10,4 +10,8 @@ pub struct Config {
 
     #[envconfig(from = "JWT_SIGNER_KEY")]
     pub jwt_signer_key: Option<String>,
+
+    // Used for multi tenant operation, will be called with a tenant id that the participant connected with
+    #[envconfig(from = "JWT_SIGNER_KEY_ENDPOINT")]
+    pub jwt_signer_key_endpoint: Option<String>,
 }

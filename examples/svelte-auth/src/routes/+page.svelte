@@ -13,7 +13,10 @@
 	const client = createClient({
 		baseUrl: 'http://localhost:9000',
 		authEndpoint: 'http://localhost:5173/api/auth',
-		jwtSignerPublicKey: PUBLIC_JWT_SIGNER_KEY
+		jwtSignerPublicKey: PUBLIC_JWT_SIGNER_KEY,
+		multiTenant: {
+			tenantId: 'test'
+		}
 	});
 
 	onMount(() => {
@@ -28,7 +31,6 @@
 		});
 
 		channel.events.others.subscribe('update', (user) => {
-			console.log(user);
 			otherCursors.set(user.clientId, user.cursor);
 		});
 

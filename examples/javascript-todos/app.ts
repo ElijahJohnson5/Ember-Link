@@ -26,9 +26,6 @@ async function run() {
 
   channel.events.subscribe('others', (others) => {
     whoIsHere.innerHTML = `There are ${others.length} other users online`;
-
-    console.log(others);
-
     someoneIsTyping.innerHTML = others.some((other) => other.isTyping)
       ? 'Someone is typing...'
       : '';
