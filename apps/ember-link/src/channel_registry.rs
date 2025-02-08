@@ -25,7 +25,11 @@ impl ChannelRegistry {
     }
 
     #[instrument(skip(self))]
-    pub async fn get_or_create_channel(&self, channel_name: String) -> Channel {
+    pub async fn get_or_create_channel(
+        &self,
+        channel_name: String,
+        tenant_id: Option<String>,
+    ) -> Channel {
         let mut channels = self.channels.lock().await;
 
         let len = channels.len();
@@ -36,9 +40,9 @@ impl ChannelRegistry {
                     tracing::info!("Found existing channel");
                     channel
                 }
-                None => self.create_channel(Entry::Occupied(entry), channel_name, len),
+                None => self.create_channel(Entry::Occupied(entry), channel_name, tenant_id, len),
             },
-            entry => self.create_channel(entry, channel_name, len),
+            entry => self.create_channel(entry, channel_name, tenant_id, len),
         };
 
         channel
@@ -49,6 +53,7 @@ impl ChannelRegistry {
         &self,
         entry: Entry<'_, String, WeakChannel>,
         channel_name: String,
+        tenant_id: Option<String>,
         old_num_channels: usize,
     ) -> Channel {
         let channel = Channel::new(channel_name.clone());
@@ -69,11 +74,13 @@ impl ChannelRegistry {
                 .on_participant_added({
                     let id = channel_name.clone();
                     let webhook_processor = webhook_processor.clone();
+                    let tenant_id = tenant_id.clone();
 
                     move |participant_id| {
                         webhook_processor
                             .cast(WebhookMessage::NewParticipant(NewParticipant {
                                 channel_id: id.clone(),
+                                tenant_id: tenant_id.clone(),
                                 participant_id: participant_id.clone(),
                             }))
                             .expect("Could not send new participant message to webhook processor")
@@ -85,11 +92,13 @@ impl ChannelRegistry {
                 .on_participant_removed({
                     let id = channel_name.clone();
                     let webhook_processor = webhook_processor.clone();
+                    let tenant_id = tenant_id.clone();
 
                     move |participant_id| {
                         webhook_processor
                             .cast(WebhookMessage::RemoveParticipant(RemoveParticipant {
                                 channel_id: id.clone(),
+                                tenant_id: tenant_id.clone(),
                                 participant_id: participant_id.clone(),
                             }))
                             .expect(
@@ -102,6 +111,7 @@ impl ChannelRegistry {
             webhook_processor
                 .cast(WebhookMessage::NewChannel(NewChannel {
                     channel_id: channel_name.clone(),
+                    tenant_id: tenant_id.clone(),
                     num_channels: old_num_channels + 1,
                 }))
                 .expect("Could not send message to webhook processor")
@@ -112,6 +122,7 @@ impl ChannelRegistry {
                 let id = channel_name.clone();
                 let channels = self.channels.clone();
                 let webhook_processor = self.webhook_processor.clone();
+                let tenant_id = tenant_id.clone();
 
                 move || {
                     tokio::spawn(async move {
@@ -127,6 +138,7 @@ impl ChannelRegistry {
                                 webhook_processor
                                     .cast(WebhookMessage::CloseChannel(CloseChannel {
                                         channel_id: id,
+                                        tenant_id,
                                         num_channels: num,
                                     }))
                                     .expect(
@@ -209,7 +221,9 @@ mod tests {
         let channel_registry = ChannelRegistry::new(Some(webhook_processor.clone()));
 
         {
-            let _ = channel_registry.get_or_create_channel("Test".into()).await;
+            let _ = channel_registry
+                .get_or_create_channel("Test".into(), None)
+                .await;
 
             assert!(channel_registry.channels.lock().await.contains_key("Test"));
         }
@@ -230,11 +244,15 @@ mod tests {
         let channel_registry = ChannelRegistry::new(Some(webhook_processor.clone()));
 
         {
-            let _ = channel_registry.get_or_create_channel("Test".into()).await;
+            let _ = channel_registry
+                .get_or_create_channel("Test".into(), None)
+                .await;
 
             assert!(channel_registry.channels.lock().await.contains_key("Test"));
 
-            let _ = channel_registry.get_or_create_channel("Test".into()).await;
+            let _ = channel_registry
+                .get_or_create_channel("Test".into(), None)
+                .await;
 
             assert_eq!(channel_registry.channels.lock().await.len(), 1);
         }
@@ -255,7 +273,9 @@ mod tests {
         let channel_registry = ChannelRegistry::new(Some(webhook_processor.clone()));
 
         {
-            let _ = channel_registry.get_or_create_channel("Test".into()).await;
+            let _ = channel_registry
+                .get_or_create_channel("Test".into(), None)
+                .await;
 
             assert!(channel_registry.channels.lock().await.contains_key("Test"));
             assert_eq!(channel_registry.channels.lock().await.len(), 1);
@@ -264,7 +284,9 @@ mod tests {
         assert!(channel_registry.channels.lock().await.contains_key("Test"));
 
         {
-            let _ = channel_registry.get_or_create_channel("Test".into()).await;
+            let _ = channel_registry
+                .get_or_create_channel("Test".into(), None)
+                .await;
 
             assert!(channel_registry.channels.lock().await.contains_key("Test"));
             assert_eq!(channel_registry.channels.lock().await.len(), 1);
@@ -287,7 +309,9 @@ mod tests {
         let channel_registry = ChannelRegistry::new(Some(webhook_processor.clone()));
 
         {
-            let channel = channel_registry.get_or_create_channel("Test".into()).await;
+            let channel = channel_registry
+                .get_or_create_channel("Test".into(), None)
+                .await;
 
             assert!(channel_registry.channels.lock().await.contains_key("Test"));
 
@@ -338,7 +362,9 @@ mod tests {
         let channel_registry = ChannelRegistry::new(Some(webhook_processor.clone()));
 
         {
-            let channel = channel_registry.get_or_create_channel("Test".into()).await;
+            let channel = channel_registry
+                .get_or_create_channel("Test".into(), None)
+                .await;
 
             assert!(channel_registry.channels.lock().await.contains_key("Test"));
 

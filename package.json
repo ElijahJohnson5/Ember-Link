@@ -5,7 +5,8 @@
   "author": "Elijah Johnson <elijahjohnson987@gmail.com>",
   "license": "MIT",
   "scripts": {
-    "publish": "yarn workspaces foreach --all --exclude ember-link --exclude examples/* npm publish --access public"
+    "publish:packages": "yarn build && yarn workspaces foreach -p -A --no-private --exclude ember-link npm publish --access public",
+    "build": "moon :build"
   },
   "workspaces": [
     "apps/*",

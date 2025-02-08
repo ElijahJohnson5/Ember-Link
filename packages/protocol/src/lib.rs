@@ -26,6 +26,7 @@ pub enum WebhookMessage {
 #[ts(export, export_to = "../src/bindings/index.ts")]
 pub struct NewChannel {
     pub channel_id: String,
+    pub tenant_id: Option<String>,
     pub num_channels: usize,
 }
 
@@ -34,6 +35,7 @@ pub struct NewChannel {
 #[ts(export, export_to = "../src/bindings/index.ts")]
 pub struct CloseChannel {
     pub channel_id: String,
+    pub tenant_id: Option<String>,
     pub num_channels: usize,
 }
 
@@ -42,6 +44,7 @@ pub struct CloseChannel {
 #[ts(export, export_to = "../src/bindings/index.ts")]
 pub struct NewParticipant {
     pub channel_id: String,
+    pub tenant_id: Option<String>,
     pub participant_id: String,
 }
 
@@ -50,6 +53,7 @@ pub struct NewParticipant {
 #[ts(export, export_to = "../src/bindings/index.ts")]
 pub struct RemoveParticipant {
     pub channel_id: String,
+    pub tenant_id: Option<String>,
     pub participant_id: String,
 }
 

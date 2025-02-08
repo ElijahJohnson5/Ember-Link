@@ -15,7 +15,6 @@ use envconfig::Envconfig;
 use environment::Environment;
 use futures_util::SinkExt;
 use futures_util::StreamExt;
-use futures_util::TryFutureExt;
 use josekit::jws;
 use josekit::jwt;
 use participant::actor::{ParticipantHandle, ParticipantMessage};
@@ -172,7 +171,10 @@ async fn accept_connection(
     let (mut write, mut read) = ws_stream.split();
 
     let channel = channel_registry
-        .get_or_create_channel(params["channel_name"].to_string())
+        .get_or_create_channel(
+            params["channel_name"].to_string(),
+            params.get("tenant_id").cloned(),
+        )
         .await;
 
     let participant_id = uuid::Uuid::new_v4();
