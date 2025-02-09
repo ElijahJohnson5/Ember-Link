@@ -82,8 +82,13 @@ export function createClient<P extends Record<string, unknown> = DefaultPresence
 
         if (authValue.type === 'private') {
           url.searchParams.set('token', authValue.token.raw);
+
           if (authValue.token.tenantId) {
             url.searchParams.set('tenant_id', authValue.token.tenantId);
+          }
+        } else {
+          if (authValue.tenantId) {
+            url.searchParams.set('tenant_id', authValue.tenantId);
           }
         }
 

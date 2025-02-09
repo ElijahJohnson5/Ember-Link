@@ -6,18 +6,22 @@ use ractor::ActorRef;
 use std::{
     collections::{hash_map::Entry, HashMap},
     sync::Arc,
+    time::{SystemTime, UNIX_EPOCH},
 };
 use tracing::instrument;
 
-use crate::channel::{Channel, WeakChannel};
+use crate::{
+    channel::{Channel, WeakChannel},
+    webhook_processor::actor::WebhookProcessorMessage,
+};
 
 pub struct ChannelRegistry {
     channels: Arc<Mutex<HashMap<String, WeakChannel>>>,
-    webhook_processor: Option<ActorRef<WebhookMessage>>,
+    webhook_processor: Option<ActorRef<WebhookProcessorMessage>>,
 }
 
 impl ChannelRegistry {
-    pub fn new(webhook_processor: Option<ActorRef<WebhookMessage>>) -> Self {
+    pub fn new(webhook_processor: Option<ActorRef<WebhookProcessorMessage>>) -> Self {
         Self {
             channels: Arc::default(),
             webhook_processor: webhook_processor.clone(),
@@ -76,13 +80,27 @@ impl ChannelRegistry {
                     let webhook_processor = webhook_processor.clone();
                     let tenant_id = tenant_id.clone();
 
-                    move |participant_id| {
+                    move |participant_id, num_participants| {
+                        let start = SystemTime::now();
+                        let since_the_epoch = start
+                            .duration_since(UNIX_EPOCH)
+                            .expect("Time went backwards");
+
+                        let webhook_message = WebhookMessage::NewParticipant(NewParticipant {
+                            id: uuid::Uuid::new_v4().into(),
+                            channel_id: id.clone(),
+                            timestamp: since_the_epoch.as_millis(),
+                            participant_id: participant_id.clone(),
+                            num_pariticipants: *num_participants,
+                        });
+
+                        let webhook_processor_message = WebhookProcessorMessage {
+                            msg: webhook_message,
+                            tenant_id: tenant_id.clone(),
+                        };
+
                         webhook_processor
-                            .cast(WebhookMessage::NewParticipant(NewParticipant {
-                                channel_id: id.clone(),
-                                tenant_id: tenant_id.clone(),
-                                participant_id: participant_id.clone(),
-                            }))
+                            .cast(webhook_processor_message)
                             .expect("Could not send new participant message to webhook processor")
                     }
                 })
@@ -94,26 +112,52 @@ impl ChannelRegistry {
                     let webhook_processor = webhook_processor.clone();
                     let tenant_id = tenant_id.clone();
 
-                    move |participant_id| {
-                        webhook_processor
-                            .cast(WebhookMessage::RemoveParticipant(RemoveParticipant {
+                    move |participant_id, num_participants| {
+                        let start = SystemTime::now();
+                        let since_the_epoch = start
+                            .duration_since(UNIX_EPOCH)
+                            .expect("Time went backwards");
+
+                        let webhook_message =
+                            WebhookMessage::RemoveParticipant(RemoveParticipant {
+                                id: uuid::Uuid::new_v4().into(),
                                 channel_id: id.clone(),
-                                tenant_id: tenant_id.clone(),
+                                timestamp: since_the_epoch.as_millis(),
                                 participant_id: participant_id.clone(),
-                            }))
-                            .expect(
-                                "Could not send remove participant message to webhook processor",
-                            )
+                                num_pariticipants: *num_participants,
+                            });
+
+                        let webhook_processor_message = WebhookProcessorMessage {
+                            msg: webhook_message,
+                            tenant_id: tenant_id.clone(),
+                        };
+
+                        webhook_processor.cast(webhook_processor_message).expect(
+                            "Could not send remove participant message to webhook processor",
+                        )
                     }
                 })
                 .detach();
 
+            let start = SystemTime::now();
+            let since_the_epoch = start
+                .duration_since(UNIX_EPOCH)
+                .expect("Time went backwards");
+
+            let webhook_message = WebhookMessage::NewChannel(NewChannel {
+                id: uuid::Uuid::new_v4().into(),
+                channel_id: channel_name.clone(),
+                timestamp: since_the_epoch.as_millis(),
+                num_channels: old_num_channels + 1,
+            });
+
+            let webhook_processor_message = WebhookProcessorMessage {
+                msg: webhook_message,
+                tenant_id: tenant_id.clone(),
+            };
+
             webhook_processor
-                .cast(WebhookMessage::NewChannel(NewChannel {
-                    channel_id: channel_name.clone(),
-                    tenant_id: tenant_id.clone(),
-                    num_channels: old_num_channels + 1,
-                }))
+                .cast(webhook_processor_message)
                 .expect("Could not send message to webhook processor")
         }
 
@@ -127,6 +171,11 @@ impl ChannelRegistry {
                 move || {
                     tokio::spawn(async move {
                         {
+                            let start = SystemTime::now();
+                            let since_the_epoch = start
+                                .duration_since(UNIX_EPOCH)
+                                .expect("Time went backwards");
+
                             let num = {
                                 let mut channels = channels.lock().await;
                                 channels.remove(&id);
@@ -134,16 +183,22 @@ impl ChannelRegistry {
                                 channels.len()
                             };
 
+                            let webhook_message = WebhookMessage::CloseChannel(CloseChannel {
+                                id: uuid::Uuid::new_v4().into(),
+                                channel_id: id,
+                                timestamp: since_the_epoch.as_millis(),
+                                num_channels: num,
+                            });
+
+                            let webhook_processor_message = WebhookProcessorMessage {
+                                msg: webhook_message,
+                                tenant_id: tenant_id,
+                            };
+
                             if let Some(webhook_processor) = webhook_processor {
-                                webhook_processor
-                                    .cast(WebhookMessage::CloseChannel(CloseChannel {
-                                        channel_id: id,
-                                        tenant_id,
-                                        num_channels: num,
-                                    }))
-                                    .expect(
-                                        "Could not send close channel message to webhook processor",
-                                    );
+                                webhook_processor.cast(webhook_processor_message).expect(
+                                    "Could not send close channel message to webhook processor",
+                                );
                             }
                         }
                     });
@@ -176,7 +231,7 @@ mod tests {
     }
 
     impl Actor for TestWebhookActor {
-        type Msg = WebhookMessage;
+        type Msg = WebhookProcessorMessage;
         type Arguments = Arc<Mutex<TestWebhookActorState>>;
         type State = Arc<Mutex<TestWebhookActorState>>;
 
@@ -194,7 +249,7 @@ mod tests {
             message: Self::Msg,
             state: &mut Self::State,
         ) -> Result<(), ActorProcessingErr> {
-            match message {
+            match message.msg {
                 WebhookMessage::NewChannel(data) => {
                     state.lock().await.new_channel_message.replace(data);
                 }

@@ -1,15 +1,17 @@
-use protocol::WebhookMessage;
 use ractor::ActorRef;
 use tokio::task::JoinHandle;
 
-use crate::{config::Config, webhook_processor::start_webhook_processor};
+use crate::{
+    config::Config,
+    webhook_processor::{actor::WebhookProcessorMessage, start_webhook_processor},
+};
 
 pub struct Environment {
     webhook_processor_actor: Option<WebhookProcessorActor>,
 }
 
 pub struct WebhookProcessorActor {
-    webhook_processor: ActorRef<WebhookMessage>,
+    webhook_processor: ActorRef<WebhookProcessorMessage>,
     handle: JoinHandle<()>,
 }
 
@@ -18,8 +20,14 @@ impl Environment {
         let mut webhook_processor_actor = None;
 
         if let Some(webhook_url) = config.webhook_url.clone() {
-            let (webhook_processor, webhook_processor_handle) =
-                start_webhook_processor(webhook_url).await;
+            let (webhook_processor, webhook_processor_handle) = start_webhook_processor(
+                webhook_url,
+                config
+                    .webhook_secret_key
+                    .clone()
+                    .expect("Webhook secret key is required when webhook_url is specified"),
+            )
+            .await;
 
             webhook_processor_actor.replace(WebhookProcessorActor {
                 webhook_processor,
@@ -32,7 +40,7 @@ impl Environment {
         }
     }
 
-    pub fn webhook_processor(&self) -> Option<ActorRef<WebhookMessage>> {
+    pub fn webhook_processor(&self) -> Option<ActorRef<WebhookProcessorMessage>> {
         self.webhook_processor_actor
             .as_ref()
             .map(|webhook_processor_actor| webhook_processor_actor.webhook_processor.clone())

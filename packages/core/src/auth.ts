@@ -6,7 +6,9 @@ export interface AccessToken {
   uid: string;
 }
 
-export type AuthValue = { type: 'public' } | { type: 'private'; token: AuthToken };
+export type AuthValue =
+  | { type: 'public'; tenantId?: string }
+  | { type: 'private'; token: AuthToken };
 
 export interface NoAuthToken {
   type: 'NoAuth';
@@ -192,7 +194,7 @@ export function createAuth(options: AuthOptions) {
       options.onAuthenticated?.({ type: 'private', token: authToken });
       return authToken;
     } else {
-      options.onAuthenticated?.({ type: 'public' });
+      options.onAuthenticated?.({ type: 'public', tenantId: multiTenant?.tenantId });
       return { type: 'NoAuth' };
     }
   }
@@ -200,8 +202,8 @@ export function createAuth(options: AuthOptions) {
   async function getAuthValue(channelName: string): Promise<AuthValue> {
     if (auth.type === 'none') {
       // Call on authenticated here since when auth type is none we short circuit and just do the public value here
-      options.onAuthenticated?.({ type: 'public' });
-      return { type: 'public' };
+      options.onAuthenticated?.({ type: 'public', tenantId: multiTenant?.tenantId });
+      return { type: 'public', tenantId: multiTenant?.tenantId };
     }
 
     const cachedToken = getCachedToken(channelName);
@@ -220,7 +222,7 @@ export function createAuth(options: AuthOptions) {
       const authValue = await promise;
 
       if (authValue.type === 'NoAuth') {
-        return { type: 'public' };
+        return { type: 'public', tenantId: multiTenant?.tenantId };
       }
 
       const buffer = 30;
