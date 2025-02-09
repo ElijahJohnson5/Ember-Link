@@ -25,8 +25,9 @@ pub enum WebhookMessage {
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "../src/bindings/index.ts")]
 pub struct NewChannel {
+    pub id: String,
     pub channel_id: String,
-    pub tenant_id: Option<String>,
+    pub timestamp: u128,
     pub num_channels: usize,
 }
 
@@ -34,8 +35,9 @@ pub struct NewChannel {
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "../src/bindings/index.ts")]
 pub struct CloseChannel {
+    pub id: String,
     pub channel_id: String,
-    pub tenant_id: Option<String>,
+    pub timestamp: u128,
     pub num_channels: usize,
 }
 
@@ -43,18 +45,22 @@ pub struct CloseChannel {
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "../src/bindings/index.ts")]
 pub struct NewParticipant {
+    pub id: String,
     pub channel_id: String,
-    pub tenant_id: Option<String>,
+    pub timestamp: u128,
     pub participant_id: String,
+    pub num_pariticipants: usize,
 }
 
 #[derive(Clone, Deserialize, Debug, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "../src/bindings/index.ts")]
 pub struct RemoveParticipant {
+    pub id: String,
     pub channel_id: String,
-    pub tenant_id: Option<String>,
+    pub timestamp: u128,
     pub participant_id: String,
+    pub num_pariticipants: usize,
 }
 
 #[derive(Clone, Copy, Deserialize, Debug, Serialize)]

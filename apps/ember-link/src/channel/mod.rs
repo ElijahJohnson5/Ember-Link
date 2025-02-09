@@ -17,8 +17,8 @@ use crate::{
 
 #[derive(Default)]
 struct Handlers {
-    participant_added: Bag<Arc<dyn Fn(&String) + Send + Sync>, String>,
-    participant_removed: Bag<Arc<dyn Fn(&String) + Send + Sync>, String>,
+    participant_added: Bag<Arc<dyn Fn(&String, &usize) + Send + Sync>, String, usize>,
+    participant_removed: Bag<Arc<dyn Fn(&String, &usize) + Send + Sync>, String, usize>,
     closed: BagOnce<Box<dyn FnOnce() + Send>>,
 }
 
@@ -93,15 +93,18 @@ impl Channel {
     }
 
     pub fn add_participant(&self, participant_id: String, participant: WeakParticipantHandle) {
-        self.inner
-            .participant_handles
-            .lock()
-            .insert(participant_id.clone(), participant.clone());
+        let num_participants = {
+            let mut pariticpants = self.inner.participant_handles.lock();
+
+            pariticpants.insert(participant_id.clone(), participant.clone());
+
+            pariticpants.len()
+        };
 
         self.inner
             .handlers
             .participant_added
-            .call_simple(&participant_id);
+            .call_simple(&participant_id, &num_participants);
 
         match participant.upgrade() {
             Some(participant) => {
@@ -117,7 +120,14 @@ impl Channel {
     }
 
     pub fn remove_participant(&self, participant_id: &str) {
-        self.inner.participant_handles.lock().remove(participant_id);
+        let num_participants = {
+            let mut pariticpants = self.inner.participant_handles.lock();
+
+            pariticpants.remove(participant_id);
+
+            pariticpants.len()
+        };
+
         let state = self
             .inner
             .participant_presence_state
@@ -127,7 +137,7 @@ impl Channel {
         self.inner
             .handlers
             .participant_removed
-            .call_simple(&participant_id.to_string());
+            .call_simple(&participant_id.to_string(), &num_participants);
 
         match state {
             Some((_, clock)) => {
@@ -144,7 +154,7 @@ impl Channel {
         }
     }
 
-    pub fn on_participant_added<F: Fn(&String) + Send + Sync + 'static>(
+    pub fn on_participant_added<F: Fn(&String, &usize) + Send + Sync + 'static>(
         &self,
         callback: F,
     ) -> HandlerId {
@@ -154,7 +164,7 @@ impl Channel {
             .add(Arc::new(callback))
     }
 
-    pub fn on_participant_removed<F: Fn(&String) + Send + Sync + 'static>(
+    pub fn on_participant_removed<F: Fn(&String, &usize) + Send + Sync + 'static>(
         &self,
         callback: F,
     ) -> HandlerId {
@@ -283,7 +293,7 @@ pub mod tests {
         channel
             .on_participant_added({
                 let handler_counter = handler_counter.clone();
-                move |_participant_id| {
+                move |_participant_id, _size| {
                     handler_counter.lock().count += 1;
                 }
             })
@@ -303,7 +313,7 @@ pub mod tests {
         channel
             .on_participant_removed({
                 let handler_counter = handler_counter.clone();
-                move |_participant_id| {
+                move |_participant_id, _size| {
                     handler_counter.lock().count += 1;
                 }
             })
