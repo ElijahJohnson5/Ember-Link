@@ -16,6 +16,7 @@
     "typescript": "^5.7.3"
   },
   "dependencies": {
-    "@ember-link/event-emitter": "workspace:*"
+    "@ember-link/event-emitter": "workspace:*",
+    "@ember-link/protocol": "workspace:*"
   }
 }

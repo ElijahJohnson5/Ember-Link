@@ -4,6 +4,7 @@ mod config;
 mod environment;
 mod event_listener_primitives;
 mod participant;
+mod storage;
 mod webhook_processor;
 
 use std::collections::HashMap;
@@ -20,6 +21,7 @@ use josekit::jwt;
 use participant::actor::{ParticipantHandle, ParticipantMessage};
 use protocol::client::ClientMessage;
 use protocol::server::{AssignIdMessage, ServerMessage};
+use protocol::StorageType;
 use protocol::WebSocketCloseCode;
 use serde::Deserialize;
 use serde_json::Value;
@@ -120,6 +122,11 @@ async fn accept_connection(
         tracing::warn!("Could not find channel name in query params");
         return;
     }
+    let storage_type: Option<StorageType> = params
+        .get("storage_type")
+        .map(|storage_type| format!("\"{storage_type}\""))
+        .map(|storage_type| serde_json::from_str(&storage_type).ok())
+        .flatten();
 
     if !config.allow_unauthorized && !params.contains_key("token") {
         tracing::warn!("Could not find token for authorization");
@@ -173,6 +180,7 @@ async fn accept_connection(
     let channel = channel_registry
         .get_or_create_channel(
             params["channel_name"].to_string(),
+            storage_type,
             params.get("tenant_id").cloned(),
         )
         .await;
@@ -270,6 +278,12 @@ fn handle_client_message(participant: &ParticipantHandle, msg: ClientMessage<Val
             participant
                 .sender
                 .send(ParticipantMessage::StorageUpdate { data: msg })
+                .unwrap();
+        }
+        ClientMessage::StorageSync(msg) => {
+            participant
+                .sender
+                .send(ParticipantMessage::StorageSync { data: msg })
                 .unwrap();
         }
     }

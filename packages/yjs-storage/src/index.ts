@@ -141,6 +141,30 @@ export function createYJSStorageProvider(): IStorageProvider {
   };
 
   return {
-    getStorage: () => storage
+    sync: async (events, sender) => {
+      return new Promise((resolve) => {
+        const data = Y.encodeStateVector(doc);
+
+        sender.message({
+          data: Array.from(data),
+          syncType: 'SyncStep1'
+        });
+
+        events.subscribe('message', (event) => {
+          if (event.syncType === 'SyncStep1') {
+            sender.message({
+              data: Array.from(Y.encodeStateAsUpdate(doc, Uint8Array.from(event.data))),
+              syncType: 'SyncStep2'
+            });
+          } else if (event.syncType === 'SyncStep2') {
+            Y.applyUpdate(doc, Uint8Array.from(event.data));
+          } else if (event.syncType === 'SyncDone') {
+            resolve(true);
+          }
+        });
+      });
+    },
+    getStorage: () => storage,
+    type: 'yjs'
   };
 }

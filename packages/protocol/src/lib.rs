@@ -11,6 +11,14 @@ pub struct StorageUpdateMessage {
     pub update: Vec<u8>,
 }
 
+#[derive(Clone, Deserialize, Debug, Serialize, TS, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../src/bindings/index.ts")]
+pub struct StorageSyncMessage {
+    pub sync_type: String,
+    pub data: Vec<u8>,
+}
+
 #[derive(Clone, Deserialize, Debug, Serialize, TS)]
 #[serde(rename_all = "camelCase", tag = "type")]
 #[ts(export, export_to = "../src/bindings/index.ts")]
@@ -68,4 +76,13 @@ pub enum WebSocketCloseCode {
     TokenNotFound = 3000,
     InvalidToken = 3001,
     InvalidSignerKey = 3002,
+}
+
+#[derive(Clone, Deserialize, Debug, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../src/bindings/index.ts")]
+// Add more once we have more implementations, this gets sent to the server for the server to be able to handle
+// sync messages correctly
+pub enum StorageType {
+    Yjs,
 }

@@ -1,7 +1,9 @@
 #![cfg_attr(coverage_nightly, feature(coverage_attribute))]
 
 use futures_util::lock::Mutex;
-use protocol::{CloseChannel, NewChannel, NewParticipant, RemoveParticipant, WebhookMessage};
+use protocol::{
+    CloseChannel, NewChannel, NewParticipant, RemoveParticipant, StorageType, WebhookMessage,
+};
 use ractor::ActorRef;
 use std::{
     collections::{hash_map::Entry, HashMap},
@@ -12,6 +14,7 @@ use tracing::instrument;
 
 use crate::{
     channel::{Channel, WeakChannel},
+    storage::{yjs::init_storage, Storage},
     webhook_processor::actor::WebhookProcessorMessage,
 };
 
@@ -32,6 +35,7 @@ impl ChannelRegistry {
     pub async fn get_or_create_channel(
         &self,
         channel_name: String,
+        storage_type: Option<StorageType>,
         tenant_id: Option<String>,
     ) -> Channel {
         let mut channels = self.channels.lock().await;
@@ -44,9 +48,15 @@ impl ChannelRegistry {
                     tracing::info!("Found existing channel");
                     channel
                 }
-                None => self.create_channel(Entry::Occupied(entry), channel_name, tenant_id, len),
+                None => self.create_channel(
+                    Entry::Occupied(entry),
+                    channel_name,
+                    storage_type,
+                    tenant_id,
+                    len,
+                ),
             },
-            entry => self.create_channel(entry, channel_name, tenant_id, len),
+            entry => self.create_channel(entry, channel_name, storage_type, tenant_id, len),
         };
 
         channel
@@ -57,10 +67,19 @@ impl ChannelRegistry {
         &self,
         entry: Entry<'_, String, WeakChannel>,
         channel_name: String,
+        storage_type: Option<StorageType>,
         tenant_id: Option<String>,
         old_num_channels: usize,
     ) -> Channel {
-        let channel = Channel::new(channel_name.clone());
+        let storage = storage_type.map(|t| match t {
+            StorageType::Yjs => {
+                let yjs_storage: Box<dyn Storage + Send + Sync> = Box::new(init_storage());
+
+                yjs_storage
+            }
+        });
+
+        let channel = Channel::new(channel_name.clone(), storage);
 
         match entry {
             Entry::Occupied(mut entry) => {
@@ -277,7 +296,7 @@ mod tests {
 
         {
             let _ = channel_registry
-                .get_or_create_channel("Test".into(), None)
+                .get_or_create_channel("Test".into(), None, None)
                 .await;
 
             assert!(channel_registry.channels.lock().await.contains_key("Test"));
@@ -300,13 +319,13 @@ mod tests {
 
         {
             let _ = channel_registry
-                .get_or_create_channel("Test".into(), None)
+                .get_or_create_channel("Test".into(), None, None)
                 .await;
 
             assert!(channel_registry.channels.lock().await.contains_key("Test"));
 
             let _ = channel_registry
-                .get_or_create_channel("Test".into(), None)
+                .get_or_create_channel("Test".into(), None, None)
                 .await;
 
             assert_eq!(channel_registry.channels.lock().await.len(), 1);
@@ -329,7 +348,7 @@ mod tests {
 
         {
             let _ = channel_registry
-                .get_or_create_channel("Test".into(), None)
+                .get_or_create_channel("Test".into(), None, None)
                 .await;
 
             assert!(channel_registry.channels.lock().await.contains_key("Test"));
@@ -340,7 +359,7 @@ mod tests {
 
         {
             let _ = channel_registry
-                .get_or_create_channel("Test".into(), None)
+                .get_or_create_channel("Test".into(), None, None)
                 .await;
 
             assert!(channel_registry.channels.lock().await.contains_key("Test"));
@@ -365,7 +384,7 @@ mod tests {
 
         {
             let channel = channel_registry
-                .get_or_create_channel("Test".into(), None)
+                .get_or_create_channel("Test".into(), None, None)
                 .await;
 
             assert!(channel_registry.channels.lock().await.contains_key("Test"));
@@ -418,7 +437,7 @@ mod tests {
 
         {
             let channel = channel_registry
-                .get_or_create_channel("Test".into(), None)
+                .get_or_create_channel("Test".into(), None, None)
                 .await;
 
             assert!(channel_registry.channels.lock().await.contains_key("Test"));

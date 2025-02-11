@@ -2,7 +2,7 @@ use futures_util::{stream::SplitSink, SinkExt};
 use protocol::{
     client::ClientPresenceMessage,
     server::{ServerMessage, ServerPresenceMessage},
-    StorageUpdateMessage,
+    StorageSyncMessage, StorageUpdateMessage,
 };
 use serde_json::Value;
 use tokio::{net::TcpStream, sync::mpsc};
@@ -31,6 +31,7 @@ pub enum ParticipantMessage {
     TextPingMessage { data: String },
     MyPresence { data: ClientPresenceMessage<Value> },
     StorageUpdate { data: StorageUpdateMessage },
+    StorageSync { data: StorageSyncMessage },
     ServerMessage { data: ServerMessage<Value> },
 }
 
@@ -129,7 +130,30 @@ impl Participant {
             }
             ParticipantMessage::StorageUpdate { data } => {
                 self.channel
-                    .broadcast(ServerMessage::StorageUpdate(data), Some(&self.id));
+                    .handle_update_message(data, self.id.clone())
+                    .await
+                    .expect("Could not handle storage update");
+            }
+            ParticipantMessage::StorageSync { data } => {
+                match self.channel.handle_sync_message(data).await {
+                    Err(e) => {
+                        tracing::error!("Could not sync storage: {}", e);
+                    }
+                    Ok(Some(msgs)) => {
+                        for msg in msgs {
+                            self.socket_write_sink
+                                .send(Message::text(
+                                    serde_json::to_string(&ServerMessage::<Value>::StorageSync(
+                                        msg,
+                                    ))
+                                    .unwrap(),
+                                ))
+                                .await
+                                .expect("Could not send response sync messages");
+                        }
+                    }
+                    _ => {}
+                }
             }
             ParticipantMessage::ServerMessage { data } => {
                 self.socket_write_sink

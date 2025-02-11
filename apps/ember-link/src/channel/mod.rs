@@ -7,12 +7,16 @@ use std::{
 };
 
 use parking_lot::Mutex;
-use protocol::server::{InitialPresenceMessage, ServerMessage, ServerPresenceMessage};
+use protocol::{
+    server::{InitialPresenceMessage, ServerMessage, ServerPresenceMessage},
+    StorageSyncMessage, StorageType, StorageUpdateMessage,
+};
 use serde_json::Value;
 
 use crate::{
     event_listener_primitives::{Bag, BagOnce, HandlerId},
     participant::actor::{ParticipantMessage, WeakParticipantHandle},
+    storage::{yjs::init_storage, Storage, StorageError},
 };
 
 #[derive(Default)]
@@ -24,6 +28,7 @@ struct Handlers {
 
 struct Inner {
     id: String,
+    storage: Option<Box<dyn Storage + Sync + Send + 'static>>,
     participant_handles: Mutex<HashMap<String, WeakParticipantHandle>>,
     participant_presence_state: Mutex<HashMap<String, (Value, i32)>>,
     handlers: Handlers,
@@ -49,12 +54,13 @@ pub struct Channel {
 }
 
 impl Channel {
-    pub fn new(id: String) -> Self {
+    pub fn new(id: String, storage: Option<Box<dyn Storage + Send + Sync>>) -> Self {
         tracing::info!("Creating channel {}", id);
 
         Self {
             inner: Arc::new(Inner {
                 id,
+                storage,
                 participant_handles: Mutex::default(),
                 participant_presence_state: Mutex::default(),
                 handlers: Handlers::default(),
@@ -83,6 +89,31 @@ impl Channel {
                 }
             }
         }
+    }
+
+    pub async fn handle_sync_message(
+        &self,
+        message: StorageSyncMessage,
+    ) -> Result<Option<Vec<StorageSyncMessage>>, StorageError> {
+        if let Some(storage) = &self.inner.storage {
+            return storage.handle_sync_message(&message).await;
+        }
+
+        Ok(None)
+    }
+
+    pub async fn handle_update_message(
+        &self,
+        message: StorageUpdateMessage,
+        participant_id: String,
+    ) -> Result<(), StorageError> {
+        if let Some(storage) = &self.inner.storage {
+            storage.handle_update_message(&message).await?;
+        }
+
+        self.broadcast(ServerMessage::StorageUpdate(message), Some(&participant_id));
+
+        Ok(())
     }
 
     pub fn add_presence(&self, participant_id: String, state: Value, clock: i32) {
@@ -248,7 +279,7 @@ pub mod tests {
 
     #[tokio::test]
     async fn it_adds_a_participant_and_sends_initial_presence() {
-        let channel = Channel::new("test".to_string());
+        let channel = Channel::new("test".to_string(), None);
         let (participant, mut receiver) = create_participant("participant");
 
         channel.add_participant(participant.id.clone(), participant.downgrade());
@@ -286,7 +317,7 @@ pub mod tests {
 
     #[tokio::test]
     async fn it_calls_participant_added_handler() {
-        let channel = Channel::new("test".to_string());
+        let channel = Channel::new("test".to_string(), None);
         let (participant, _receiver) = create_participant("participant");
         let handler_counter = Arc::new(Mutex::new(HandlerCounter { count: 0 }));
 
@@ -306,7 +337,7 @@ pub mod tests {
 
     #[tokio::test]
     async fn it_calls_participant_removed_handler() {
-        let channel = Channel::new("test".to_string());
+        let channel = Channel::new("test".to_string(), None);
         let (participant, _receiver) = create_participant("participant");
         let handler_counter = Arc::new(Mutex::new(HandlerCounter { count: 0 }));
 
@@ -330,7 +361,7 @@ pub mod tests {
         let handler_counter = Arc::new(Mutex::new(HandlerCounter { count: 0 }));
 
         {
-            let channel = Channel::new("test".to_string());
+            let channel = Channel::new("test".to_string(), None);
 
             channel
                 .on_close({
@@ -347,7 +378,7 @@ pub mod tests {
 
     #[tokio::test]
     async fn it_broadcasts_to_all_participants() {
-        let channel = Channel::new("test".to_string());
+        let channel = Channel::new("test".to_string(), None);
         let (participant1, mut receiver1) = create_participant("participant1");
         let (participant2, mut receiver2) = create_participant("participant2");
 
@@ -398,7 +429,7 @@ pub mod tests {
 
     #[tokio::test]
     async fn it_boradcasts_to_all_participants_except_excluded() {
-        let channel = Channel::new("test".to_string());
+        let channel = Channel::new("test".to_string(), None);
         let (participant1, mut receiver1) = create_participant("participant1");
         let (participant2, mut receiver2) = create_participant("participant2");
 
@@ -442,7 +473,7 @@ pub mod tests {
 
     #[tokio::test]
     async fn it_removes_participant() {
-        let channel = Channel::new("test".to_string());
+        let channel = Channel::new("test".to_string(), None);
         let (participant, _receiver) = create_participant("participant");
 
         channel.add_participant(participant.id.clone(), participant.downgrade());
@@ -460,7 +491,7 @@ pub mod tests {
 
     #[tokio::test]
     async fn it_broadcasts_removed_participant_presence() {
-        let channel = Channel::new("test".to_string());
+        let channel = Channel::new("test".to_string(), None);
         let (participant1, _receiver) = create_participant("participant1");
         let (participant2, mut receiver2) = create_participant("participant2");
 
@@ -506,7 +537,7 @@ pub mod tests {
 
     #[test]
     fn it_can_downgrade_and_upgrade() {
-        let channel = Channel::new("test".to_string());
+        let channel = Channel::new("test".to_string(), None);
 
         let downgrade = channel.downgrade();
 
@@ -516,7 +547,7 @@ pub mod tests {
     #[test]
     fn it_returns_none_when_trying_to_upgrade_dropped_channel() {
         let downgrade = {
-            let channel = Channel::new("test".to_string());
+            let channel = Channel::new("test".to_string(), None);
 
             channel.downgrade()
         };
@@ -526,7 +557,7 @@ pub mod tests {
 
     #[tokio::test]
     async fn it_sends_all_current_presences_to_new_participant() {
-        let channel = Channel::new("test".to_string());
+        let channel = Channel::new("test".to_string(), None);
         let (participant1, _receiver) = create_participant("participant1");
         let (participant2, mut receiver2) = create_participant("participant2");
 

@@ -1,17 +1,38 @@
 {
-  "extends": ["../../tsconfig.json"],
+  "extends": [
+    "../../tsconfig.json"
+  ],
   "compilerOptions": {
     "outDir": "dist/",
     "paths": {
-      "~/*": ["./src/*"],
-      "@ember-link/event-emitter": ["../event-emitter/src/index.ts"],
-      "@ember-link/event-emitter/*": ["../event-emitter/src/*"]
+      "~/*": [
+        "./src/*"
+      ],
+      "@ember-link/event-emitter": [
+        "../event-emitter/src/index.ts"
+      ],
+      "@ember-link/event-emitter/*": [
+        "../event-emitter/src/*"
+      ],
+      "@ember-link/protocol": [
+        "../protocol/src/index.ts"
+      ],
+      "@ember-link/protocol/*": [
+        "../protocol/src/*"
+      ]
     }
   },
-  "include": ["../event-emitter/**/*", "./src/**/*"],
+  "include": [
+    "./src/**/*",
+    "../event-emitter/**/*",
+    "../protocol/**/*"
+  ],
   "references": [
     {
       "path": "../event-emitter"
+    },
+    {
+      "path": "../protocol"
     }
   ]
 }
