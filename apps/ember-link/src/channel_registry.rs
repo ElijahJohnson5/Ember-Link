@@ -289,8 +289,9 @@ mod tests {
 
     use envconfig::Envconfig;
     use ractor::{Actor, ActorProcessingErr};
+    use tokio::task::yield_now;
 
-    use crate::channel::tests::create_participant;
+    use crate::participant::actor::tests::create_participant;
 
     use super::*;
 
@@ -364,7 +365,7 @@ mod tests {
         }
 
         // Give time for the drop handler to process before we close the processor to stop a panic inside of the channel registry callback for channel close
-        tokio::time::sleep(Duration::from_nanos(1)).await;
+        yield_now().await;
         webhook_processor.drain().unwrap();
         webhook_processor_handle.await.unwrap();
     }
@@ -394,7 +395,7 @@ mod tests {
         }
 
         // Give time for the drop handler to process before we close the processor to stop a panic inside of the channel registry callback for channel close
-        tokio::time::sleep(Duration::from_nanos(1)).await;
+        yield_now().await;
         webhook_processor.drain().unwrap();
         webhook_processor_handle.await.unwrap();
     }
@@ -430,7 +431,7 @@ mod tests {
         }
 
         // Give time for the drop handler to process before we close the processor to stop a panic inside of the channel registry callback for channel close
-        tokio::time::sleep(Duration::from_nanos(1)).await;
+        yield_now().await;
         webhook_processor.drain().unwrap();
         webhook_processor_handle.await.unwrap();
     }
@@ -454,12 +455,14 @@ mod tests {
 
             assert!(channel_registry.channels.lock().await.contains_key("Test"));
 
-            let (participant, _reciever) = create_participant("participant");
+            let (participant, _state) = create_participant().await;
 
-            channel.add_participant(participant.id.clone(), participant.downgrade());
+            let participant_id: String = "participant".into();
+
+            channel.add_participant(participant_id, participant);
 
             // Let the webhook processor do its thing
-            tokio::time::sleep(Duration::from_nanos(1)).await;
+            yield_now().await;
 
             let webhook_processor_state = webhook_processor_state.lock().await;
 
@@ -509,13 +512,15 @@ mod tests {
 
             assert!(channel_registry.channels.lock().await.contains_key("Test"));
 
-            let (participant, _reciever) = create_participant("participant");
+            let (participant, _state) = create_participant().await;
 
-            channel.add_participant(participant.id.clone(), participant.downgrade());
-            channel.remove_participant(&participant.id);
+            let participant_id: String = "participant".into();
+
+            channel.add_participant(participant_id.clone(), participant);
+            channel.remove_participant(&participant_id);
 
             // Let the webhook processor do its thing
-            tokio::time::sleep(Duration::from_nanos(1)).await;
+            yield_now().await;
 
             let webhook_processor_state = webhook_processor_state.lock().await;
 
@@ -541,7 +546,7 @@ mod tests {
         }
 
         // Give time for the drop handler to process before we close the processor to stop a panic inside of the channel registry callback for channel close
-        tokio::time::sleep(Duration::from_nanos(1)).await;
+        yield_now().await;
         webhook_processor.drain().unwrap();
         webhook_processor_handle.await.unwrap();
     }

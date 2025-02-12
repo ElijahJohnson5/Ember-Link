@@ -11,11 +11,12 @@ use protocol::{
     server::{InitialPresenceMessage, ServerMessage, ServerPresenceMessage},
     StorageSyncMessage, StorageUpdateMessage,
 };
+use ractor::ActorRef;
 use serde_json::Value;
 
 use crate::{
     event_listener_primitives::{Bag, BagOnce, HandlerId},
-    participant::actor::{ParticipantMessage, WeakParticipantHandle},
+    participant::actor::ParticipantMessage,
     storage::{Storage, StorageError},
 };
 
@@ -30,7 +31,7 @@ struct Handlers {
 struct Inner {
     id: String,
     storage: Option<Box<dyn Storage + Sync + Send + 'static>>,
-    participant_handles: Mutex<HashMap<String, WeakParticipantHandle>>,
+    participant_refs: Mutex<HashMap<String, ActorRef<ParticipantMessage>>>,
     participant_presence_state: Mutex<HashMap<String, (Value, i32)>>,
     handlers: Handlers,
 }
@@ -62,7 +63,7 @@ impl Channel {
             inner: Arc::new(Inner {
                 id,
                 storage,
-                participant_handles: Mutex::default(),
+                participant_refs: Mutex::default(),
                 participant_presence_state: Mutex::default(),
                 handlers: Handlers::default(),
             }),
@@ -70,25 +71,16 @@ impl Channel {
     }
 
     pub fn broadcast(&self, message: ServerMessage<Value>, exclude_id: Option<&String>) {
-        for (key, value) in self.inner.participant_handles.lock().iter() {
+        for (key, value) in self.inner.participant_refs.lock().iter() {
             if exclude_id.is_some_and(|id| *id == *key) {
                 continue;
             }
 
-            match value.upgrade() {
-                Some(handle) => {
-                    // Send message to each participant
-                    handle
-                        .sender
-                        .send(ParticipantMessage::ServerMessage {
-                            data: message.clone(),
-                        })
-                        .unwrap();
-                }
-                None => {
-                    // TODO: Remove stale handles
-                }
-            }
+            value
+                .cast(ParticipantMessage::ServerMessage {
+                    data: message.clone(),
+                })
+                .expect("Could not broadcast message");
         }
     }
 
@@ -129,9 +121,13 @@ impl Channel {
             .insert(participant_id, (state, clock));
     }
 
-    pub fn add_participant(&self, participant_id: String, participant: WeakParticipantHandle) {
+    pub fn add_participant(
+        &self,
+        participant_id: String,
+        participant: ActorRef<ParticipantMessage>,
+    ) {
         let num_participants = {
-            let mut pariticpants = self.inner.participant_handles.lock();
+            let mut pariticpants = self.inner.participant_refs.lock();
 
             pariticpants.insert(participant_id.clone(), participant.clone());
 
@@ -143,22 +139,16 @@ impl Channel {
             .participant_added
             .call_simple(&participant_id, &num_participants);
 
-        match participant.upgrade() {
-            Some(participant) => {
-                participant
-                    .sender
-                    .send(ParticipantMessage::ServerMessage {
-                        data: ServerMessage::InitialPresence(self.initial_presence_message()),
-                    })
-                    .unwrap();
-            }
-            _ => {}
-        }
+        participant
+            .cast(ParticipantMessage::ServerMessage {
+                data: ServerMessage::InitialPresence(self.initial_presence_message()),
+            })
+            .expect("Could not send message to participant");
     }
 
     pub fn remove_participant(&self, participant_id: &str) {
         let num_participants = {
-            let mut pariticpants = self.inner.participant_handles.lock();
+            let mut pariticpants = self.inner.participant_refs.lock();
 
             pariticpants.remove(participant_id);
 
@@ -274,54 +264,42 @@ impl WeakChannel {
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
 pub mod tests {
-    use crate::participant::actor::ParticipantHandle;
+    use crate::participant::actor::tests::{create_participant, TestParticipantActorState};
+    use tokio::{sync::Mutex, task::yield_now};
+
     use protocol::StorageUpdateMessage;
-    use tokio::sync::mpsc::{self, UnboundedReceiver};
 
     use super::*;
 
-    pub fn create_participant<T: Into<String>>(
-        id: T,
-    ) -> (ParticipantHandle, UnboundedReceiver<ParticipantMessage>) {
-        let (sender, receiver) = mpsc::unbounded_channel();
-        (
-            ParticipantHandle {
-                id: id.into(),
-                sender,
-            },
-            receiver,
-        )
-    }
-
-    fn get_nth_message(
-        receiver: &mut UnboundedReceiver<ParticipantMessage>,
+    async fn get_nth_message(
+        state: Arc<Mutex<TestParticipantActorState>>,
         n: usize,
-    ) -> Result<ParticipantMessage, mpsc::error::TryRecvError> {
-        for _i in 0..n - 1 {
-            receiver.try_recv()?;
-        }
-
-        receiver.try_recv()
+    ) -> Option<ParticipantMessage> {
+        state.lock().await.messages.get(n).cloned()
     }
 
     #[tokio::test]
     async fn it_adds_a_participant_and_sends_initial_presence() {
         let channel = Channel::new("test".to_string(), None);
-        let (participant, mut receiver) = create_participant("participant");
+        let (participant, state) = create_participant().await;
 
-        channel.add_participant(participant.id.clone(), participant.downgrade());
+        let participant_id: String = "participant".into();
 
-        assert_eq!(channel.inner.participant_handles.lock().len(), 1);
+        channel.add_participant(participant_id.clone(), participant);
+
+        assert_eq!(channel.inner.participant_refs.lock().len(), 1);
         assert!(channel
             .inner
-            .participant_handles
+            .participant_refs
             .lock()
-            .get(&participant.id.clone())
+            .get(&participant_id)
             .is_some());
 
-        let message = get_nth_message(&mut receiver, 1);
+        yield_now().await;
 
-        assert!(message.is_ok());
+        let message = get_nth_message(state, 0).await;
+
+        assert!(message.is_some());
 
         match message.unwrap() {
             ParticipantMessage::ServerMessage { data } => match data {
@@ -345,8 +323,11 @@ pub mod tests {
     #[tokio::test]
     async fn it_calls_participant_added_handler() {
         let channel = Channel::new("test".to_string(), None);
-        let (participant, _receiver) = create_participant("participant");
-        let handler_counter = Arc::new(Mutex::new(HandlerCounter { count: 0 }));
+        let (participant, _) = create_participant().await;
+
+        let participant_id: String = "participant".into();
+
+        let handler_counter = Arc::new(parking_lot::Mutex::new(HandlerCounter { count: 0 }));
 
         channel
             .on_participant_added({
@@ -357,7 +338,7 @@ pub mod tests {
             })
             .detach();
 
-        channel.add_participant(participant.id.clone(), participant.downgrade());
+        channel.add_participant(participant_id, participant);
 
         assert_eq!(handler_counter.lock().count, 1);
     }
@@ -365,8 +346,11 @@ pub mod tests {
     #[tokio::test]
     async fn it_calls_participant_removed_handler() {
         let channel = Channel::new("test".to_string(), None);
-        let (participant, _receiver) = create_participant("participant");
-        let handler_counter = Arc::new(Mutex::new(HandlerCounter { count: 0 }));
+        let (participant, _) = create_participant().await;
+
+        let participant_id: String = "participant".into();
+
+        let handler_counter = Arc::new(parking_lot::Mutex::new(HandlerCounter { count: 0 }));
 
         channel
             .on_participant_removed({
@@ -377,15 +361,15 @@ pub mod tests {
             })
             .detach();
 
-        channel.add_participant(participant.id.clone(), participant.downgrade());
-        channel.remove_participant(&participant.id);
+        channel.add_participant(participant_id.clone(), participant);
+        channel.remove_participant(&participant_id);
 
         assert_eq!(handler_counter.lock().count, 1);
     }
 
     #[tokio::test]
     async fn it_calls_on_close_when_dropped() {
-        let handler_counter = Arc::new(Mutex::new(HandlerCounter { count: 0 }));
+        let handler_counter = Arc::new(parking_lot::Mutex::new(HandlerCounter { count: 0 }));
 
         {
             let channel = Channel::new("test".to_string(), None);
@@ -406,20 +390,27 @@ pub mod tests {
     #[tokio::test]
     async fn it_broadcasts_to_all_participants() {
         let channel = Channel::new("test".to_string(), None);
-        let (participant1, mut receiver1) = create_participant("participant1");
-        let (participant2, mut receiver2) = create_participant("participant2");
+        let (participant1, state) = create_participant().await;
 
-        channel.add_participant(participant1.id.clone(), participant1.downgrade());
-        channel.add_participant(participant2.id.clone(), participant2.downgrade());
+        let participant_id1: String = "participant1".into();
+
+        let (participant2, state2) = create_participant().await;
+
+        let participant_id2: String = "participant2".into();
+
+        channel.add_participant(participant_id1.clone(), participant1);
+        channel.add_participant(participant_id2.clone(), participant2);
 
         channel.broadcast(
             ServerMessage::StorageUpdate(StorageUpdateMessage { update: vec![] }),
             None,
         );
 
-        let message = get_nth_message(&mut receiver1, 2);
+        yield_now().await;
 
-        assert!(message.is_ok());
+        let message = get_nth_message(state, 1).await;
+
+        assert!(message.is_some());
 
         match message.unwrap() {
             ParticipantMessage::ServerMessage { data } => match data {
@@ -435,9 +426,9 @@ pub mod tests {
             }
         }
 
-        let message = get_nth_message(&mut receiver2, 2);
+        let message = get_nth_message(state2, 1).await;
 
-        assert!(message.is_ok());
+        assert!(message.is_some());
 
         match message.unwrap() {
             ParticipantMessage::ServerMessage { data } => match data {
@@ -457,20 +448,27 @@ pub mod tests {
     #[tokio::test]
     async fn it_boradcasts_to_all_participants_except_excluded() {
         let channel = Channel::new("test".to_string(), None);
-        let (participant1, mut receiver1) = create_participant("participant1");
-        let (participant2, mut receiver2) = create_participant("participant2");
+        let (participant1, state) = create_participant().await;
 
-        channel.add_participant(participant1.id.clone(), participant1.downgrade());
-        channel.add_participant(participant2.id.clone(), participant2.downgrade());
+        let participant_id1: String = "participant1".into();
+
+        let (participant2, state2) = create_participant().await;
+
+        let participant_id2: String = "participant2".into();
+
+        channel.add_participant(participant_id1.clone(), participant1);
+        channel.add_participant(participant_id2.clone(), participant2);
 
         channel.broadcast(
             ServerMessage::StorageUpdate(StorageUpdateMessage { update: vec![] }),
-            Some(&participant2.id),
+            Some(&participant_id2),
         );
 
-        let message = get_nth_message(&mut receiver1, 2);
+        yield_now().await;
 
-        assert!(message.is_ok());
+        let message = get_nth_message(state, 1).await;
+
+        assert!(message.is_some());
 
         match message.unwrap() {
             ParticipantMessage::ServerMessage { data } => match data {
@@ -486,59 +484,61 @@ pub mod tests {
             }
         }
 
-        let message = get_nth_message(&mut receiver2, 2);
+        let message = get_nth_message(state2, 2).await;
 
-        assert!(message.is_err());
-
-        match message.unwrap_err() {
-            mpsc::error::TryRecvError::Empty => {}
-            _ => {
-                panic!("Message error was not empty")
-            }
-        }
+        assert!(message.is_none());
     }
 
     #[tokio::test]
     async fn it_removes_participant() {
         let channel = Channel::new("test".to_string(), None);
-        let (participant, _receiver) = create_participant("participant");
+        let (participant, _) = create_participant().await;
 
-        channel.add_participant(participant.id.clone(), participant.downgrade());
+        let participant_id: String = "participant".into();
 
-        channel.remove_participant(&participant.id);
+        channel.add_participant(participant_id.clone(), participant);
 
-        assert_eq!(channel.inner.participant_handles.lock().len(), 0);
+        channel.remove_participant(&participant_id);
+
+        assert_eq!(channel.inner.participant_refs.lock().len(), 0);
         assert!(channel
             .inner
-            .participant_handles
+            .participant_refs
             .lock()
-            .get(&participant.id.clone())
+            .get(&participant_id.clone())
             .is_none());
     }
 
     #[tokio::test]
     async fn it_broadcasts_removed_participant_presence() {
         let channel = Channel::new("test".to_string(), None);
-        let (participant1, _receiver) = create_participant("participant1");
-        let (participant2, mut receiver2) = create_participant("participant2");
+        let (participant1, _) = create_participant().await;
 
-        channel.add_participant(participant1.id.clone(), participant1.downgrade());
-        channel.add_participant(participant2.id.clone(), participant2.downgrade());
-        channel.add_presence(participant1.id.clone(), Value::Null, 0);
+        let participant_id1: String = "participant1".into();
 
-        channel.remove_participant(&participant1.id);
+        let (participant2, state2) = create_participant().await;
 
-        assert_eq!(channel.inner.participant_handles.lock().len(), 1);
+        let participant_id2: String = "participant2".into();
+
+        channel.add_participant(participant_id1.clone(), participant1);
+        channel.add_participant(participant_id2.clone(), participant2);
+        channel.add_presence(participant_id1.clone(), Value::Null, 0);
+
+        channel.remove_participant(&participant_id1);
+
+        assert_eq!(channel.inner.participant_refs.lock().len(), 1);
         assert!(channel
             .inner
-            .participant_handles
+            .participant_refs
             .lock()
-            .get(&participant1.id.clone())
+            .get(&participant_id1.clone())
             .is_none());
 
-        let message = get_nth_message(&mut receiver2, 2);
+        yield_now().await;
 
-        assert!(message.is_ok());
+        let message = get_nth_message(state2, 1).await;
+
+        assert!(message.is_some());
 
         match message.unwrap() {
             ParticipantMessage::ServerMessage { data } => match data {
@@ -548,7 +548,7 @@ pub mod tests {
                         ServerPresenceMessage {
                             clock: 0,
                             data: None,
-                            id: participant1.id.clone()
+                            id: participant_id1.clone()
                         }
                     );
                 }
@@ -585,19 +585,26 @@ pub mod tests {
     #[tokio::test]
     async fn it_sends_all_current_presences_to_new_participant() {
         let channel = Channel::new("test".to_string(), None);
-        let (participant1, _receiver) = create_participant("participant1");
-        let (participant2, mut receiver2) = create_participant("participant2");
+        let (participant1, _) = create_participant().await;
 
-        channel.add_participant(participant1.id.clone(), participant1.downgrade());
-        channel.add_presence(participant1.id.clone(), Value::Null, 0);
+        let participant_id1: String = "participant1".into();
 
-        channel.add_participant(participant2.id.clone(), participant2.downgrade());
+        let (participant2, state2) = create_participant().await;
 
-        assert_eq!(channel.inner.participant_handles.lock().len(), 2);
+        let participant_id2: String = "participant2".into();
 
-        let message = get_nth_message(&mut receiver2, 1);
+        channel.add_participant(participant_id1.clone(), participant1.clone());
+        channel.add_presence(participant_id2.clone(), Value::Null, 0);
 
-        assert!(message.is_ok());
+        channel.add_participant(participant_id2.clone(), participant2.clone());
+
+        assert_eq!(channel.inner.participant_refs.lock().len(), 2);
+
+        yield_now().await;
+
+        let message = get_nth_message(state2, 0).await;
+
+        assert!(message.is_some());
 
         match message.unwrap() {
             ParticipantMessage::ServerMessage { data } => match data {
@@ -608,7 +615,7 @@ pub mod tests {
                             presences: vec![ServerPresenceMessage {
                                 clock: 0,
                                 data: Some(Value::Null),
-                                id: participant1.id.clone()
+                                id: participant_id2.clone()
                             }]
                         }
                     );
@@ -621,5 +628,8 @@ pub mod tests {
                 panic!("Message is not a ParticipantMessage::ServerMessage")
             }
         }
+
+        participant1.drain().unwrap();
+        participant2.drain().unwrap();
     }
 }

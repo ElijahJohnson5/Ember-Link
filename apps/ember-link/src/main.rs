@@ -18,11 +18,13 @@ use futures_util::SinkExt;
 use futures_util::StreamExt;
 use josekit::jws;
 use josekit::jwt;
-use participant::actor::{ParticipantHandle, ParticipantMessage};
+use participant::actor::ParticipantMessage;
+use participant::start_participant;
 use protocol::client::ClientMessage;
 use protocol::server::{AssignIdMessage, ServerMessage};
 use protocol::StorageType;
 use protocol::WebSocketCloseCode;
+use ractor::ActorRef;
 use serde::Deserialize;
 use serde_json::Value;
 use tokio::net::{TcpListener, TcpStream};
@@ -216,7 +218,10 @@ async fn accept_connection(
 
     write.send(Message::Ping("".into())).await.unwrap();
 
-    let participant_handle = ParticipantHandle::new(participant_id, channel, write);
+    let weak_channel = channel.downgrade();
+
+    let (participant, handle) =
+        start_participant(channel, participant_id.clone().to_string(), write).await;
 
     loop {
         tokio::select! {
@@ -225,7 +230,7 @@ async fn accept_connection(
                     Some(msg) => {
                         match msg {
                             Ok(msg) => {
-                                handle_message(&participant_handle, msg).await.unwrap()
+                                handle_message(&participant, msg).await.unwrap()
                             }
                             Err(error) => {
                                 tracing::info!(error = error.to_string());
@@ -239,30 +244,40 @@ async fn accept_connection(
         }
     }
 
+    match weak_channel.upgrade() {
+        None => {}
+        Some(channel) => {
+            channel.remove_participant(&participant_id.to_string());
+        }
+    }
+
+    participant.stop(None);
+    handle
+        .await
+        .expect("Could not await participant join handle");
+
     tracing::info!("Disconnected");
 }
 
 async fn handle_message(
-    participant: &ParticipantHandle,
+    participant: &ActorRef<ParticipantMessage>,
     msg: tokio_tungstenite::tungstenite::Message,
 ) -> Result<(), String> {
     match msg {
         Message::Ping(data) => {
             participant
-                .sender
-                .send(ParticipantMessage::PingMessage { data: data })
-                .unwrap();
+                .cast(ParticipantMessage::PingMessage { data: data })
+                .expect("Could not send message to participant");
         }
         Message::Text(data) => {
             let data = data.to_string();
 
             if data == "ping" {
                 participant
-                    .sender
-                    .send(ParticipantMessage::TextPingMessage {
+                    .cast(ParticipantMessage::TextPingMessage {
                         data: "pong".into(),
                     })
-                    .unwrap();
+                    .expect("Could not send message to participant");
             } else {
                 match serde_json::from_str(&data) {
                     Ok(message) => {
@@ -282,26 +297,23 @@ async fn handle_message(
     Ok(())
 }
 
-fn handle_client_message(participant: &ParticipantHandle, msg: ClientMessage<Value>) {
+fn handle_client_message(participant: &ActorRef<ParticipantMessage>, msg: ClientMessage<Value>) {
     match msg {
         ClientMessage::Presence(msg) => {
             // TODO broadcast to the channel and store in the channel
             participant
-                .sender
-                .send(ParticipantMessage::MyPresence { data: msg })
-                .unwrap();
+                .cast(ParticipantMessage::MyPresence { data: msg })
+                .expect("Could not send message to participant");
         }
         ClientMessage::StorageUpdate(msg) => {
             participant
-                .sender
-                .send(ParticipantMessage::StorageUpdate { data: msg })
-                .unwrap();
+                .cast(ParticipantMessage::StorageUpdate { data: msg })
+                .expect("Could not send message to participant");
         }
         ClientMessage::StorageSync(msg) => {
             participant
-                .sender
-                .send(ParticipantMessage::StorageSync { data: msg })
-                .unwrap();
+                .cast(ParticipantMessage::StorageSync { data: msg })
+                .expect("Could not send message to participant");
         }
     }
 }
