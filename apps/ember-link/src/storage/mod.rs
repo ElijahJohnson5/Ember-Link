@@ -28,13 +28,10 @@ pub trait Storage {
         tenant_id: &Option<String>,
     ) -> Result<(), StorageError>;
 
-    async fn handle_sync_message(
+    fn handle_sync_message(
         &self,
         message: &StorageSyncMessage,
     ) -> Result<Option<Vec<StorageSyncMessage>>, StorageError>;
 
-    async fn handle_update_message(
-        &self,
-        message: &StorageUpdateMessage,
-    ) -> Result<(), StorageError>;
+    fn handle_update_message(&self, message: &StorageUpdateMessage) -> Result<(), StorageError>;
 }

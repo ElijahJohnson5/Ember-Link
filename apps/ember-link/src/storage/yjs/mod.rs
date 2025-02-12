@@ -4,7 +4,7 @@ use serde::Deserialize;
 use url::Url;
 use yrs::{
     updates::{decoder::Decode, encoder::Encode},
-    AsyncTransact, Doc, ReadTxn, StateVector, Update,
+    Doc, ReadTxn, StateVector, Transact, Update,
 };
 
 use super::{Storage, StorageError};
@@ -22,7 +22,7 @@ impl YjsStorage {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct StorageEndpointResponse {
-    update: Vec<u8>,
+    updates: Vec<Vec<u8>>,
 }
 
 #[async_trait]
@@ -55,20 +55,22 @@ impl Storage for YjsStorage {
                 .await
                 .map_err(|e| StorageError::EndpointError(Box::new(e)))?;
 
-            let update = yrs::Update::decode_v1(&response.update)
-                .map_err(|e| StorageError::EndpointError(Box::new(e)))?;
+            let mut transaction = Transact::transact_mut(&self.doc);
 
-            self.doc
-                .transact_mut()
-                .await
-                .apply_update(update)
-                .map_err(|e| StorageError::UpdateError(Box::new(e)))?;
+            for update in response.updates {
+                let update = yrs::Update::decode_v1(&update)
+                    .map_err(|e| StorageError::EndpointError(Box::new(e)))?;
+
+                transaction
+                    .apply_update(update)
+                    .map_err(|e| StorageError::UpdateError(Box::new(e)))?;
+            }
         }
 
         Ok(())
     }
 
-    async fn handle_sync_message(
+    fn handle_sync_message(
         &self,
         message: &StorageSyncMessage,
     ) -> Result<Option<Vec<StorageSyncMessage>>, StorageError> {
@@ -76,7 +78,7 @@ impl Storage for YjsStorage {
 
         match message.sync_type.as_str() {
             "SyncStep1" => {
-                let txn = self.doc.transact().await;
+                let txn = self.doc.transact();
 
                 let sv = match StateVector::decode_v1(&message.data) {
                     Err(e) => return Err(StorageError::Sync(Box::new(e))),
@@ -99,7 +101,7 @@ impl Storage for YjsStorage {
                 ]));
             }
             "SyncStep2" => {
-                let mut txn = self.doc.transact_mut().await;
+                let mut txn = self.doc.transact_mut();
 
                 let update = match Update::decode_v1(&message.data) {
                     Err(e) => return Err(StorageError::Sync(Box::new(e))),
@@ -124,11 +126,8 @@ impl Storage for YjsStorage {
         Ok(None)
     }
 
-    async fn handle_update_message(
-        &self,
-        message: &StorageUpdateMessage,
-    ) -> Result<(), StorageError> {
-        let mut txn = self.doc.transact_mut().await;
+    fn handle_update_message(&self, message: &StorageUpdateMessage) -> Result<(), StorageError> {
+        let mut txn = self.doc.transact_mut();
 
         let update = match Update::decode_v1(&message.update) {
             Err(e) => return Err(StorageError::Sync(Box::new(e))),

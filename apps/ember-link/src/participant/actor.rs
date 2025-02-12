@@ -131,11 +131,10 @@ impl Participant {
             ParticipantMessage::StorageUpdate { data } => {
                 self.channel
                     .handle_update_message(data, self.id.clone())
-                    .await
                     .expect("Could not handle storage update");
             }
             ParticipantMessage::StorageSync { data } => {
-                match self.channel.handle_sync_message(data).await {
+                match self.channel.handle_sync_message(data) {
                     Err(e) => {
                         tracing::error!("Could not sync storage: {}", e);
                     }

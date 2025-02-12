@@ -92,24 +92,24 @@ impl Channel {
         }
     }
 
-    pub async fn handle_sync_message(
+    pub fn handle_sync_message(
         &self,
         message: StorageSyncMessage,
     ) -> Result<Option<Vec<StorageSyncMessage>>, StorageError> {
         if let Some(storage) = &self.inner.storage {
-            return storage.handle_sync_message(&message).await;
+            return storage.handle_sync_message(&message);
         }
 
         Ok(None)
     }
 
-    pub async fn handle_update_message(
+    pub fn handle_update_message(
         &self,
         message: StorageUpdateMessage,
         participant_id: String,
     ) -> Result<(), StorageError> {
         if let Some(storage) = &self.inner.storage {
-            storage.handle_update_message(&message).await?;
+            storage.handle_update_message(&message)?;
         }
 
         self.inner
