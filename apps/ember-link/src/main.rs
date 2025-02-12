@@ -46,8 +46,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let environment = Environment::from_config(&config).await;
 
-    let channel_registry: Arc<ChannelRegistry> =
-        Arc::new(ChannelRegistry::new(environment.webhook_processor()));
+    let channel_registry: Arc<ChannelRegistry> = Arc::new(ChannelRegistry::new(
+        environment.webhook_processor(),
+        config.clone(),
+    ));
 
     while let Ok((stream, _)) = listener.accept().await {
         let _handle = tokio::spawn(accept_connection(
@@ -175,15 +177,30 @@ async fn accept_connection(
         params["channel_name"]
     );
 
-    let (mut write, mut read) = ws_stream.split();
-
-    let channel = channel_registry
+    let channel = match channel_registry
         .get_or_create_channel(
             params["channel_name"].to_string(),
             storage_type,
             params.get("tenant_id").cloned(),
         )
-        .await;
+        .await
+    {
+        Err(e) => {
+            tracing::error!("{}", e);
+            ws_stream
+                .close(Some(CloseFrame {
+                    code: CloseCode::Library(WebSocketCloseCode::ChannelCreationFailed as u16),
+                    reason: "Channel creation failed".into(),
+                }))
+                .await
+                .expect("Could not close websocket");
+            return;
+        }
+
+        Ok(channel) => channel,
+    };
+
+    let (mut write, mut read) = ws_stream.split();
 
     let participant_id = uuid::Uuid::new_v4();
 

@@ -1,5 +1,7 @@
 use async_trait::async_trait;
 use protocol::{StorageSyncMessage, StorageUpdateMessage};
+use serde::Deserialize;
+use url::Url;
 use yrs::{
     updates::{decoder::Decode, encoder::Encode},
     AsyncTransact, Doc, ReadTxn, StateVector, Update,
@@ -17,12 +19,59 @@ impl YjsStorage {
     }
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct StorageEndpointResponse {
+    update: Vec<u8>,
+}
+
 #[async_trait]
 impl Storage for YjsStorage {
+    async fn init_storage_from_endpoint(
+        &self,
+        channel_name: &String,
+        storage_endpoint: &Option<String>,
+        tenant_id: &Option<String>,
+    ) -> Result<(), StorageError> {
+        if let Some(storage_endpoint) = storage_endpoint {
+            let mut url = Url::parse(&storage_endpoint)
+                .map_err(|e| StorageError::EndpointError(Box::new(e)))?;
+
+            if let Some(tenant_id) = tenant_id {
+                url.query_pairs_mut().append_pair("tenant_id", tenant_id);
+            }
+
+            url.query_pairs_mut()
+                .append_pair("channel_name", channel_name);
+
+            let response = reqwest::get(url)
+                .await
+                .map_err(|e| StorageError::EndpointError(Box::new(e)))?;
+
+            let response = response
+                .error_for_status()
+                .map_err(|e| StorageError::EndpointError(Box::new(e)))?
+                .json::<StorageEndpointResponse>()
+                .await
+                .map_err(|e| StorageError::EndpointError(Box::new(e)))?;
+
+            let update = yrs::Update::decode_v1(&response.update)
+                .map_err(|e| StorageError::EndpointError(Box::new(e)))?;
+
+            self.doc
+                .transact_mut()
+                .await
+                .apply_update(update)
+                .map_err(|e| StorageError::UpdateError(Box::new(e)))?;
+        }
+
+        Ok(())
+    }
+
     async fn handle_sync_message(
         &self,
         message: &StorageSyncMessage,
-    ) -> Result<Option<Vec<StorageSyncMessage>>, super::StorageError> {
+    ) -> Result<Option<Vec<StorageSyncMessage>>, StorageError> {
         tracing::info!("Got sync message of type: {}", message.sync_type);
 
         match message.sync_type.as_str() {

@@ -2,11 +2,13 @@
 
 use futures_util::lock::Mutex;
 use protocol::{
-    CloseChannel, NewChannel, NewParticipant, RemoveParticipant, StorageType, WebhookMessage,
+    CloseChannel, NewChannel, NewParticipant, RemoveParticipant, StorageType, StorageUpdated,
+    WebhookMessage,
 };
 use ractor::ActorRef;
 use std::{
     collections::{hash_map::Entry, HashMap},
+    error::Error as StdError,
     sync::Arc,
     time::{SystemTime, UNIX_EPOCH},
 };
@@ -14,6 +16,7 @@ use tracing::instrument;
 
 use crate::{
     channel::{Channel, WeakChannel},
+    config::Config,
     storage::{yjs::init_storage, Storage},
     webhook_processor::actor::WebhookProcessorMessage,
 };
@@ -21,13 +24,27 @@ use crate::{
 pub struct ChannelRegistry {
     channels: Arc<Mutex<HashMap<String, WeakChannel>>>,
     webhook_processor: Option<ActorRef<WebhookProcessorMessage>>,
+    config: Config,
+}
+
+pub type BoxDynError = Box<dyn StdError + 'static + Send + Sync>;
+
+#[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
+pub enum ChannelError {
+    #[error("Channel creation failed: {0}")]
+    CreationError(#[source] BoxDynError),
 }
 
 impl ChannelRegistry {
-    pub fn new(webhook_processor: Option<ActorRef<WebhookProcessorMessage>>) -> Self {
+    pub fn new(
+        webhook_processor: Option<ActorRef<WebhookProcessorMessage>>,
+        config: Config,
+    ) -> Self {
         Self {
             channels: Arc::default(),
             webhook_processor: webhook_processor.clone(),
+            config,
         }
     }
 
@@ -37,7 +54,7 @@ impl ChannelRegistry {
         channel_name: String,
         storage_type: Option<StorageType>,
         tenant_id: Option<String>,
-    ) -> Channel {
+    ) -> Result<Channel, ChannelError> {
         let mut channels = self.channels.lock().await;
 
         let len = channels.len();
@@ -52,14 +69,19 @@ impl ChannelRegistry {
                     Entry::Occupied(entry),
                     channel_name,
                     storage_type,
-                    tenant_id,
+                    &tenant_id,
                     len,
                 ),
             },
-            entry => self.create_channel(entry, channel_name, storage_type, tenant_id, len),
+            entry => self.create_channel(entry, channel_name, storage_type, &tenant_id, len),
         };
 
         channel
+            .init_storage(&self.config.storage_endpoint, &tenant_id)
+            .await
+            .map_err(|e| ChannelError::CreationError(Box::new(e)))?;
+
+        Ok(channel)
     }
 
     #[instrument(skip(self, entry, old_num_channels))]
@@ -68,7 +90,7 @@ impl ChannelRegistry {
         entry: Entry<'_, String, WeakChannel>,
         channel_name: String,
         storage_type: Option<StorageType>,
-        tenant_id: Option<String>,
+        tenant_id: &Option<String>,
         old_num_channels: usize,
     ) -> Channel {
         let storage = storage_type.map(|t| match t {
@@ -95,7 +117,7 @@ impl ChannelRegistry {
 
             channel
                 .on_participant_added({
-                    let id = channel_name.clone();
+                    let channel_name = channel_name.clone();
                     let webhook_processor = webhook_processor.clone();
                     let tenant_id = tenant_id.clone();
 
@@ -107,7 +129,7 @@ impl ChannelRegistry {
 
                         let webhook_message = WebhookMessage::NewParticipant(NewParticipant {
                             id: uuid::Uuid::new_v4().into(),
-                            channel_id: id.clone(),
+                            channel_name: channel_name.clone(),
                             timestamp: since_the_epoch.as_millis(),
                             participant_id: participant_id.clone(),
                             num_pariticipants: *num_participants,
@@ -127,7 +149,7 @@ impl ChannelRegistry {
 
             channel
                 .on_participant_removed({
-                    let id = channel_name.clone();
+                    let channel_name = channel_name.clone();
                     let webhook_processor = webhook_processor.clone();
                     let tenant_id = tenant_id.clone();
 
@@ -140,11 +162,42 @@ impl ChannelRegistry {
                         let webhook_message =
                             WebhookMessage::RemoveParticipant(RemoveParticipant {
                                 id: uuid::Uuid::new_v4().into(),
-                                channel_id: id.clone(),
+                                channel_name: channel_name.clone(),
                                 timestamp: since_the_epoch.as_millis(),
                                 participant_id: participant_id.clone(),
                                 num_pariticipants: *num_participants,
                             });
+
+                        let webhook_processor_message = WebhookProcessorMessage {
+                            msg: webhook_message,
+                            tenant_id: tenant_id.clone(),
+                        };
+
+                        webhook_processor.cast(webhook_processor_message).expect(
+                            "Could not send remove participant message to webhook processor",
+                        )
+                    }
+                })
+                .detach();
+
+            channel
+                .on_storage_updated({
+                    let channel_name = channel_name.clone();
+                    let webhook_processor = webhook_processor.clone();
+                    let tenant_id = tenant_id.clone();
+
+                    move |update| {
+                        let start = SystemTime::now();
+                        let since_the_epoch = start
+                            .duration_since(UNIX_EPOCH)
+                            .expect("Time went backwards");
+
+                        let webhook_message = WebhookMessage::StorageUpdated(StorageUpdated {
+                            id: uuid::Uuid::new_v4().into(),
+                            channel_name: channel_name.clone(),
+                            timestamp: since_the_epoch.as_millis(),
+                            data: update.clone(),
+                        });
 
                         let webhook_processor_message = WebhookProcessorMessage {
                             msg: webhook_message,
@@ -165,7 +218,7 @@ impl ChannelRegistry {
 
             let webhook_message = WebhookMessage::NewChannel(NewChannel {
                 id: uuid::Uuid::new_v4().into(),
-                channel_id: channel_name.clone(),
+                channel_name: channel_name.clone(),
                 timestamp: since_the_epoch.as_millis(),
                 num_channels: old_num_channels + 1,
             });
@@ -182,7 +235,7 @@ impl ChannelRegistry {
 
         channel
             .on_close({
-                let id = channel_name.clone();
+                let channel_name = channel_name.clone();
                 let channels = self.channels.clone();
                 let webhook_processor = self.webhook_processor.clone();
                 let tenant_id = tenant_id.clone();
@@ -197,14 +250,14 @@ impl ChannelRegistry {
 
                             let num = {
                                 let mut channels = channels.lock().await;
-                                channels.remove(&id);
+                                channels.remove(&channel_name);
 
                                 channels.len()
                             };
 
                             let webhook_message = WebhookMessage::CloseChannel(CloseChannel {
                                 id: uuid::Uuid::new_v4().into(),
-                                channel_id: id,
+                                channel_name,
                                 timestamp: since_the_epoch.as_millis(),
                                 num_channels: num,
                             });
@@ -234,6 +287,7 @@ impl ChannelRegistry {
 mod tests {
     use std::time::Duration;
 
+    use envconfig::Envconfig;
     use ractor::{Actor, ActorProcessingErr};
 
     use crate::channel::tests::create_participant;
@@ -285,6 +339,12 @@ mod tests {
         }
     }
 
+    fn create_config() -> Config {
+        let config_values = HashMap::new();
+
+        Config::init_from_hashmap(&config_values).unwrap()
+    }
+
     #[tokio::test]
     async fn it_creates_new_channel() {
         let (webhook_processor, webhook_processor_handle) =
@@ -292,7 +352,8 @@ mod tests {
                 .await
                 .expect("Actor failed to start");
 
-        let channel_registry = ChannelRegistry::new(Some(webhook_processor.clone()));
+        let channel_registry =
+            ChannelRegistry::new(Some(webhook_processor.clone()), create_config());
 
         {
             let _ = channel_registry
@@ -315,7 +376,8 @@ mod tests {
                 .await
                 .expect("Actor failed to start");
 
-        let channel_registry = ChannelRegistry::new(Some(webhook_processor.clone()));
+        let channel_registry =
+            ChannelRegistry::new(Some(webhook_processor.clone()), create_config());
 
         {
             let _ = channel_registry
@@ -344,7 +406,8 @@ mod tests {
                 .await
                 .expect("Actor failed to start");
 
-        let channel_registry = ChannelRegistry::new(Some(webhook_processor.clone()));
+        let channel_registry =
+            ChannelRegistry::new(Some(webhook_processor.clone()), create_config());
 
         {
             let _ = channel_registry
@@ -380,12 +443,14 @@ mod tests {
                 .await
                 .expect("Actor failed to start");
 
-        let channel_registry = ChannelRegistry::new(Some(webhook_processor.clone()));
+        let channel_registry =
+            ChannelRegistry::new(Some(webhook_processor.clone()), create_config());
 
         {
             let channel = channel_registry
                 .get_or_create_channel("Test".into(), None, None)
-                .await;
+                .await
+                .unwrap();
 
             assert!(channel_registry.channels.lock().await.contains_key("Test"));
 
@@ -405,7 +470,7 @@ mod tests {
                     .new_participant_message
                     .clone()
                     .unwrap()
-                    .channel_id,
+                    .channel_name,
                 "Test"
             );
 
@@ -433,12 +498,14 @@ mod tests {
                 .await
                 .expect("Actor failed to start");
 
-        let channel_registry = ChannelRegistry::new(Some(webhook_processor.clone()));
+        let channel_registry =
+            ChannelRegistry::new(Some(webhook_processor.clone()), create_config());
 
         {
             let channel = channel_registry
                 .get_or_create_channel("Test".into(), None, None)
-                .await;
+                .await
+                .unwrap();
 
             assert!(channel_registry.channels.lock().await.contains_key("Test"));
 
@@ -459,7 +526,7 @@ mod tests {
                     .remove_participant_message
                     .clone()
                     .unwrap()
-                    .channel_id,
+                    .channel_name,
                 "Test"
             );
 

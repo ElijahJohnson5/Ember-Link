@@ -9,20 +9,21 @@ use std::{
 use parking_lot::Mutex;
 use protocol::{
     server::{InitialPresenceMessage, ServerMessage, ServerPresenceMessage},
-    StorageSyncMessage, StorageType, StorageUpdateMessage,
+    StorageSyncMessage, StorageUpdateMessage,
 };
 use serde_json::Value;
 
 use crate::{
     event_listener_primitives::{Bag, BagOnce, HandlerId},
     participant::actor::{ParticipantMessage, WeakParticipantHandle},
-    storage::{yjs::init_storage, Storage, StorageError},
+    storage::{Storage, StorageError},
 };
 
 #[derive(Default)]
 struct Handlers {
     participant_added: Bag<Arc<dyn Fn(&String, &usize) + Send + Sync>, String, usize>,
     participant_removed: Bag<Arc<dyn Fn(&String, &usize) + Send + Sync>, String, usize>,
+    storage_updated: Bag<Arc<dyn Fn(&Vec<u8>) + Send + Sync>, Vec<u8>>,
     closed: BagOnce<Box<dyn FnOnce() + Send>>,
 }
 
@@ -111,6 +112,11 @@ impl Channel {
             storage.handle_update_message(&message).await?;
         }
 
+        self.inner
+            .handlers
+            .storage_updated
+            .call_simple(&message.update);
+
         self.broadcast(ServerMessage::StorageUpdate(message), Some(&participant_id));
 
         Ok(())
@@ -195,6 +201,13 @@ impl Channel {
             .add(Arc::new(callback))
     }
 
+    pub fn on_storage_updated<F: Fn(&Vec<u8>) + Send + Sync + 'static>(
+        &self,
+        callback: F,
+    ) -> HandlerId {
+        self.inner.handlers.storage_updated.add(Arc::new(callback))
+    }
+
     pub fn on_participant_removed<F: Fn(&String, &usize) + Send + Sync + 'static>(
         &self,
         callback: F,
@@ -207,6 +220,20 @@ impl Channel {
 
     pub fn on_close<F: FnOnce() + Send + 'static>(&self, callback: F) -> HandlerId {
         self.inner.handlers.closed.add(Box::new(callback))
+    }
+
+    pub async fn init_storage(
+        &self,
+        storage_endpoint: &Option<String>,
+        tenant_id: &Option<String>,
+    ) -> Result<(), StorageError> {
+        if let Some(storage) = &self.inner.storage {
+            storage
+                .init_storage_from_endpoint(&self.inner.id, storage_endpoint, tenant_id)
+                .await?;
+        }
+
+        Ok(())
     }
 
     fn initial_presence_message(&self) -> InitialPresenceMessage<Value> {
