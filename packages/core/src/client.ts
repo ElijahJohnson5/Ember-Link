@@ -92,6 +92,10 @@ export function createClient<P extends Record<string, unknown> = DefaultPresence
           }
         }
 
+        if (options?.storageProvider?.type) {
+          url.searchParams.set('storage_type', options.storageProvider.type);
+        }
+
         return new ws(url.toString());
       },
       options

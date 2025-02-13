@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::StorageUpdateMessage;
+use crate::{StorageSyncMessage, StorageUpdateMessage};
 
 #[derive(Clone, Deserialize, Debug, Serialize, TS)]
 #[serde(
@@ -13,6 +13,7 @@ use crate::StorageUpdateMessage;
 pub enum ClientMessage<T> {
     Presence(ClientPresenceMessage<T>),
     StorageUpdate(StorageUpdateMessage),
+    StorageSync(StorageSyncMessage),
 }
 
 #[derive(Clone, Deserialize, Debug, Serialize, TS)]

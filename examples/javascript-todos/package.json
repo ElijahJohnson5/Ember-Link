@@ -5,8 +5,8 @@
     "build": "esbuild app.ts --bundle --outfile=static/app.js"
   },
   "dependencies": {
-    "@ember-link/core": "^0.0.4",
-    "@ember-link/yjs-storage": "^0.0.4"
+    "@ember-link/core": "^0.0.6",
+    "@ember-link/yjs-storage": "^0.0.6"
   },
   "devDependencies": {
     "esbuild": "^0.24.2",

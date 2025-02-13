@@ -92,7 +92,25 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@ember-link/core@npm:^0.0.4, @ember-link/core@workspace:packages/core":
+"@ember-link/core@npm:^0.0.4":
+  version: 0.0.4
+  resolution: "@ember-link/core@npm:0.0.4"
+  dependencies:
+    "@ember-link/event-emitter": "npm:^0.0.4"
+    "@ember-link/protocol": "npm:^0.0.4"
+    "@ember-link/storage": "npm:^0.0.4"
+    jose: "npm:^5.9.6"
+    lib0: "npm:^0.2.99"
+    oby: "npm:^15.1.2"
+    tseep: "npm:^1.3.1"
+    xstate: "npm:^5.19.0"
+  peerDependencies:
+    typescript: ^5.0.0
+  checksum: 10c0/757486d287bf74838b63810de449b0800fe734513befb109ec26248caac225616b6f47329ebd490a01ca55f074bc17230cae30f6e9f074f3240a1a4cbf320b28
+  languageName: node
+  linkType: hard
+
+"@ember-link/core@npm:^0.0.6, @ember-link/core@workspace:packages/core":
   version: 0.0.0-use.local
   resolution: "@ember-link/core@workspace:packages/core"
   dependencies:
@@ -115,6 +133,15 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@ember-link/event-emitter@npm:0.0.4, @ember-link/event-emitter@npm:^0.0.4":
+  version: 0.0.4
+  resolution: "@ember-link/event-emitter@npm:0.0.4"
+  dependencies:
+    tseep: "npm:^1.3.1"
+  checksum: 10c0/6539ec21d5d88d5ef74a5d0ceef45ffbd0126500227859e5075041b9c85089b523f0a419b7aa9bf2e666fdc4ef9a199ff392157f4e4910c56ceca15e7354d992
+  languageName: node
+  linkType: hard
+
 "@ember-link/event-emitter@workspace:*, @ember-link/event-emitter@workspace:^, @ember-link/event-emitter@workspace:packages/event-emitter":
   version: 0.0.0-use.local
   resolution: "@ember-link/event-emitter@workspace:packages/event-emitter"
@@ -125,7 +152,14 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@ember-link/protocol@workspace:^, @ember-link/protocol@workspace:packages/protocol":
+"@ember-link/protocol@npm:^0.0.4":
+  version: 0.0.4
+  resolution: "@ember-link/protocol@npm:0.0.4"
+  checksum: 10c0/076275e5f43eeb966f90a6991db48acd3bd095d256fe8647071fb84ac2f8709b6de2eff77053a74d871217a9e95976f6e93021149148cec88cf9244d346a5abc
+  languageName: node
+  linkType: hard
+
+"@ember-link/protocol@workspace:*, @ember-link/protocol@workspace:^, @ember-link/protocol@workspace:packages/protocol":
   version: 0.0.0-use.local
   resolution: "@ember-link/protocol@workspace:packages/protocol"
   dependencies:
@@ -133,16 +167,26 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@ember-link/storage@npm:^0.0.4":
+  version: 0.0.4
+  resolution: "@ember-link/storage@npm:0.0.4"
+  dependencies:
+    "@ember-link/event-emitter": "npm:0.0.4"
+  checksum: 10c0/45458a8143ce4e0cbb104fb4e2ed744e15bde90ebf4daf7640e056262e14c7fd744962a294f88aaaf9f549cb15e29cd4f93f0bd76a8c12e0fb8f3da12b391eea
+  languageName: node
+  linkType: hard
+
 "@ember-link/storage@workspace:^, @ember-link/storage@workspace:packages/storage":
   version: 0.0.0-use.local
   resolution: "@ember-link/storage@workspace:packages/storage"
   dependencies:
     "@ember-link/event-emitter": "workspace:*"
+    "@ember-link/protocol": "workspace:*"
     typescript: "npm:^5.7.3"
   languageName: unknown
   linkType: soft
 
-"@ember-link/yjs-storage@npm:^0.0.4, @ember-link/yjs-storage@workspace:packages/yjs-storage":
+"@ember-link/yjs-storage@npm:^0.0.6, @ember-link/yjs-storage@workspace:packages/yjs-storage":
   version: 0.0.0-use.local
   resolution: "@ember-link/yjs-storage@workspace:packages/yjs-storage"
   dependencies:
@@ -2539,7 +2583,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "javascript-cursors@workspace:examples/javascript-cursors"
   dependencies:
-    "@ember-link/core": "npm:^0.0.4"
+    "@ember-link/core": "npm:^0.0.6"
     esbuild: "npm:^0.24.2"
     typescript: "npm:^5.7.3"
   languageName: unknown
@@ -2549,8 +2593,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "javascript-todos@workspace:examples/javascript-todos"
   dependencies:
-    "@ember-link/core": "npm:^0.0.4"
-    "@ember-link/yjs-storage": "npm:^0.0.4"
+    "@ember-link/core": "npm:^0.0.6"
+    "@ember-link/yjs-storage": "npm:^0.0.6"
     esbuild: "npm:^0.24.2"
     typescript: "npm:^5.7.3"
   languageName: unknown

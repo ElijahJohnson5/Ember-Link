@@ -4,7 +4,7 @@ import { ManagedSocket } from './socket-client';
 import { ServerMessage } from '@ember-link/protocol';
 import $ from 'oby';
 import { ManagedOthers, OtherEvents } from './others';
-import { IStorage, IStorageProvider } from '@ember-link/storage';
+import { IStorage, IStorageProvider, MessageEvents } from '@ember-link/storage';
 import { DefaultPresence } from './index';
 import { AuthValue } from './auth';
 
@@ -68,6 +68,8 @@ export function createChannel<
     eventEmitter.emit('others', managedOthers.signal());
   });
 
+  const storageEventEmitter = createEventEmitter<MessageEvents>();
+
   managedSocket.events.subscribe('message', (e) => {
     if (typeof e.data === 'string') {
       // We know the data is a string if we get here
@@ -83,6 +85,8 @@ export function createChannel<
         }
       } else if (message.type === 'storageUpdate') {
         storage?.applyUpdate(Uint8Array.from(message.update));
+      } else if (message.type === 'storageSync') {
+        storageEventEmitter.emit('message', message);
       }
     }
   });
@@ -93,6 +97,15 @@ export function createChannel<
   });
 
   managedSocket.events.subscribe('open', () => {
+    options?.storageProvider?.sync(storageEventEmitter.observable, {
+      message: (data) => {
+        managedSocket.message({
+          type: 'storageSync',
+          ...data
+        });
+      }
+    });
+
     managedSocket.message(presence.getPresenceMessage());
   });
 

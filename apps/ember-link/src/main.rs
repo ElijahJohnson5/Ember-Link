@@ -4,6 +4,7 @@ mod config;
 mod environment;
 mod event_listener_primitives;
 mod participant;
+mod storage;
 mod webhook_processor;
 
 use std::collections::HashMap;
@@ -17,10 +18,13 @@ use futures_util::SinkExt;
 use futures_util::StreamExt;
 use josekit::jws;
 use josekit::jwt;
-use participant::actor::{ParticipantHandle, ParticipantMessage};
+use participant::actor::ParticipantMessage;
+use participant::start_participant;
 use protocol::client::ClientMessage;
 use protocol::server::{AssignIdMessage, ServerMessage};
+use protocol::StorageType;
 use protocol::WebSocketCloseCode;
+use ractor::ActorRef;
 use serde::Deserialize;
 use serde_json::Value;
 use tokio::net::{TcpListener, TcpStream};
@@ -44,8 +48,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let environment = Environment::from_config(&config).await;
 
-    let channel_registry: Arc<ChannelRegistry> =
-        Arc::new(ChannelRegistry::new(environment.webhook_processor()));
+    let channel_registry: Arc<ChannelRegistry> = Arc::new(ChannelRegistry::new(
+        environment.webhook_processor(),
+        config.clone(),
+    ));
 
     while let Ok((stream, _)) = listener.accept().await {
         let _handle = tokio::spawn(accept_connection(
@@ -120,6 +126,11 @@ async fn accept_connection(
         tracing::warn!("Could not find channel name in query params");
         return;
     }
+    let storage_type: Option<StorageType> = params
+        .get("storage_type")
+        .map(|storage_type| format!("\"{storage_type}\""))
+        .map(|storage_type| serde_json::from_str(&storage_type).ok())
+        .flatten();
 
     if !config.allow_unauthorized && !params.contains_key("token") {
         tracing::warn!("Could not find token for authorization");
@@ -136,7 +147,7 @@ async fn accept_connection(
 
     if params.contains_key("token") {
         let payload = match validate_token(
-            params["token"].clone(),
+            &params["token"],
             params.get("tenant_id").cloned(),
             config.clone(),
         )
@@ -168,14 +179,30 @@ async fn accept_connection(
         params["channel_name"]
     );
 
-    let (mut write, mut read) = ws_stream.split();
-
-    let channel = channel_registry
+    let channel = match channel_registry
         .get_or_create_channel(
             params["channel_name"].to_string(),
+            storage_type,
             params.get("tenant_id").cloned(),
         )
-        .await;
+        .await
+    {
+        Err(e) => {
+            tracing::error!("{}", e);
+            ws_stream
+                .close(Some(CloseFrame {
+                    code: CloseCode::Library(WebSocketCloseCode::ChannelCreationFailed as u16),
+                    reason: "Channel creation failed".into(),
+                }))
+                .await
+                .expect("Could not close websocket");
+            return;
+        }
+
+        Ok(channel) => channel,
+    };
+
+    let (mut write, mut read) = ws_stream.split();
 
     let participant_id = uuid::Uuid::new_v4();
 
@@ -191,7 +218,10 @@ async fn accept_connection(
 
     write.send(Message::Ping("".into())).await.unwrap();
 
-    let participant_handle = ParticipantHandle::new(participant_id, channel, write);
+    let weak_channel = channel.downgrade();
+
+    let (participant, handle) =
+        start_participant(channel, participant_id.clone().to_string(), write).await;
 
     loop {
         tokio::select! {
@@ -200,7 +230,7 @@ async fn accept_connection(
                     Some(msg) => {
                         match msg {
                             Ok(msg) => {
-                                handle_message(&participant_handle, msg).await.unwrap()
+                                handle_message(&participant, msg).await.unwrap()
                             }
                             Err(error) => {
                                 tracing::info!(error = error.to_string());
@@ -214,30 +244,40 @@ async fn accept_connection(
         }
     }
 
+    match weak_channel.upgrade() {
+        None => {}
+        Some(channel) => {
+            channel.remove_participant(&participant_id.to_string());
+        }
+    }
+
+    participant.stop(None);
+    handle
+        .await
+        .expect("Could not await participant join handle");
+
     tracing::info!("Disconnected");
 }
 
 async fn handle_message(
-    participant: &ParticipantHandle,
+    participant: &ActorRef<ParticipantMessage>,
     msg: tokio_tungstenite::tungstenite::Message,
 ) -> Result<(), String> {
     match msg {
         Message::Ping(data) => {
             participant
-                .sender
-                .send(ParticipantMessage::PingMessage { data: data })
-                .unwrap();
+                .cast(ParticipantMessage::PingMessage { data: data })
+                .expect("Could not send message to participant");
         }
         Message::Text(data) => {
             let data = data.to_string();
 
             if data == "ping" {
                 participant
-                    .sender
-                    .send(ParticipantMessage::TextPingMessage {
+                    .cast(ParticipantMessage::TextPingMessage {
                         data: "pong".into(),
                     })
-                    .unwrap();
+                    .expect("Could not send message to participant");
             } else {
                 match serde_json::from_str(&data) {
                     Ok(message) => {
@@ -257,20 +297,23 @@ async fn handle_message(
     Ok(())
 }
 
-fn handle_client_message(participant: &ParticipantHandle, msg: ClientMessage<Value>) {
+fn handle_client_message(participant: &ActorRef<ParticipantMessage>, msg: ClientMessage<Value>) {
     match msg {
         ClientMessage::Presence(msg) => {
             // TODO broadcast to the channel and store in the channel
             participant
-                .sender
-                .send(ParticipantMessage::MyPresence { data: msg })
-                .unwrap();
+                .cast(ParticipantMessage::MyPresence { data: msg })
+                .expect("Could not send message to participant");
         }
         ClientMessage::StorageUpdate(msg) => {
             participant
-                .sender
-                .send(ParticipantMessage::StorageUpdate { data: msg })
-                .unwrap();
+                .cast(ParticipantMessage::StorageUpdate { data: msg })
+                .expect("Could not send message to participant");
+        }
+        ClientMessage::StorageSync(msg) => {
+            participant
+                .cast(ParticipantMessage::StorageSync { data: msg })
+                .expect("Could not send message to participant");
         }
     }
 }
@@ -282,7 +325,7 @@ struct SignerKeyResponse {
 }
 
 async fn validate_token(
-    token: String,
+    token: &String,
     tenant_id: Option<String>,
     config: Config,
 ) -> Result<jwt::JwtPayload, (String, WebSocketCloseCode)> {

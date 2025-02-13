@@ -2,7 +2,7 @@ use actor::{WebhookProcessor, WebhookProcessorArguments, WebhookProcessorMessage
 use ractor::{Actor, ActorRef};
 
 pub mod actor;
-pub mod sender;
+pub mod factory;
 
 pub async fn start_webhook_processor(
     webhook_url: String,
