@@ -12,10 +12,7 @@ declare global {
 }
 
 const client = createClient({
-  baseUrl: 'http://localhost:9000',
-  multiTenant: {
-    tenantId: 'test'
-  }
+  baseUrl: 'http://localhost:9000'
 });
 
 const { channel } = client.joinChannel('test');

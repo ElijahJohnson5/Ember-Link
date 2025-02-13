@@ -147,7 +147,7 @@ async fn accept_connection(
 
     if params.contains_key("token") {
         let payload = match validate_token(
-            params["token"].clone(),
+            &params["token"],
             params.get("tenant_id").cloned(),
             config.clone(),
         )
@@ -325,7 +325,7 @@ struct SignerKeyResponse {
 }
 
 async fn validate_token(
-    token: String,
+    token: &String,
     tenant_id: Option<String>,
     config: Config,
 ) -> Result<jwt::JwtPayload, (String, WebSocketCloseCode)> {

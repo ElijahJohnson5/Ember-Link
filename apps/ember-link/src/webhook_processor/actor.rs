@@ -9,11 +9,11 @@ use hmac::{Hmac, Mac};
 use protocol::WebhookMessage;
 use ractor::{
     factory::{FactoryMessage, Job, JobOptions},
-    Actor, ActorProcessingErr, ActorRef,
+    Actor, ActorProcessingErr, ActorRef, MessagingErr,
 };
 use rand::Rng;
 use sha2::Sha256;
-use tokio::sync::RwLock;
+use tokio::sync::{Mutex, MutexGuard};
 use tracing::instrument;
 
 use super::factory::{create_webhook_sender_factory, WebhookSenderMessage};
@@ -33,7 +33,7 @@ struct WebhookBatcherArguments {
     webhook_secret_key: String,
 }
 
-type WebhookMessageContainer = Arc<RwLock<Vec<(Option<String>, WebhookMessage)>>>;
+type WebhookMessageContainer = Arc<Mutex<Vec<(Option<String>, WebhookMessage)>>>;
 
 enum WebhookBatcherMessage {
     TrySendWebhook,
@@ -90,12 +90,12 @@ impl WebhookBatcher {
         myself: ActorRef<WebhookBatcherMessage>,
         state: &mut WebhookBatcherState,
     ) -> Result<(), ActorProcessingErr> {
-        let end_range = {
-            let messages = state.messages.read().await;
+        {
+            let mut messages = state.messages.lock().await;
             let end_range = cmp::min(messages.len(), 300);
 
             if messages.len() > 0 {
-                let messages = &messages[0..end_range].iter().fold(
+                let batched_messages = messages.drain(0..end_range).fold(
                     HashMap::<String, Vec<WebhookMessage>>::new(),
                     |mut acc, (tenant_id, message)| {
                         acc.entry(tenant_id.clone().unwrap_or("".into()))
@@ -106,26 +106,19 @@ impl WebhookBatcher {
                     },
                 );
 
-                state
-                    .factory
-                    .cast(FactoryMessage::Dispatch(Job {
-                        accepted: None,
-                        key: (),
-                        options: JobOptions::default(),
-                        msg: self.create_webhook_sender_message(
-                            &state.webhook_secret_key,
-                            messages.clone(),
-                        ),
-                    }))
-                    .expect("Failed to send webhook message job to factory");
+                let result = state.factory.cast(FactoryMessage::Dispatch(Job {
+                    accepted: None,
+                    key: (),
+                    options: JobOptions::default(),
+                    msg: self
+                        .create_webhook_sender_message(&state.webhook_secret_key, batched_messages),
+                }));
+
+                self.reenqueue_messages_if_failed(result, &mut messages);
             } else {
                 return Ok(());
             }
-
-            end_range
-        };
-
-        state.messages.write().await.drain(0..end_range);
+        }
 
         Ok(())
     }
@@ -158,6 +151,50 @@ impl WebhookBatcher {
             signature: s,
             messages,
         }
+    }
+
+    fn reenqueue_messages_if_failed(
+        &self,
+        enqueue_result: Result<(), MessagingErr<FactoryMessage<(), WebhookSenderMessage>>>,
+        messages: &mut MutexGuard<'_, Vec<(Option<String>, WebhookMessage)>>,
+    ) {
+        if enqueue_result.is_ok() {
+            return;
+        }
+
+        let messaging_err = enqueue_result.unwrap_err();
+
+        match messaging_err {
+            MessagingErr::SendErr(e) => match e {
+                FactoryMessage::Dispatch(job) => {
+                    messages.splice(0..0, self.recreate_messages_from_hash(job.msg.messages));
+                }
+                _ => {
+                    return;
+                }
+            },
+            _ => {
+                return;
+            }
+        }
+    }
+
+    fn recreate_messages_from_hash(
+        &self,
+        hash: HashMap<String, Vec<WebhookMessage>>,
+    ) -> Vec<(Option<String>, WebhookMessage)> {
+        hash.into_iter()
+            .fold(vec![], |mut acc, (tenant_id, messages)| {
+                for message in messages {
+                    if tenant_id == "" {
+                        acc.push((None, message));
+                    } else {
+                        acc.push((Some(tenant_id.clone()), message));
+                    }
+                }
+
+                acc
+            })
     }
 }
 
@@ -216,7 +253,7 @@ impl Actor for WebhookProcessor {
         state: &mut Self::State,
     ) -> Result<(), ActorProcessingErr> {
         let len = {
-            let mut messages = state.messages.write().await;
+            let mut messages = state.messages.lock().await;
 
             let tenant_id = msg.tenant_id;
 
