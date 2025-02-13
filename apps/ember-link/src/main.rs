@@ -8,8 +8,16 @@ mod storage;
 mod webhook_processor;
 
 use std::collections::HashMap;
+use std::net::SocketAddr;
 use std::sync::Arc;
 
+use axum::extract::State;
+use axum::extract::{ws, ws::WebSocket, ConnectInfo, Query, WebSocketUpgrade};
+use axum::response::IntoResponse;
+use axum::routing::any;
+use axum::Router;
+use axum_extra::headers;
+use axum_extra::TypedHeader;
 use channel_registry::ChannelRegistry;
 use config::Config;
 use envconfig::Envconfig;
@@ -27,22 +35,22 @@ use protocol::WebSocketCloseCode;
 use ractor::ActorRef;
 use serde::Deserialize;
 use serde_json::Value;
-use tokio::net::{TcpListener, TcpStream};
-use tokio_tungstenite::tungstenite::protocol::frame::coding::CloseCode;
-use tokio_tungstenite::tungstenite::protocol::CloseFrame;
-use tokio_tungstenite::tungstenite::{self, Message};
-use tokio_tungstenite::WebSocketStream;
+use tokio::signal;
+use tower_http::trace::{DefaultMakeSpan, TraceLayer};
 use tracing::instrument;
 use tracing_subscriber::FmtSubscriber;
 use url::Url;
+
+#[derive(Clone)]
+struct AppState {
+    config: Config,
+    channel_registry: Arc<ChannelRegistry>,
+}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenvy::dotenv()?;
     tracing::subscriber::set_global_default(FmtSubscriber::default())?;
-
-    let listener = TcpListener::bind("127.0.0.1:9000").await.unwrap();
-    tracing::info!("Starting server on 127.0.0.1:9000");
 
     let config = Config::init_from_env().unwrap();
 
@@ -53,114 +61,126 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         config.clone(),
     ));
 
-    while let Ok((stream, _)) = listener.accept().await {
-        let _handle = tokio::spawn(accept_connection(
-            stream,
-            channel_registry.clone(),
-            config.clone(),
-        ));
-    }
+    let app_state = AppState {
+        config,
+        channel_registry,
+    };
+
+    let app = Router::new()
+        .route("/ws", any(ws_handler))
+        .layer(
+            TraceLayer::new_for_http()
+                .make_span_with(DefaultMakeSpan::default().include_headers(true)),
+        )
+        .with_state(app_state);
+
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:9000")
+        .await
+        .unwrap();
+    tracing::debug!("listening on {}", listener.local_addr().unwrap());
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<SocketAddr>(),
+    )
+    .with_graceful_shutdown(shutdown_signal())
+    .await
+    .unwrap();
 
     environment.cleanup().await;
 
     Ok(())
 }
 
-async fn handle_raw_socket(
-    stream: TcpStream,
-) -> (
-    Result<WebSocketStream<TcpStream>, tungstenite::Error>,
-    Option<HashMap<String, String>>,
-) {
-    let mut params: Option<HashMap<String, String>> = None;
-
-    let callback = |req: &tungstenite::handshake::server::Request,
-                    res: tungstenite::handshake::server::Response|
-     -> Result<
-        tungstenite::handshake::server::Response,
-        tungstenite::handshake::server::ErrorResponse,
-    > {
-        let decoded_params: HashMap<String, String> = req
-            .uri()
-            .query()
-            .map(|v| {
-                url::form_urlencoded::parse(v.as_bytes())
-                    .into_owned()
-                    .collect()
-            })
-            .unwrap_or_else(HashMap::new);
-
-        params.replace(decoded_params);
-        Ok(res)
+async fn shutdown_signal() {
+    let ctrl_c = async {
+        signal::ctrl_c()
+            .await
+            .expect("failed to install Ctrl+C handler");
     };
 
-    (
-        tokio_tungstenite::accept_hdr_async(stream, callback).await,
-        params,
-    )
+    #[cfg(unix)]
+    let terminate = async {
+        signal::unix::signal(signal::unix::SignalKind::terminate())
+            .expect("failed to install signal handler")
+            .recv()
+            .await;
+    };
+
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+
+    tokio::select! {
+        _ = ctrl_c => {},
+        _ = terminate => {},
+    }
+}
+
+/// The handler for the HTTP request (this gets called when the HTTP request lands at the start
+/// of websocket negotiation). After this completes, the actual switching from HTTP to
+/// websocket protocol will occur.
+/// This is the last point where we can extract TCP/IP metadata such as IP address of the client
+/// as well as things from HTTP headers such as user-agent of the browser etc.
+async fn ws_handler(
+    ws: WebSocketUpgrade,
+    user_agent: Option<TypedHeader<headers::UserAgent>>,
+    Query(params): Query<HashMap<String, String>>,
+    State(app_state): State<AppState>,
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+) -> impl IntoResponse {
+    let user_agent = if let Some(TypedHeader(user_agent)) = user_agent {
+        user_agent.to_string()
+    } else {
+        String::from("Unknown browser")
+    };
+    tracing::debug!("`{user_agent}` at {addr} connected.");
+    // finalize the upgrade process by returning upgrade callback.
+    // we can customize the callback by sending additional info such as address.
+    ws.on_upgrade(move |socket| handle_socket(socket, params, addr, app_state))
 }
 
 #[instrument(skip_all)]
-async fn accept_connection(
-    stream: TcpStream,
-    channel_registry: Arc<ChannelRegistry>,
-    config: Config,
+async fn handle_socket(
+    mut socket: WebSocket,
+    query_params: HashMap<String, String>,
+    who: SocketAddr,
+    app_state: AppState,
 ) {
-    let addr = stream
-        .peer_addr()
-        .expect("connected streams should have a peer address");
-
-    let (ws_stream, params) = handle_raw_socket(stream).await;
-
-    let mut ws_stream = match ws_stream {
-        Err(e) => {
-            tracing::error!("Error during the websocket handshake occurred: {e}");
-            return;
-        }
-        Ok(ws_stream) => ws_stream,
-    };
-
-    let params = params.expect("Could not get query params from connection");
-
-    if !params.contains_key("channel_name") {
+    if !query_params.contains_key("channel_name") {
         tracing::warn!("Could not find channel name in query params");
         return;
     }
-    let storage_type: Option<StorageType> = params
+    let storage_type: Option<StorageType> = query_params
         .get("storage_type")
         .map(|storage_type| format!("\"{storage_type}\""))
         .map(|storage_type| serde_json::from_str(&storage_type).ok())
         .flatten();
 
-    if !config.allow_unauthorized && !params.contains_key("token") {
+    if !app_state.config.allow_unauthorized && !query_params.contains_key("token") {
         tracing::warn!("Could not find token for authorization");
-        ws_stream
-            .close(Some(CloseFrame {
-                code: CloseCode::Library(WebSocketCloseCode::TokenNotFound as u16),
-                reason: "Token was not found in params for authorization and ALLOW_UNAUTHORIZED is not set on the server".into(),
-            }))
-            .await
-            .expect("Could not close websocket");
+        socket.send(ws::Message::Close(Some(ws::CloseFrame {
+            code: WebSocketCloseCode::TokenNotFound as u16,
+            reason: "Token was not found in params for authorization and ALLOW_UNAUTHORIZED is not set on the server".into(),
+        }))).await.expect("Could not close websocket");
         return;
     }
     let mut token_payload: Option<jwt::JwtPayload> = None;
 
-    if params.contains_key("token") {
+    if query_params.contains_key("token") {
         let payload = match validate_token(
-            &params["token"],
-            params.get("tenant_id").cloned(),
-            config.clone(),
+            &query_params["token"],
+            query_params.get("tenant_id").cloned(),
+            app_state.config.clone(),
         )
         .await
         {
             Ok(payload) => payload,
             Err((trace_error_message, websocket_close_code)) => {
                 tracing::error!("{trace_error_message}");
-                ws_stream
-                    .close(Some(CloseFrame {
-                        code: CloseCode::Library(websocket_close_code as u16),
+                socket
+                    .send(ws::Message::Close(Some(ws::CloseFrame {
+                        code: websocket_close_code as u16,
                         reason: trace_error_message.into(),
-                    }))
+                    })))
                     .await
                     .expect("Could not close websocket");
                 return;
@@ -173,27 +193,27 @@ async fn accept_connection(
     tracing::info!("Token payload {:?}", token_payload);
 
     tracing::info!(
-        "New WebSocket connection: {}, query params: {:?}, channel_name: {}",
-        addr,
-        params,
-        params["channel_name"]
+        "New WebSocket connection: {}, query params: {:?}",
+        who,
+        query_params,
     );
 
-    let channel = match channel_registry
+    let channel = match app_state
+        .channel_registry
         .get_or_create_channel(
-            params["channel_name"].to_string(),
+            query_params["channel_name"].to_string(),
             storage_type,
-            params.get("tenant_id").cloned(),
+            query_params.get("tenant_id").cloned(),
         )
         .await
     {
         Err(e) => {
             tracing::error!("{}", e);
-            ws_stream
-                .close(Some(CloseFrame {
-                    code: CloseCode::Library(WebSocketCloseCode::ChannelCreationFailed as u16),
+            socket
+                .send(ws::Message::Close(Some(ws::CloseFrame {
+                    code: WebSocketCloseCode::ChannelCreationFailed as u16,
                     reason: "Channel creation failed".into(),
-                }))
+                })))
                 .await
                 .expect("Could not close websocket");
             return;
@@ -202,12 +222,12 @@ async fn accept_connection(
         Ok(channel) => channel,
     };
 
-    let (mut write, mut read) = ws_stream.split();
+    let (mut write, mut read) = socket.split();
 
     let participant_id = uuid::Uuid::new_v4();
 
     write
-        .send(Message::text(
+        .send(ws::Message::text(
             serde_json::to_string(&ServerMessage::AssignId::<Value>(AssignIdMessage {
                 id: participant_id.to_string(),
             }))
@@ -216,7 +236,7 @@ async fn accept_connection(
         .await
         .unwrap();
 
-    write.send(Message::Ping("".into())).await.unwrap();
+    write.send(ws::Message::Ping("".into())).await.unwrap();
 
     let weak_channel = channel.downgrade();
 
@@ -261,15 +281,15 @@ async fn accept_connection(
 
 async fn handle_message(
     participant: &ActorRef<ParticipantMessage>,
-    msg: tokio_tungstenite::tungstenite::Message,
+    msg: ws::Message,
 ) -> Result<(), String> {
     match msg {
-        Message::Ping(data) => {
+        ws::Message::Ping(data) => {
             participant
                 .cast(ParticipantMessage::PingMessage { data: data })
                 .expect("Could not send message to participant");
         }
-        Message::Text(data) => {
+        ws::Message::Text(data) => {
             let data = data.to_string();
 
             if data == "ping" {
@@ -290,7 +310,7 @@ async fn handle_message(
                 };
             }
         }
-        Message::Binary(_data) => {}
+        ws::Message::Binary(_data) => {}
         _ => {}
     }
 
