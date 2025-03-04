@@ -1,4 +1,8 @@
 use crate::channel::Channel;
+use axum::{
+    body::Bytes,
+    extract::ws::{Message, WebSocket},
+};
 use futures_util::{stream::SplitSink, SinkExt};
 use protocol::{
     client::ClientPresenceMessage,
@@ -7,11 +11,6 @@ use protocol::{
 };
 use ractor::{Actor, ActorProcessingErr, ActorRef};
 use serde_json::Value;
-use tokio::net::TcpStream;
-use tokio_tungstenite::{
-    tungstenite::{Bytes, Message},
-    WebSocketStream,
-};
 
 pub struct Participant;
 
@@ -19,7 +18,7 @@ pub struct ParticipantState {
     id: String,
     channel: Channel,
     presence: Option<Value>,
-    socket_write_sink: SplitSink<WebSocketStream<TcpStream>, Message>,
+    socket_write_sink: SplitSink<WebSocket, Message>,
 }
 
 #[derive(Debug, Clone)]
@@ -35,7 +34,7 @@ pub enum ParticipantMessage {
 pub struct ParticipantArguments {
     pub id: String,
     pub channel: Channel,
-    pub socket_write_sink: SplitSink<WebSocketStream<TcpStream>, Message>,
+    pub socket_write_sink: SplitSink<WebSocket, Message>,
 }
 
 impl Actor for Participant {
