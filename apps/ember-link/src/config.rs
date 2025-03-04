@@ -2,6 +2,12 @@ use envconfig::Envconfig;
 
 #[derive(Envconfig, Clone)]
 pub struct Config {
+    #[envconfig(from = "HOST", default = "127.0.0.1")]
+    pub host: String,
+
+    #[envconfig(from = "PORT", default = "9000")]
+    pub port: String,
+
     #[envconfig(from = "WEBHOOK_URL")]
     pub webhook_url: Option<String>,
 

@@ -1,6 +1,9 @@
 language: 'rust'
 type: 'application'
 
+dependsOn:
+  - 'protocol'
+
 tasks:
   run:
     command: 'cargo run'
@@ -9,3 +12,5 @@ tasks:
     command: 'cargo test'
   test-cov:
     command: 'llvm-cov --html'
+  build-release:
+    command: 'cargo build --release'
