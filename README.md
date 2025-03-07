@@ -1,6 +1,6 @@
 # Ember Link
 
-Open source project to allow developers to add real time collaboration functionality to their projects and self host the server.
+An open-source platform that enables developers to effortlessly add real-time collaboration features to their applications. With full self-hosting capabilities, this project allows complete control over your collaboration infrastructure. The included SDKs make it incredibly easy to integrate real-time functionality, providing a seamless setup experience. Whether you're building a team collaboration tool, a shared workspace, or any real-time application, this solution is fully customizable, easy to deploy, and 100% open-source.
 
 ## Getting Started
 
@@ -11,7 +11,7 @@ The easiest way to get started is to run the latest ember-link docker image loca
    docker pull emberlinkio/ember-link:latest
    ```
 2. Run the docker image
-   This will run the docker image on port 9000 and expose it so you can connect to it from one of the examples.
+   This will run the docker image on port 9000 and expose it so you can connect to it from one of the examples. It also sets the `ALLOW_UNAUTHORIZED` flag to true for an easier time running the examples.
    ```
    docker run -d -p 9000:9000 --env PORT=9000 --env HOST=0.0.0.0 --env ALLOW_UNAUTHORIZED=true emberlinkio/ember-link:latest
    ```
