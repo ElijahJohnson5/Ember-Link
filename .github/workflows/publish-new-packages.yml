@@ -1,0 +1,55 @@
+name: Publish packages when version is bumped
+on:
+  push:
+    branches:
+      - main
+      - main_publish-new-packages-github-action
+
+jobs:
+  list-packages:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.PACKAGES }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - id: set-matrix
+        run: echo "PACKAGES=$(ls packages/**/package.json | jq -R -s -c 'split("\n")[:-1]')" >> "$GITHUB_OUTPUT"
+  publish-packages:
+    needs: list-packages
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        package: ${{ fromJson(needs.list-packages.outputs.matrix) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.12.0'
+      - name: Get package name
+        id: package-name
+        run: echo "PACKAGE_NAME=$(cat ${{ matrix.package }} | jq -r '.name')" >> "$GITHUB_OUTPUT"
+      - name: Check if version has been updated
+        id: check
+        uses: EndBug/version-check@v2
+        with:
+          file-url: https://unpkg.com/${{ steps.package-name.outputs.PACKAGE_NAME }}/package.json
+          file-name: ${{ matrix.package }}
+          static-checking: localIsNew
+      - name: Log when changed
+        if: steps.check.outputs.changed == 'true'
+        run: 'echo "Version change found! New version: ${{ steps.check.outputs.version }} (${{ steps.check.outputs.type }})"'
+      - uses: 'moonrepo/setup-toolchain@v0'
+        if: steps.check.outputs.changed == 'true'
+      - name: Remove unneeded cargo binaries
+        run: sed -i '/cargo-llvm-cov/d' .moon/toolchain.yml
+      - name: Moon Build Package
+        if: steps.check.outputs.changed == 'true'
+        run: moon ${{ steps.package-name.outputs.PACKAGE_NAME }}:build
+      - name: Publishing package
+        if: steps.check.outputs.changed == 'true'
+        env:
+          NPM_AUTH_TOKEN: ${{ secrets.NPM_AUTH_TOKEN }}
+        run: yarn workspace ${{ steps.package-name.outputs.PACKAGE_NAME }} npm publish --access public
