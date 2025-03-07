@@ -18,7 +18,7 @@ node:
 
   # The version of the package manager (above) to use.
   yarn:
-    version: '4.5.3'
+    version: '4.6.0'
 
   # Add `node.version` as a constraint in the root `package.json` `engines`.
   addEnginesConstraint: true

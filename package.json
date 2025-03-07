@@ -6,6 +6,7 @@
   "license": "MIT",
   "scripts": {
     "publish:packages": "yarn build && yarn workspaces foreach -p -A --no-private --exclude ember-link npm publish --access public",
+    "publish": "moon ${0}:build && yarn workspace ${0} npm publish --access public",
     "build": "moon :build"
   },
   "workspaces": [
