@@ -376,6 +376,12 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@ember-link/server@workspace:apps/ember-link":
+  version: 0.0.0-use.local
+  resolution: "@ember-link/server@workspace:apps/ember-link"
+  languageName: unknown
+  linkType: soft
+
 "@ember-link/storage@workspace:^, @ember-link/storage@workspace:packages/storage":
   version: 0.0.0-use.local
   resolution: "@ember-link/storage@workspace:packages/storage"
