@@ -49,8 +49,14 @@ struct AppState {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    dotenvy::dotenv()?;
     tracing::subscriber::set_global_default(FmtSubscriber::default())?;
+
+    match dotenvy::dotenv() {
+        Err(_e) => {
+            tracing::info!("Could not find .env file")
+        }
+        _ => {}
+    }
 
     let config = Config::init_from_env().unwrap();
 
@@ -66,6 +72,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         channel_registry,
     };
 
+    let tcp_listener_addr = format!("{}:{}", app_state.config.host, app_state.config.port);
+
     let app = Router::new()
         .route("/ws", any(ws_handler))
         .layer(
@@ -74,7 +82,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         )
         .with_state(app_state);
 
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:9000")
+    let listener = tokio::net::TcpListener::bind(tcp_listener_addr)
         .await
         .unwrap();
     tracing::debug!("listening on {}", listener.local_addr().unwrap());
