@@ -60,6 +60,4 @@ FROM gcr.io/distroless/cc
 
 COPY --from=build /app/ember-link .
 
-EXPOSE 9000
-
 CMD ["./ember-link"]
