@@ -1,11 +1,12 @@
 {
-  "name": "ember-link",
+  "name": "@ember-link/workspace",
+  "private": true,
   "version": "0.0.1",
   "packageManager": "yarn@4.5.3",
   "author": "Elijah Johnson <elijahjohnson987@gmail.com>",
   "license": "MIT",
   "scripts": {
-    "publish:packages": "yarn build && yarn workspaces foreach -p -A --no-private --exclude ember-link npm publish --access public",
+    "publish:packages": "yarn build && yarn workspaces foreach -p -A --no-private --exclude '@ember-link/workspace' npm publish --access public",
     "publish": "moon ${0}:build && yarn workspace ${0} npm publish --access public",
     "build": "moon :build"
   },
@@ -15,6 +16,7 @@
     "examples/*"
   ],
   "devDependencies": {
+    "@changesets/cli": "^2.28.1",
     "@eslint/js": "^9.17.0",
     "eslint": "^9.17.0",
     "eslint-config-prettier": "^9.1.0",
