@@ -1,5 +1,6 @@
 {
   "name": "javascript-cursors",
+  "private": true,
   "packageManager": "yarn@4.6.0",
   "scripts": {
     "build": "esbuild app.ts --bundle --outfile=static/app.js"
