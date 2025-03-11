@@ -3,11 +3,12 @@
   "version": "0.0.6",
   "license": "MIT",
   "scripts": {
-    "build": "tsc"
+    "build": "tsc -b"
   },
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/src/index.d.ts"
+      "types": "./dist/index.d.ts"
     }
   },
   "devDependencies": {

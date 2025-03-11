@@ -1,15 +1,13 @@
 {
   "name": "@ember-link/storage",
   "version": "0.0.6",
-  "module": "src/index.ts",
-  "type": "module",
   "scripts": {
     "build": "tsc -b"
   },
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/src/index.d.ts",
-      "default": "./dist/index.d.ts"
+      "types": "./dist/index.d.ts"
     }
   },
   "devDependencies": {

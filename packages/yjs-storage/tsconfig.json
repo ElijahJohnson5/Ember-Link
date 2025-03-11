@@ -1,7 +1,7 @@
 {
   "extends": ["../../tsconfig.json"],
   "compilerOptions": {
-    "outDir": "dist/",
+    "outFile": "dist/index",
     "paths": {
       "~/*": ["./src/*"],
       "@ember-link/event-emitter": ["../event-emitter/src/index.ts"],

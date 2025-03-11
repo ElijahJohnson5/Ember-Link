@@ -1,7 +1,7 @@
 {
   "extends": ["../../tsconfig.json"],
   "compilerOptions": {
-    "outDir": "dist/",
+    "outFile": "dist/index",
     "paths": {
       "~/*": ["./src/*"],
       "@ember-link/event-emitter": ["../event-emitter/src/index.ts"],
@@ -12,7 +12,7 @@
       "@ember-link/storage/*": ["../storage/src/*"]
     }
   },
-  "exclude": ["dist/"],
+  "exclude": ["dist/", "**/__test__/"],
   "references": [
     {
       "path": "../storage"
