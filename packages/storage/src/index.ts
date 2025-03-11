@@ -1,5 +1,5 @@
-import { Observable } from '@ember-link/event-emitter';
-import { StorageSyncMessage, StorageType } from '@ember-link/protocol';
+import { type Observable } from '@ember-link/event-emitter';
+import { type StorageSyncMessage, type StorageType } from '@ember-link/protocol';
 
 export type MessageEvents = {
   message: (message: StorageSyncMessage) => void;
