@@ -27,7 +27,7 @@ export class WebSocketNotFoundError extends Error {
   }
 }
 
-interface CreateClientOptions {
+export interface CreateClientOptions {
   baseUrl: string;
   authEndpoint?: AuthEndpoint;
   multiTenant?: {
@@ -36,12 +36,23 @@ interface CreateClientOptions {
   jwtSignerPublicKey?: string;
 }
 
+type JoinChannel<P extends Record<string, unknown> = DefaultPresence> = <
+  S extends IStorageProvider
+>(
+  channelName: string,
+  options?: ChannelConfig<S, P>['options']
+) => { channel: Channel<P>; leave: () => void };
+
+export interface EmberClient<P extends Record<string, unknown> = DefaultPresence> {
+  joinChannel: JoinChannel<P>;
+}
+
 export function createClient<P extends Record<string, unknown> = DefaultPresence>({
   baseUrl,
   authEndpoint,
   jwtSignerPublicKey,
   multiTenant
-}: CreateClientOptions) {
+}: CreateClientOptions): EmberClient {
   const channels = new Map<string, { channel: Channel<P>; leave: () => void }>();
   const auth = createAuth({
     authEndpoint,
@@ -109,6 +120,6 @@ export function createClient<P extends Record<string, unknown> = DefaultPresence
   }
 
   return {
-    joinChannel
+    joinChannel: joinChannel as JoinChannel
   };
 }
