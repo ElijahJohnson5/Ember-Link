@@ -1,6 +1,8 @@
 {
-  "extends": ["../../tsconfig.json"],
+  "extends": ["./tsconfig.json"],
   "compilerOptions": {
+    "outDir": "dist/esm",
+    "rootDir": "src",
     "paths": {
       "~/*": ["./src/*"],
       "@ember-link/event-emitter": ["../event-emitter/src/index.ts"],
@@ -11,7 +13,6 @@
       "@ember-link/storage/*": ["../storage/src/*"]
     }
   },
-  "exclude": ["dist/", "**/__test__/"],
   "references": [
     {
       "path": "../storage"
@@ -22,6 +23,5 @@
     {
       "path": "../protocol"
     }
-  ],
-  "include": ["../protocol/**/*", "../storage/**/*", "../event-emitter/**/*", "./src/**/*"]
+  ]
 }
