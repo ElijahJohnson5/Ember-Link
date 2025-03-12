@@ -12,7 +12,7 @@
 
 <script lang="ts">
 	import { getContext, hasContext, setContext, type Snippet } from "svelte";
-  import { type EmberClient, type CreateClientOptions, type DefaultPresence, createClient } from "@ember-link/core";
+  import { createClient, type CreateClientOptions, type DefaultPresence, type EmberClient } from "@ember-link/core";
 
   const { clientOptions, children }: { clientOptions: CreateClientOptions, children: Snippet<[]> } = $props();
 
