@@ -6,14 +6,15 @@
 	let { children } = $props();
 </script>
 
-
-<ClientProvider clientOptions={{
+<ClientProvider
+	clientOptions={{
 		baseUrl: 'http://localhost:9000',
 		authEndpoint: 'http://localhost:5173/api/auth',
 		jwtSignerPublicKey: PUBLIC_JWT_SIGNER_KEY,
 		multiTenant: {
 			tenantId: 'test'
 		}
-}}>
+	}}
+>
 	{@render children()}
 </ClientProvider>

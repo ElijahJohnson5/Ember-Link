@@ -14,7 +14,7 @@
     "moduleDetection": "force",
     "allowImportingTsExtensions": true
   },
-  "exclude": ["node_modules", "packages/**/dist", "packages/svelte/.svelte-kit/"],
+  "exclude": ["node_modules", "packages/**/dist/", "packages/svelte/.svelte-kit/"],
   "references": [
     {
       "path": "packages/core"

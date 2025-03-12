@@ -1,6 +1,6 @@
 import { createEventEmitter, Observable } from '@ember-link/event-emitter';
 import { ManagedPresence } from './presence';
-import { ManagedSocket } from './socket-client';
+import { ManagedSocket, SocketEventMap } from './socket-client';
 import { ServerMessage } from '@ember-link/protocol';
 import $ from 'oby';
 import { ManagedOthers, OtherEvents } from './others';
@@ -31,6 +31,7 @@ export type Channel<P extends Record<string, unknown> = DefaultPresence> = {
   getStorage: () => IStorage;
   events: Observable<ChannelEvents> & {
     others: Observable<OtherEvents>;
+    socket: Observable<SocketEventMap>;
   };
 };
 
@@ -142,7 +143,11 @@ export function createChannel<
     channel: {
       updatePresence,
       getStorage,
-      events: { ...eventEmitter.observable, others: otherEventEmitter.observable }
+      events: {
+        ...eventEmitter.observable,
+        others: otherEventEmitter.observable,
+        socket: managedSocket.events
+      }
     },
     leave
   };

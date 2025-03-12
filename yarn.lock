@@ -5305,7 +5305,6 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "svelte-auth@workspace:examples/svelte-auth"
   dependencies:
-    "@ember-link/core": "npm:^0.0.7"
     "@ember-link/svelte": "workspace:^"
     "@eslint/compat": "npm:^1.2.5"
     "@eslint/js": "npm:^9.18.0"

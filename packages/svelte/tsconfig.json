@@ -4,7 +4,8 @@
 		"allowJs": true,
 		"checkJs": true,
 		"composite": true,
-		"emitDeclarationOnly": null,
+		"emitDeclarationOnly": false,
+		"noEmit": null,
 		"esModuleInterop": true,
 		"forceConsistentCasingInFileNames": true,
 		"resolveJsonModule": true,
@@ -16,9 +17,10 @@
 		"types": ["@testing-library/jest-dom"]
 	},
 	"include": ["../core/**/*", "./src/**/*"],
-  "references": [
-    {
-      "path": "../core"
-    }
-  ]
+	"exclude": ["../core/dist"],
+	"references": [
+		{
+			"path": "../core"
+		}
+	]
 }

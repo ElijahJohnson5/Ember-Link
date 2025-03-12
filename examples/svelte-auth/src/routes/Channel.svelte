@@ -5,37 +5,37 @@
 	const COLORS = ['#DC2626', '#D97706', '#059669', '#7C3AED', '#DB2777'];
 
 	let cursorPosition = $state<{ x: number; y: number } | null>(null);
-	let otherCursors = new SvelteMap<string, { x: number; y: number } | null>();	
+	let otherCursors = new SvelteMap<string, { x: number; y: number } | null>();
 
-	const channel = getChannelContext("test");
+	const channel = getChannelContext('test');
 
-  channel.events.subscribe('presence', (presence) => {
-    cursorPosition = presence?.cursor ?? null;
-  });
+	channel.events.subscribe('presence', (presence) => {
+		cursorPosition = presence?.cursor ?? null;
+	});
 
-  channel.events.others.subscribe('join', (user) => {
-    otherCursors.set(user.clientId, user.cursor);
-  });
+	channel.events.others.subscribe('join', (user) => {
+		otherCursors.set(user.clientId, user.cursor);
+	});
 
-  channel.events.others.subscribe('update', (user) => {
-    otherCursors.set(user.clientId, user.cursor);
-  });
+	channel.events.others.subscribe('update', (user) => {
+		otherCursors.set(user.clientId, user.cursor);
+	});
 
-  channel.events.others.subscribe('leave', (user) => {
-    otherCursors.delete(user.clientId);
-  });
+	channel.events.others.subscribe('leave', (user) => {
+		otherCursors.delete(user.clientId);
+	});
 </script>
 
 <svelte:document
 	onpointermove={(event) => {
-    channel.updatePresence({
-      cursor: { x: Math.round(event.clientX), y: Math.round(event.clientY) }
-    });
+		channel.updatePresence({
+			cursor: { x: Math.round(event.clientX), y: Math.round(event.clientY) }
+		});
 	}}
 	onpointerleave={() => {
-    channel.updatePresence({
-      cursor: null
-    });
+		channel.updatePresence({
+			cursor: null
+		});
 	}}
 />
 
