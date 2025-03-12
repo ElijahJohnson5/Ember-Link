@@ -26,7 +26,7 @@ const calcBackoff = (attempt: number, randSeed: number, maxVal = 30000): number 
 export class ManagedSocket<P extends Record<string, unknown> = DefaultPresence> {
   public readonly machine: ReturnType<typeof createWebSocketStateMachine>['machine'];
 
-  public readonly events: Observable<MessageEventMap>;
+  public readonly events: Observable<SocketEventMap>;
 
   constructor(options: SocketOptions) {
     const { machine, events } = createWebSocketStateMachine(options);
@@ -71,7 +71,7 @@ interface Context {
   authValue: AuthValue | null;
 }
 
-type MessageEventMap = {
+export type SocketEventMap = {
   message: (event: MessageEvent<string | Blob>) => void;
   open: () => void;
   disconnect: () => void;
@@ -95,7 +95,7 @@ type Events =
   | { type: 'message'; value: string | ArrayBufferLike | Blob | ArrayBufferView };
 
 function createWebSocketStateMachine({ authenticate, createWebSocket }: SocketOptions) {
-  const eventEmitter = createBufferedEventEmitter<MessageEventMap>();
+  const eventEmitter = createBufferedEventEmitter<SocketEventMap>();
   eventEmitter.pause('message');
 
   const onCloseHandler = [

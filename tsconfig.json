@@ -14,10 +14,13 @@
     "moduleDetection": "force",
     "allowImportingTsExtensions": true
   },
-  "exclude": ["node_modules"],
+  "exclude": ["node_modules", "packages/**/dist/", "packages/svelte/.svelte-kit/"],
   "references": [
     {
       "path": "packages/core"
+    },
+    {
+      "path": "packages/svelte"
     },
     {
       "path": "packages/event-emitter"
