@@ -1,7 +1,7 @@
 <script lang="ts" module>
   export function getChannelContext<P extends Record<string, unknown> = DefaultPresence>(channelName: string): Channel<P> {
     if (!hasContext(`EMBER_LINK_CHANNEL_${channelName}`)) {
-      throw new Error("Could not find context, only use this inside of a channel provider");
+      throw new Error("Could not find context, only use this inside of a channel provider with the same channel name given");
     }
 
     return getContext(`EMBER_LINK_CHANNEL_${channelName}`);
