@@ -7,10 +7,6 @@ dependsOn:
 tasks:
   build:
     command: 'yarn build'
-    deps:
-      - 'test'
-  test:
-    command: 'cargo test'
 
 toolchain:
   typescript:
