@@ -10,13 +10,13 @@
   }
 </script>
 
-<script lang="ts">
+<script lang="ts" generics="P extends Record<string, unknown> = DefaultPresence">
 	import { getContext, hasContext, setContext, type Snippet } from "svelte";
   import { createClient, type CreateClientOptions, type DefaultPresence, type EmberClient } from "@ember-link/core";
 
   const { clientOptions, children }: { clientOptions: CreateClientOptions, children: Snippet<[]> } = $props();
 
-  const client = createClient(clientOptions)
+  const client = createClient<P>(clientOptions)
 
   setContext(name, client);
 </script>
