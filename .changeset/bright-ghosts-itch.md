@@ -1,5 +1,4 @@
 ---
-'svelte-auth': patch
 '@ember-link/svelte': patch
 '@ember-link/core': patch
 ---
