@@ -412,7 +412,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@ember-link/core@npm:^0.0.7, @ember-link/core@workspace:^, @ember-link/core@workspace:packages/core":
+"@ember-link/core@npm:^0.0.8, @ember-link/core@workspace:^, @ember-link/core@workspace:packages/core":
   version: 0.0.0-use.local
   resolution: "@ember-link/core@workspace:packages/core"
   dependencies:
@@ -3538,7 +3538,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "javascript-cursors@workspace:examples/javascript-cursors"
   dependencies:
-    "@ember-link/core": "npm:^0.0.7"
+    "@ember-link/core": "npm:^0.0.8"
     esbuild: "npm:^0.24.2"
     typescript: "npm:^5.7.3"
   languageName: unknown
@@ -3548,7 +3548,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "javascript-todos@workspace:examples/javascript-todos"
   dependencies:
-    "@ember-link/core": "npm:^0.0.7"
+    "@ember-link/core": "npm:^0.0.8"
     "@ember-link/yjs-storage": "npm:^0.0.7"
     esbuild: "npm:^0.24.2"
     typescript: "npm:^5.7.3"
