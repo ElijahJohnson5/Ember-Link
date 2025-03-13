@@ -1,6 +1,10 @@
-import { createEventEmitter, Observable } from '@ember-link/event-emitter';
+import {
+  createBufferedEventEmitter,
+  createEventEmitter,
+  Observable
+} from '@ember-link/event-emitter';
 import { ManagedPresence } from './presence';
-import { ManagedSocket, SocketEventMap } from './socket-client';
+import { ManagedSocket, Status } from './socket-client';
 import { ServerMessage } from '@ember-link/protocol';
 import $ from 'oby';
 import { ManagedOthers, OtherEvents } from './others';
@@ -29,14 +33,15 @@ export interface ChannelConfig<
 export type Channel<P extends Record<string, unknown> = DefaultPresence> = {
   updatePresence: (state: P) => void;
   getStorage: () => IStorage;
+  getStatus: () => Status;
   events: Observable<ChannelEvents> & {
     others: Observable<OtherEvents>;
-    socket: Observable<SocketEventMap>;
   };
 };
 
 type ChannelEvents<P extends Record<string, unknown> = DefaultPresence> = {
   presence: (self: P) => void;
+  status: (status: Status) => void;
   others: (others: Array<P>) => void;
 };
 
@@ -55,8 +60,9 @@ export function createChannel<
   const otherEventEmitter = createEventEmitter<OtherEvents>();
   const managedOthers = new ManagedOthers(otherEventEmitter);
   const participantId = $<string | null>(null);
+  const status = $<Status>('initial');
 
-  const eventEmitter = createEventEmitter<ChannelEvents>();
+  const eventEmitter = createBufferedEventEmitter<ChannelEvents>();
   const presence = new ManagedPresence(options?.initialPresence);
 
   $.effect(() => {
@@ -97,6 +103,11 @@ export function createChannel<
     managedOthers.clear();
   });
 
+  managedSocket.events.subscribe('statusChange', (newStatus) => {
+    status(newStatus);
+    eventEmitter.emit('status', newStatus);
+  });
+
   managedSocket.events.subscribe('open', () => {
     options?.storageProvider?.sync(storageEventEmitter.observable, {
       message: (data) => {
@@ -121,8 +132,6 @@ export function createChannel<
     });
   }
 
-  managedSocket.connect();
-
   function getStorage() {
     if (storage) {
       return storage;
@@ -131,7 +140,15 @@ export function createChannel<
     throw new Error('A storage provider must be configured to use storage');
   }
 
+  eventEmitter.pause('status');
+
+  // Resume status event emitter on next microtask so that consumers can set up listeners on time
+  const timeout = setTimeout(() => {
+    eventEmitter.resume('status');
+  }, 0);
+
   function leave() {
+    clearTimeout(timeout);
     managedSocket.destroy();
   }
 
@@ -139,14 +156,20 @@ export function createChannel<
     presence.state(state);
   }
 
+  function getStatus() {
+    return status();
+  }
+
+  managedSocket.connect();
+
   return {
     channel: {
       updatePresence,
       getStorage,
+      getStatus,
       events: {
         ...eventEmitter.observable,
-        others: otherEventEmitter.observable,
-        socket: managedSocket.events
+        others: otherEventEmitter.observable
       }
     },
     leave

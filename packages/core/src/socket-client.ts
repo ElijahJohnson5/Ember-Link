@@ -32,11 +32,11 @@ export class ManagedSocket<P extends Record<string, unknown> = DefaultPresence> 
     const { machine, events } = createWebSocketStateMachine(options);
 
     this.machine = machine;
-    this.machine.start();
     this.events = events;
   }
 
   connect() {
+    this.machine.start();
     this.machine.send({ type: 'connect' });
   }
 
