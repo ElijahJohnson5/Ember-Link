@@ -3,7 +3,6 @@
   "compilerOptions": {
     "emitDeclarationOnly": true,
     "outDir": "dist/",
-    "target": "ES2024",
     "paths": {
       "~/*": ["./src/*"],
       "@ember-link/event-emitter": ["../event-emitter/src/index.ts"],
