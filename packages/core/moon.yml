@@ -1,6 +1,11 @@
 language: 'typescript'
 type: 'library'
 
+dependsOn:
+  - 'event-emitter'
+  - 'protocol'
+  - 'storage'
+
 tasks:
   build:
     command: 'yarn build'

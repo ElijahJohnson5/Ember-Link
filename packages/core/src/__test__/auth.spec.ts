@@ -2,7 +2,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, test, vi } from 'vite
 import { AccessToken, AuthEndpoint, AuthFailedError, AuthValue, createAuth } from '~/auth';
 import { setupServer } from 'msw/node';
 import { http, HttpResponse } from 'msw';
-import { JWTVerifyResult } from 'jose';
+import { type JWTVerifyResult } from 'jose';
 
 const mocks = vi.hoisted(() => {
   return { jwtVerify: vi.fn(), importSPKI: vi.fn() };

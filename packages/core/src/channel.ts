@@ -142,7 +142,7 @@ export function createChannel<
 
   eventEmitter.pause('status');
 
-  // Resume status event emitter on next microtask so that consumers can set up listeners on time
+  // Resume status event emitter on next microtask so that consumers can set up listeners in time
   const timeout = setTimeout(() => {
     eventEmitter.resume('status');
   }, 0);

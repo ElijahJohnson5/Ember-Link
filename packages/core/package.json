@@ -8,7 +8,8 @@
     "build:cjs": "esbuild src/index.ts --minify --outfile=dist/index.cjs --format=cjs --bundle",
     "build:esm": "esbuild src/index.ts --minify --outfile=dist/index.js --format=esm --bundle",
     "build:types": "tsc -b && dts-bundle-generator dist/src/index.d.ts -o dist/index.d.ts --inline-declare-global --export-referenced-types=false && cp dist/index.d.ts dist/indes.d.cts && rm -r dist/src && rm dist/tsconfig.tsbuildinfo",
-    "test": "vitest",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "coverage": "vitest run --coverage"
   },
   "main": "./dist/index.cjs",
