@@ -16,28 +16,42 @@ async fn api_fallback() -> (StatusCode, Json<serde_json::Value>) {
     )
 }
 
-async fn publish(
+async fn broadcast(
     Path(channel_name): Path<String>,
     State(state): State<AppState>,
     test: JwtPayload,
     Json(payload): Json<serde_json::Value>,
 ) -> impl IntoResponse {
-    tracing::info!(
-        "Received publish request for channel: {}, payload: {:?}, jwt: {:?}",
-        channel_name,
-        payload,
-        test
-    );
+    if let Some(weak_channel) = state.channel_registry.get_channel(&channel_name).await {
+        match weak_channel.upgrade() {
+            Some(channel) => {
+                channel.broadcast(protocol::server::ServerMessage::Custom(payload), None);
+            }
+            None => {
+                tracing::info!("Channel has been dropped: {}", channel_name);
+                return (
+                    StatusCode::NOT_FOUND,
+                    Json(serde_json::json!({ "status": "Channel Not Found" })),
+                );
+            }
+        }
+    } else {
+        tracing::info!("Channel not found: {}", channel_name);
+        return (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({ "status": "Channel Not Found" })),
+        );
+    }
 
     (
         StatusCode::OK,
-        Json(serde_json::json!({ "status": "Published" })),
+        Json(serde_json::json!({ "status": "Broadcasted" })),
     )
 }
 
 pub fn api_routes() -> Router<AppState> {
     let api_routes = Router::new()
-        .route("/publish/{channel_name}", post(publish))
+        .route("/broadcast/{channel_name}", post(broadcast))
         .fallback(api_fallback);
 
     api_routes

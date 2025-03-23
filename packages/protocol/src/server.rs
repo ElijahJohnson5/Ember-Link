@@ -16,6 +16,7 @@ pub enum ServerMessage<T> {
     AssignId(AssignIdMessage),
     StorageUpdate(StorageUpdateMessage),
     StorageSync(StorageSyncMessage),
+    Custom(serde_json::Value),
 }
 
 #[derive(Clone, Deserialize, Debug, Serialize, TS, PartialEq, Eq)]

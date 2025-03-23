@@ -47,10 +47,10 @@ pub type BoxDynError = Box<dyn StdError + 'static + Send + Sync>;
 
 #[derive(Clone)]
 struct AppState {
-    config: Config,
-    channel_registry: Arc<ChannelRegistry>,
+    pub config: Config,
+    pub channel_registry: Arc<ChannelRegistry>,
     // TODO: Move this to redis or have an option to use redis
-    jwt_signer_key_cache: Arc<Mutex<HashMap<String, String>>>,
+    pub jwt_signer_key_cache: Arc<Mutex<HashMap<String, String>>>,
 }
 
 #[tokio::main]
