@@ -82,6 +82,13 @@ pub struct StorageUpdated {
     pub data: Vec<u8>,
 }
 
+#[derive(Clone, Deserialize, Debug, Serialize, TS)]
+#[ts(export, export_to = "../src/bindings/index.ts")]
+#[serde(rename_all = "camelCase")]
+pub struct CustomMessage<C> {
+    pub data: C,
+}
+
 #[derive(Clone, Copy, Deserialize, Debug, Serialize)]
 pub enum WebSocketCloseCode {
     TokenNotFound = 3000,

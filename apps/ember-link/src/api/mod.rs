@@ -6,6 +6,7 @@ use axum::{
     Json, Router,
 };
 use josekit::jwt::JwtPayload;
+use protocol::{server::ServerMessage, CustomMessage};
 
 use crate::AppState;
 
@@ -19,13 +20,14 @@ async fn api_fallback() -> (StatusCode, Json<serde_json::Value>) {
 async fn broadcast(
     Path(channel_name): Path<String>,
     State(state): State<AppState>,
-    test: JwtPayload,
+    _jwt: JwtPayload,
     Json(payload): Json<serde_json::Value>,
 ) -> impl IntoResponse {
+    // TODO: Probably should just put it in some redis pub sub queue so that every server is notified (once reddis is used for multiple servers)
     if let Some(weak_channel) = state.channel_registry.get_channel(&channel_name).await {
         match weak_channel.upgrade() {
             Some(channel) => {
-                channel.broadcast(protocol::server::ServerMessage::Custom(payload), None);
+                channel.broadcast(ServerMessage::Custom(CustomMessage { data: payload }), None);
             }
             None => {
                 tracing::info!("Channel has been dropped: {}", channel_name);

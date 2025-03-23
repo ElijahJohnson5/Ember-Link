@@ -210,8 +210,6 @@ async fn handle_socket(
         token_payload.replace(payload);
     }
 
-    tracing::info!("Token payload {:?}", token_payload);
-
     tracing::info!(
         "New WebSocket connection: {}, query params: {:?}",
         who,
@@ -248,7 +246,7 @@ async fn handle_socket(
 
     write
         .send(ws::Message::text(
-            serde_json::to_string(&ServerMessage::AssignId::<Value>(AssignIdMessage {
+            serde_json::to_string(&ServerMessage::AssignId::<Value, Value>(AssignIdMessage {
                 id: participant_id.to_string(),
             }))
             .unwrap(),
@@ -337,7 +335,10 @@ async fn handle_message(
     Ok(())
 }
 
-fn handle_client_message(participant: &ActorRef<ParticipantMessage>, msg: ClientMessage<Value>) {
+fn handle_client_message(
+    participant: &ActorRef<ParticipantMessage>,
+    msg: ClientMessage<Value, Value>,
+) {
     match msg {
         ClientMessage::Presence(msg) => {
             // TODO broadcast to the channel and store in the channel
@@ -355,5 +356,10 @@ fn handle_client_message(participant: &ActorRef<ParticipantMessage>, msg: Client
                 .cast(ParticipantMessage::StorageSync { data: msg })
                 .expect("Could not send message to participant");
         }
+        ClientMessage::Custom(msg) => participant
+            .cast(ParticipantMessage::ServerMessage {
+                data: ServerMessage::Custom(msg),
+            })
+            .expect("Could not send message to participant"),
     }
 }

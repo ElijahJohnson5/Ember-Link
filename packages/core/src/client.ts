@@ -2,7 +2,7 @@
 
 import { IStorageProvider } from '@ember-link/storage';
 import { Channel, ChannelConfig, createChannel } from './channel';
-import { DefaultPresence } from './index';
+import { DefaultCustomMessageData, DefaultPresence } from './index';
 import { AuthEndpoint, createAuth } from './auth';
 
 /*
@@ -36,23 +36,22 @@ export interface CreateClientOptions {
   jwtSignerPublicKey?: string;
 }
 
-type JoinChannel<P extends Record<string, unknown> = DefaultPresence> = <
-  S extends IStorageProvider
->(
+type JoinChannel<
+  P extends Record<string, unknown> = DefaultPresence,
+  C extends Record<string, unknown> = DefaultCustomMessageData
+> = <S extends IStorageProvider>(
   channelName: string,
   options?: ChannelConfig<S, P>['options']
-) => { channel: Channel<P>; leave: () => void };
+) => { channel: Channel<P, C>; leave: () => void };
 
 export interface EmberClient<P extends Record<string, unknown> = DefaultPresence> {
   joinChannel: JoinChannel<P>;
 }
 
-export function createClient<P extends Record<string, unknown> = DefaultPresence>({
-  baseUrl,
-  authEndpoint,
-  jwtSignerPublicKey,
-  multiTenant
-}: CreateClientOptions): EmberClient {
+export function createClient<
+  P extends Record<string, unknown> = DefaultPresence,
+  C extends Record<string, unknown> = DefaultCustomMessageData
+>({ baseUrl, authEndpoint, jwtSignerPublicKey, multiTenant }: CreateClientOptions): EmberClient {
   const channels = new Map<string, { channel: Channel<P>; leave: () => void }>();
   const auth = createAuth({
     authEndpoint,
@@ -72,7 +71,7 @@ export function createClient<P extends Record<string, unknown> = DefaultPresence
       return channels.get(channelName)!;
     }
 
-    const { channel, leave } = createChannel<S, P>({
+    const { channel, leave } = createChannel<S, P, C>({
       channelName,
       baseUrl,
       authenticate: async () => {

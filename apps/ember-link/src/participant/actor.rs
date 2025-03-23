@@ -28,7 +28,7 @@ pub enum ParticipantMessage {
     MyPresence { data: ClientPresenceMessage<Value> },
     StorageUpdate { data: StorageUpdateMessage },
     StorageSync { data: StorageSyncMessage },
-    ServerMessage { data: ServerMessage<Value> },
+    ServerMessage { data: ServerMessage<Value, Value> },
 }
 
 pub struct ParticipantArguments {
@@ -111,9 +111,9 @@ impl Actor for Participant {
                             state
                                 .socket_write_sink
                                 .send(Message::text(
-                                    serde_json::to_string(&ServerMessage::<Value>::StorageSync(
-                                        msg,
-                                    ))
+                                    serde_json::to_string(
+                                        &ServerMessage::<Value, Value>::StorageSync(msg),
+                                    )
                                     .unwrap(),
                                 ))
                                 .await

@@ -9,7 +9,7 @@ import { ServerMessage } from '@ember-link/protocol';
 import $ from 'oby';
 import { ManagedOthers, OtherEvents } from './others';
 import { IStorage, IStorageProvider, MessageEvents } from '@ember-link/storage';
-import { DefaultPresence } from './index';
+import { DefaultCustomMessageData, DefaultPresence } from './index';
 import { AuthValue } from './auth';
 
 export interface ChannelConfig<
@@ -30,24 +30,32 @@ export interface ChannelConfig<
   };
 }
 
-export type Channel<P extends Record<string, unknown> = DefaultPresence> = {
+export type Channel<
+  P extends Record<string, unknown> = DefaultPresence,
+  C extends Record<string, unknown> = DefaultCustomMessageData
+> = {
   updatePresence: (state: P) => void;
   getStorage: () => IStorage;
   getStatus: () => Status;
-  events: Observable<ChannelEvents> & {
+  events: Observable<ChannelEvents<P, C>> & {
     others: Observable<OtherEvents>;
   };
 };
 
-type ChannelEvents<P extends Record<string, unknown> = DefaultPresence> = {
+type ChannelEvents<
+  P extends Record<string, unknown> = DefaultPresence,
+  C extends Record<string, unknown> = DefaultCustomMessageData
+> = {
   presence: (self: P) => void;
   status: (status: Status) => void;
   others: (others: Array<P>) => void;
+  customMessage: (message: Extract<ServerMessage<P, C>, { type: 'custom' }>['data']) => void;
 };
 
 export function createChannel<
   S extends IStorageProvider,
-  P extends Record<string, unknown> = DefaultPresence
+  P extends Record<string, unknown> = DefaultPresence,
+  C extends Record<string, unknown> = DefaultCustomMessageData
 >({
   options,
   ...config
@@ -80,7 +88,7 @@ export function createChannel<
   managedSocket.events.subscribe('message', (e) => {
     if (typeof e.data === 'string') {
       // We know the data is a string if we get here
-      const message: ServerMessage<P> = JSON.parse(e.data as string);
+      const message: ServerMessage<P, C> = JSON.parse(e.data as string);
 
       if (message.type === 'assignId') {
         participantId(message.id);
@@ -94,6 +102,8 @@ export function createChannel<
         storage?.applyUpdate(Uint8Array.from(message.update));
       } else if (message.type === 'storageSync') {
         storageEventEmitter.emit('message', message);
+      } else if (message.type === 'custom') {
+        eventEmitter.emit('customMessage', message.data);
       }
     }
   });
