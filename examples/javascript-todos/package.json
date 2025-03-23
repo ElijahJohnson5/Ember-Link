@@ -10,7 +10,7 @@
     "@ember-link/yjs-storage": "^0.0.7"
   },
   "devDependencies": {
-    "esbuild": "^0.24.2",
+    "esbuild": "^0.25.1",
     "typescript": "^5.7.3"
   }
 }
