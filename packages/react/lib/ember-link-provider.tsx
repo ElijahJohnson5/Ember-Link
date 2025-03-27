@@ -46,6 +46,7 @@ export const EmberLinkProvider = <
 }: PropsWithChildren<CreateClientOptions>) => {
   useEnsureNoEmberLinkProvider();
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const client = useMemo(() => createClient<P, C>(options), []);
 
   return <ClientContext.Provider value={client}>{children}</ClientContext.Provider>;

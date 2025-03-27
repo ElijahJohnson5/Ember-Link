@@ -454,7 +454,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@ember-link/react@workspace:packages/react":
+"@ember-link/react@npm:^0.0.2, @ember-link/react@workspace:packages/react":
   version: 0.0.0-use.local
   resolution: "@ember-link/react@workspace:packages/react"
   dependencies:
@@ -5502,6 +5502,28 @@ __metadata:
   languageName: node
   linkType: hard
 
+"react-cursors@workspace:examples/react-cursors":
+  version: 0.0.0-use.local
+  resolution: "react-cursors@workspace:examples/react-cursors"
+  dependencies:
+    "@ember-link/core": "npm:^0.0.9"
+    "@ember-link/react": "npm:^0.0.2"
+    "@eslint/js": "npm:^9.21.0"
+    "@types/react": "npm:^19.0.10"
+    "@types/react-dom": "npm:^19.0.4"
+    "@vitejs/plugin-react-swc": "npm:^3.8.0"
+    eslint: "npm:^9.21.0"
+    eslint-plugin-react-hooks: "npm:^5.1.0"
+    eslint-plugin-react-refresh: "npm:^0.4.19"
+    globals: "npm:^15.15.0"
+    react: "npm:^19.0.0"
+    react-dom: "npm:^19.0.0"
+    typescript: "npm:~5.7.2"
+    typescript-eslint: "npm:^8.24.1"
+    vite: "npm:^6.2.0"
+  languageName: unknown
+  linkType: soft
+
 "react-dom@npm:^19.0.0":
   version: 19.0.0
   resolution: "react-dom@npm:19.0.0"
@@ -6468,7 +6490,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"typescript-eslint@npm:^8.28.0":
+"typescript-eslint@npm:^8.24.1, typescript-eslint@npm:^8.28.0":
   version: 8.28.0
   resolution: "typescript-eslint@npm:8.28.0"
   dependencies:

@@ -27,6 +27,8 @@ export interface ChannelConfig<
     // https://github.com/loro-dev/loro
     // https://automerge.org/
     storageProvider?: S;
+
+    autoConnect?: boolean;
   };
 }
 
@@ -38,7 +40,7 @@ export type Channel<
   getStorage: () => IStorage;
   getStatus: () => Status;
   events: Observable<ChannelEvents<P, C>> & {
-    others: Observable<OtherEvents>;
+    others: Observable<OtherEvents<P>>;
   };
 };
 
@@ -65,12 +67,12 @@ export function createChannel<
 } {
   const managedSocket = new ManagedSocket({ ...config });
 
-  const otherEventEmitter = createEventEmitter<OtherEvents>();
-  const managedOthers = new ManagedOthers(otherEventEmitter);
+  const otherEventEmitter = createEventEmitter<OtherEvents<P>>();
+  const managedOthers = new ManagedOthers<P>(otherEventEmitter);
   const participantId = $<string | null>(null);
   const status = $<Status>('initial');
 
-  const eventEmitter = createBufferedEventEmitter<ChannelEvents>();
+  const eventEmitter = createBufferedEventEmitter<ChannelEvents<P, C>>();
   const presence = new ManagedPresence(options?.initialPresence);
 
   $.effect(() => {
@@ -170,7 +172,11 @@ export function createChannel<
     return status();
   }
 
-  managedSocket.connect();
+  const shouldConnect = options?.autoConnect ?? true;
+
+  if (shouldConnect) {
+    managedSocket.connect();
+  }
 
   return {
     channel: {
