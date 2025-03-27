@@ -103,7 +103,7 @@ const ChannelProviderInner = <
   }
 >) => {
   const [{ channel }, setChannelLeavePair] = useState(() => {
-    return joinChannel(channelName, options);
+    return joinChannel(channelName, { ...options, autoConnect: false });
   });
 
   useEffect(() => {
@@ -114,7 +114,32 @@ const ChannelProviderInner = <
     return () => {
       channelLeavePair.leave();
     };
-  }, [channelName, joinChannel]);
+  }, [channelName, joinChannel, options]);
 
   return <ChannelContext.Provider value={channel as Channel}>{children}</ChannelContext.Provider>;
+};
+
+export const useMyPresence = <P extends DefaultPresence, C extends DefaultCustomMessageData>() => {
+  const channel = useChannel<P, C>();
+
+  const [myPresence, setMyPresence] = useState<P | null>(null);
+
+  useEffect(() => {
+    const unsub = channel.events.subscribe('presence', (presence) => {
+      setMyPresence(presence);
+    });
+
+    return () => {
+      unsub();
+    };
+  }, [channel.events]);
+
+  const setMyPresenceWrapper = useCallback(
+    (newPresence: P) => {
+      channel.updatePresence(newPresence);
+    },
+    [channel]
+  );
+
+  return [myPresence, setMyPresenceWrapper] as const;
 };

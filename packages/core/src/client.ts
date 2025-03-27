@@ -118,7 +118,13 @@ export function createClient<
 
     channels.set(channelName, { channel, leave });
 
-    return { channel, leave };
+    return {
+      channel,
+      leave: () => {
+        channels.delete(channelName);
+        leave();
+      }
+    };
   }
 
   return {

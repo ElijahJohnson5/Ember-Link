@@ -126,8 +126,12 @@ async fn shutdown_signal() {
     let terminate = std::future::pending::<()>();
 
     tokio::select! {
-        _ = ctrl_c => {},
-        _ = terminate => {},
+        _ = ctrl_c => {
+            tracing::info!("Gracefully shutting down server");
+        },
+        _ = terminate => {
+            tracing::info!("Gracefully shutting down server");
+        },
     }
 }
 
