@@ -1,5 +1,13 @@
 # @ember-link/react
 
+## 0.0.3
+
+### Patch Changes
+
+- a9bee5f: Add useOthers and useMyPresence hooks
+- Updated dependencies [a9bee5f]
+  - @ember-link/core@0.0.10
+
 ## 0.0.2
 
 ### Patch Changes
