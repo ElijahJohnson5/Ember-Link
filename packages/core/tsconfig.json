@@ -12,7 +12,8 @@
       "@ember-link/protocol/*": ["../protocol/src/*"],
       "@ember-link/storage": ["../storage/src/index.ts"],
       "@ember-link/storage/*": ["../storage/src/*"]
-    }
+    },
+    "types": []
   },
   "exclude": ["dist/"],
   "references": [

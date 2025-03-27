@@ -1,0 +1,18 @@
+language: 'typescript'
+type: 'library'
+
+dependsOn:
+  - 'core'
+
+tasks:
+  build:
+    command: 'yarn build'
+    deps:
+      - 'core:build'
+
+toolchain:
+  typescript:
+    # We need to manually do this for this project for some reason
+    # Sync a project's project references as import aliases to the `paths`
+    # compiler option in each applicable project.
+    syncProjectReferencesToPaths: false
