@@ -20,16 +20,19 @@
       "path": "packages/core"
     },
     {
-      "path": "packages/svelte"
-    },
-    {
       "path": "packages/event-emitter"
     },
     {
       "path": "packages/protocol"
     },
     {
+      "path": "packages/react"
+    },
+    {
       "path": "packages/storage"
+    },
+    {
+      "path": "packages/svelte"
     },
     {
       "path": "packages/yjs-storage"
