@@ -1,5 +1,11 @@
 # @ember-link/react
 
+## 0.0.2
+
+### Patch Changes
+
+- 1346001: Actually make the package publishable
+
 ## 0.0.1
 
 ### Patch Changes
