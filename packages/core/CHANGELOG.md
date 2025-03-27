@@ -1,5 +1,11 @@
 # @ember-link/core
 
+## 0.0.10
+
+### Patch Changes
+
+- a9bee5f: Add an autoconnect option and some small type fixes
+
 ## 0.0.9
 
 ### Patch Changes
