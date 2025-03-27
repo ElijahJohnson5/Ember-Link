@@ -1,5 +1,16 @@
 # @ember-link/core
 
+## 0.0.9
+
+### Patch Changes
+
+- 54fa001: Update types for ember client to be correctly generic over custom message as well
+- 368df3b: Add new custom message type, enable broadcast with api to server
+- de13924: Fix status event emitter so consumers can actually get the initial statuses
+- Updated dependencies [368df3b]
+  - @ember-link/protocol@0.0.8
+  - @ember-link/storage@0.0.8
+
 ## 0.0.8
 
 ### Patch Changes

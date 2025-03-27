@@ -1,5 +1,11 @@
 # @ember-link/yjs-storage
 
+## 0.0.8
+
+### Patch Changes
+
+- @ember-link/storage@0.0.8
+
 ## 0.0.7
 
 ### Patch Changes

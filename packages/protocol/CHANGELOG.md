@@ -1,5 +1,11 @@
 # @ember-link/protocol
 
+## 0.0.8
+
+### Patch Changes
+
+- 368df3b: Add new custom message type, enable broadcast with api to server
+
 ## 0.0.7
 
 ### Patch Changes
