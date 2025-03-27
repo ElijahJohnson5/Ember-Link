@@ -1,5 +1,12 @@
 # @ember-link/storage
 
+## 0.0.8
+
+### Patch Changes
+
+- Updated dependencies [368df3b]
+  - @ember-link/protocol@0.0.8
+
 ## 0.0.7
 
 ### Patch Changes

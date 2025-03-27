@@ -412,7 +412,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@ember-link/core@npm:^0.0.8, @ember-link/core@workspace:^, @ember-link/core@workspace:packages/core":
+"@ember-link/core@npm:^0.0.9, @ember-link/core@workspace:^, @ember-link/core@workspace:packages/core":
   version: 0.0.0-use.local
   resolution: "@ember-link/core@workspace:packages/core"
   dependencies:
@@ -495,7 +495,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@ember-link/svelte@npm:^0.0.2, @ember-link/svelte@workspace:packages/svelte":
+"@ember-link/svelte@npm:^0.0.3, @ember-link/svelte@workspace:packages/svelte":
   version: 0.0.0-use.local
   resolution: "@ember-link/svelte@workspace:packages/svelte"
   dependencies:
@@ -544,7 +544,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@ember-link/yjs-storage@npm:^0.0.7, @ember-link/yjs-storage@workspace:packages/yjs-storage":
+"@ember-link/yjs-storage@npm:^0.0.8, @ember-link/yjs-storage@workspace:packages/yjs-storage":
   version: 0.0.0-use.local
   resolution: "@ember-link/yjs-storage@workspace:packages/yjs-storage"
   dependencies:
@@ -4131,7 +4131,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "javascript-cursors@workspace:examples/javascript-cursors"
   dependencies:
-    "@ember-link/core": "npm:^0.0.8"
+    "@ember-link/core": "npm:^0.0.9"
     esbuild: "npm:^0.25.1"
     typescript: "npm:^5.7.3"
   languageName: unknown
@@ -4141,8 +4141,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "javascript-todos@workspace:examples/javascript-todos"
   dependencies:
-    "@ember-link/core": "npm:^0.0.8"
-    "@ember-link/yjs-storage": "npm:^0.0.7"
+    "@ember-link/core": "npm:^0.0.9"
+    "@ember-link/yjs-storage": "npm:^0.0.8"
     esbuild: "npm:^0.25.1"
     typescript: "npm:^5.7.3"
   languageName: unknown
@@ -6085,7 +6085,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "svelte-auth@workspace:examples/svelte-auth"
   dependencies:
-    "@ember-link/svelte": "npm:^0.0.2"
+    "@ember-link/svelte": "npm:^0.0.3"
     "@eslint/compat": "npm:^1.2.5"
     "@eslint/js": "npm:^9.18.0"
     "@sveltejs/adapter-auto": "npm:^4.0.0"

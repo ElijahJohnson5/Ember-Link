@@ -1,5 +1,11 @@
 # @ember-link/svelte
 
+## 0.0.3
+
+### Patch Changes
+
+- 54fa001: Update types to match core, update typescript eslint dependency
+
 ## 0.0.2
 
 ### Patch Changes
