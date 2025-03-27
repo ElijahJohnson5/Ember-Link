@@ -44,8 +44,11 @@ type JoinChannel<
   options?: ChannelConfig<S, P>['options']
 ) => { channel: Channel<P, C>; leave: () => void };
 
-export interface EmberClient<P extends Record<string, unknown> = DefaultPresence> {
-  joinChannel: JoinChannel<P>;
+export interface EmberClient<
+  P extends Record<string, unknown> = DefaultPresence,
+  C extends Record<string, unknown> = DefaultCustomMessageData
+> {
+  joinChannel: JoinChannel<P, C>;
 }
 
 export function createClient<
