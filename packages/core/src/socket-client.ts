@@ -12,7 +12,7 @@ import {
 import 'xstate/guards';
 import { createBufferedEventEmitter, Observable } from '@ember-link/event-emitter';
 import { ClientMessage, WebSocketCloseCode } from '@ember-link/protocol';
-import { DefaultPresence } from '.';
+import { DefaultCustomMessageData, DefaultPresence } from '.';
 import { AuthFailedError, AuthValue } from './auth';
 import { WebSocketNotFoundError } from './client';
 
@@ -23,7 +23,10 @@ const calcBackoff = (attempt: number, randSeed: number, maxVal = 30000): number 
   return Math.min(maxVal, attempt ** 2 * 1000) + 2000 * randSeed;
 };
 
-export class ManagedSocket<P extends Record<string, unknown> = DefaultPresence> {
+export class ManagedSocket<
+  P extends Record<string, unknown> = DefaultPresence,
+  C extends Record<string, unknown> = DefaultCustomMessageData
+> {
   public readonly machine: ReturnType<typeof createWebSocketStateMachine>['machine'];
 
   public readonly events: Observable<SocketEventMap>;
@@ -40,7 +43,7 @@ export class ManagedSocket<P extends Record<string, unknown> = DefaultPresence> 
     this.machine.send({ type: 'connect' });
   }
 
-  message(data: ClientMessage<P>) {
+  message(data: ClientMessage<P, C>) {
     this.machine.send({ type: 'message', value: JSON.stringify(data) });
   }
 

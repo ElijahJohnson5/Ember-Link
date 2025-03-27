@@ -8,7 +8,8 @@
     "build:cjs": "esbuild src/index.ts --minify --outfile=dist/index.cjs --format=cjs --bundle",
     "build:esm": "esbuild src/index.ts --minify --outfile=dist/index.js --format=esm --bundle",
     "build:types": "tsc -b && dts-bundle-generator dist/src/index.d.ts -o dist/index.d.ts --inline-declare-global --export-referenced-types=false && cp dist/index.d.ts dist/indes.d.cts && rm -r dist/src && rm dist/tsconfig.tsbuildinfo",
-    "test": "vitest",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "coverage": "vitest run --coverage"
   },
   "main": "./dist/index.cjs",
@@ -37,10 +38,10 @@
   "devDependencies": {
     "@vitest/coverage-v8": "3.0.4",
     "dts-bundle-generator": "^9.5.1",
-    "esbuild": "^0.24.2",
+    "esbuild": "^0.25.1",
     "msw": "^2.7.0",
     "typescript": "^5.7.2",
-    "vitest": "^3.0.4",
+    "vitest": "^3.0.9",
     "vitest-websocket-mock": "^0.4.0"
   }
 }

@@ -15,7 +15,7 @@ pub enum StorageError {
     #[error("Unable to call storage endpoint to sync data: {0}")]
     EndpointError(#[source] BoxDynError),
 
-    #[error("Update could not be applyed: {0}")]
+    #[error("Update could not be applied: {0}")]
     UpdateError(#[source] BoxDynError),
 }
 

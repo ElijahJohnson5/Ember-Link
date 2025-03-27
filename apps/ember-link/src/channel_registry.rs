@@ -84,6 +84,13 @@ impl ChannelRegistry {
         Ok(channel)
     }
 
+    #[instrument(skip(self))]
+    pub async fn get_channel(&self, channel_name: &String) -> Option<WeakChannel> {
+        let channels = self.channels.lock().await;
+
+        channels.get(channel_name).cloned()
+    }
+
     #[instrument(skip(self, entry, old_num_channels))]
     fn create_channel(
         &self,

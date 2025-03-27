@@ -14,7 +14,7 @@
       "@ember-link/storage/*": ["../storage/src/*"]
     }
   },
-  "exclude": ["dist/", "**/__test__/"],
+  "exclude": ["dist/"],
   "references": [
     {
       "path": "../storage"

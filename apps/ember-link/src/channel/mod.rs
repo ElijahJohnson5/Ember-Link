@@ -70,7 +70,7 @@ impl Channel {
         }
     }
 
-    pub fn broadcast(&self, message: ServerMessage<Value>, exclude_id: Option<&String>) {
+    pub fn broadcast(&self, message: ServerMessage<Value, Value>, exclude_id: Option<&String>) {
         for (key, value) in self.inner.participant_refs.lock().iter() {
             if exclude_id.is_some_and(|id| *id == *key) {
                 continue;

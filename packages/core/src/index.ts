@@ -7,13 +7,15 @@ declare global {
   }
 }
 
-type ExtendableTypes = 'Presence';
+type ExtendableTypes = 'Presence' | 'Custom';
 
 type GetOverride<K extends ExtendableTypes> = unknown extends EmberLink[K]
   ? Record<string, unknown>
   : EmberLink[K];
 
 export type DefaultPresence = GetOverride<'Presence'>;
+
+export type DefaultCustomMessageData = GetOverride<'Custom'>;
 
 export type ChannelOptions<
   S extends IStorageProvider,

@@ -1,3 +1,5 @@
+mod api;
+mod auth;
 mod channel;
 mod channel_registry;
 mod config;
@@ -11,6 +13,7 @@ use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
+use auth::validate_token;
 use axum::extract::State;
 use axum::extract::{ws, ws::WebSocket, ConnectInfo, Query, WebSocketUpgrade};
 use axum::response::IntoResponse;
@@ -24,7 +27,6 @@ use envconfig::Envconfig;
 use environment::Environment;
 use futures_util::SinkExt;
 use futures_util::StreamExt;
-use josekit::jws;
 use josekit::jwt;
 use participant::actor::ParticipantMessage;
 use participant::start_participant;
@@ -33,18 +35,22 @@ use protocol::server::{AssignIdMessage, ServerMessage};
 use protocol::StorageType;
 use protocol::WebSocketCloseCode;
 use ractor::ActorRef;
-use serde::Deserialize;
 use serde_json::Value;
+use std::error::Error as StdError;
 use tokio::signal;
+use tokio::sync::Mutex;
 use tower_http::trace::{DefaultMakeSpan, TraceLayer};
 use tracing::instrument;
 use tracing_subscriber::FmtSubscriber;
-use url::Url;
+
+pub type BoxDynError = Box<dyn StdError + 'static + Send + Sync>;
 
 #[derive(Clone)]
 struct AppState {
-    config: Config,
-    channel_registry: Arc<ChannelRegistry>,
+    pub config: Config,
+    pub channel_registry: Arc<ChannelRegistry>,
+    // TODO: Move this to redis or have an option to use redis
+    pub jwt_signer_key_cache: Arc<Mutex<HashMap<String, String>>>,
 }
 
 #[tokio::main]
@@ -70,12 +76,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let app_state = AppState {
         config,
         channel_registry,
+        jwt_signer_key_cache: Arc::default(),
     };
 
     let tcp_listener_addr = format!("{}:{}", app_state.config.host, app_state.config.port);
 
     let app = Router::new()
         .route("/ws", any(ws_handler))
+        .nest("/api", api::api_routes())
         .layer(
             TraceLayer::new_for_http()
                 .make_span_with(DefaultMakeSpan::default().include_headers(true)),
@@ -177,17 +185,21 @@ async fn handle_socket(
         let payload = match validate_token(
             &query_params["token"],
             query_params.get("tenant_id").cloned(),
-            app_state.config.clone(),
+            &app_state,
         )
         .await
         {
             Ok(payload) => payload,
-            Err((trace_error_message, websocket_close_code)) => {
-                tracing::error!("{trace_error_message}");
+            Err(auth_error) => {
+                let auth_error_string = auth_error.to_string();
+                tracing::error!("{}", auth_error_string);
+
+                let websocket_close_code: WebSocketCloseCode = auth_error.into();
+
                 socket
                     .send(ws::Message::Close(Some(ws::CloseFrame {
                         code: websocket_close_code as u16,
-                        reason: trace_error_message.into(),
+                        reason: auth_error_string.into(),
                     })))
                     .await
                     .expect("Could not close websocket");
@@ -197,8 +209,6 @@ async fn handle_socket(
 
         token_payload.replace(payload);
     }
-
-    tracing::info!("Token payload {:?}", token_payload);
 
     tracing::info!(
         "New WebSocket connection: {}, query params: {:?}",
@@ -236,7 +246,7 @@ async fn handle_socket(
 
     write
         .send(ws::Message::text(
-            serde_json::to_string(&ServerMessage::AssignId::<Value>(AssignIdMessage {
+            serde_json::to_string(&ServerMessage::AssignId::<Value, Value>(AssignIdMessage {
                 id: participant_id.to_string(),
             }))
             .unwrap(),
@@ -325,7 +335,10 @@ async fn handle_message(
     Ok(())
 }
 
-fn handle_client_message(participant: &ActorRef<ParticipantMessage>, msg: ClientMessage<Value>) {
+fn handle_client_message(
+    participant: &ActorRef<ParticipantMessage>,
+    msg: ClientMessage<Value, Value>,
+) {
     match msg {
         ClientMessage::Presence(msg) => {
             // TODO broadcast to the channel and store in the channel
@@ -343,84 +356,10 @@ fn handle_client_message(participant: &ActorRef<ParticipantMessage>, msg: Client
                 .cast(ParticipantMessage::StorageSync { data: msg })
                 .expect("Could not send message to participant");
         }
-    }
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct SignerKeyResponse {
-    public_signer_key: String,
-}
-
-async fn validate_token(
-    token: &String,
-    tenant_id: Option<String>,
-    config: Config,
-) -> Result<jwt::JwtPayload, (String, WebSocketCloseCode)> {
-    if let Some(tenant_id) = tenant_id {
-        if let Some(jwt_signer_key_endpoint) = config.jwt_signer_key_endpoint {
-            let mut url = Url::parse(&jwt_signer_key_endpoint).map_err(|_e| {
-                (
-                    "JWT Signer Key Endpoint is invalid".into(),
-                    WebSocketCloseCode::InvalidSignerKey,
-                )
-            })?;
-
-            url.query_pairs_mut().append_pair("tenant_id", &tenant_id);
-
-            tracing::info!("{:?}", url);
-
-            let response = reqwest::get(url).await.map_err(|e| {
-                tracing::error!("Error: {e}");
-                (
-                    "JWT Signer Key Endpoint is invalid".into(),
-                    WebSocketCloseCode::InvalidSignerKey,
-                )
-            })?;
-
-            tracing::info!("Signing Key Endpoint status: {}", response.status());
-            let response = response.json::<SignerKeyResponse>().await.map_err(|e| {
-                tracing::error!("Error: {e}");
-                (
-                    "JWT Signer Key Endpoint is invalid".into(),
-                    WebSocketCloseCode::InvalidSignerKey,
-                )
-            })?;
-
-            return verify_token(&token, response.public_signer_key);
-        } else {
-            Err((
-                "JWT Signer Key Endpoint is required if you are validating tokens with multiple tenants".into(),
-                WebSocketCloseCode::InvalidSignerKey,
-            ))
-        }
-    } else if let Some(jwt_signer_key) = config.jwt_signer_key {
-        // Validate signature of token
-        return verify_token(&token, jwt_signer_key);
-    } else {
-        Err((
-            "JWT Signer Key is required if you are validating tokens".into(),
-            WebSocketCloseCode::InvalidSignerKey,
-        ))
-    }
-}
-
-fn verify_token(
-    token: &String,
-    signer_key: String,
-) -> Result<jwt::JwtPayload, (String, WebSocketCloseCode)> {
-    // Validate signature of token
-    match jws::RS256.verifier_from_pem(signer_key) {
-        Ok(jwt_verifier) => match jwt::decode_with_verifier(token, &jwt_verifier) {
-            Ok((payload, _header)) => Ok(payload),
-            Err(e) => Err((
-                format!("Could not verify token: {e}").into(),
-                WebSocketCloseCode::InvalidToken,
-            )),
-        },
-        Err(e) => Err((
-            format!("JWT Signer Key is invalid: {e}").into(),
-            WebSocketCloseCode::InvalidSignerKey,
-        )),
+        ClientMessage::Custom(msg) => participant
+            .cast(ParticipantMessage::ServerMessage {
+                data: ServerMessage::Custom(msg),
+            })
+            .expect("Could not send message to participant"),
     }
 }
