@@ -11,6 +11,7 @@ import {
   useContext,
   useEffect,
   useState,
+  useSyncExternalStore,
   type PropsWithChildren
 } from 'react';
 import { useClient } from './ember-link-provider';
@@ -21,14 +22,14 @@ export const useChannelOrNull = <
   P extends DefaultPresence,
   C extends DefaultCustomMessageData
 >(): Channel<P, C> | null => {
-  return useContext(ChannelContext);
+  return useContext(ChannelContext) as Channel<P, C> | null;
 };
 
 export const useChannel = <
   P extends DefaultPresence,
   C extends DefaultCustomMessageData
 >(): Channel<P, C> => {
-  const channel = useChannelOrNull();
+  const channel = useChannelOrNull<P, C>();
 
   if (!channel) {
     throw new Error('You must call useChannel from inside of a ChannelProvider');
@@ -122,24 +123,21 @@ const ChannelProviderInner = <
 export const useMyPresence = <P extends DefaultPresence, C extends DefaultCustomMessageData>() => {
   const channel = useChannel<P, C>();
 
-  const [myPresence, setMyPresence] = useState<P | null>(null);
+  const subscribeFunction = useCallback(
+    (callback: (presence: P) => void) => {
+      return channel.events.subscribe('presence', callback);
+    },
+    [channel]
+  );
 
-  useEffect(() => {
-    const unsub = channel.events.subscribe('presence', (presence) => {
-      setMyPresence(presence);
-    });
+  const myPresence = useSyncExternalStore(subscribeFunction, channel.getPresence, () => null);
 
-    return () => {
-      unsub();
-    };
-  }, [channel.events]);
-
-  const setMyPresenceWrapper = useCallback(
+  const setMyPresence = useCallback(
     (newPresence: P) => {
       channel.updatePresence(newPresence);
     },
     [channel]
   );
 
-  return [myPresence, setMyPresenceWrapper] as const;
+  return [myPresence, setMyPresence] as const;
 };

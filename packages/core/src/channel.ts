@@ -9,7 +9,7 @@ import { ServerMessage } from '@ember-link/protocol';
 import $ from 'oby';
 import { ManagedOthers, OtherEvents } from './others';
 import { IStorage, IStorageProvider, MessageEvents } from '@ember-link/storage';
-import { DefaultCustomMessageData, DefaultPresence } from './index';
+import { DefaultCustomMessageData, DefaultPresence, type User } from './index';
 import { AuthValue } from './auth';
 
 export interface ChannelConfig<
@@ -39,6 +39,8 @@ export type Channel<
   updatePresence: (state: P) => void;
   getStorage: () => IStorage;
   getStatus: () => Status;
+  getOthers: () => User<P>[];
+  getPresence: () => P;
   events: Observable<ChannelEvents<P, C>> & {
     others: Observable<OtherEvents<P>>;
   };
@@ -50,7 +52,7 @@ type ChannelEvents<
 > = {
   presence: (self: P) => void;
   status: (status: Status) => void;
-  others: (others: Array<P>) => void;
+  others: (others: User<P>[]) => void;
   customMessage: (message: Extract<ServerMessage<P, C>, { type: 'custom' }>['data']) => void;
 };
 
@@ -183,6 +185,8 @@ export function createChannel<
       updatePresence,
       getStorage,
       getStatus,
+      getOthers: () => managedOthers.signal(),
+      getPresence: () => presence.state(),
       events: {
         ...eventEmitter.observable,
         others: otherEventEmitter.observable
