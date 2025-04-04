@@ -1,5 +1,12 @@
 # @ember-link/core
 
+## 0.0.10
+
+### Patch Changes
+
+- 870b2ae: Remove stray console log and expose others and presence as getters on channel
+- a9bee5f: Add an autoconnect option and some small type fixes
+
 ## 0.0.9
 
 ### Patch Changes

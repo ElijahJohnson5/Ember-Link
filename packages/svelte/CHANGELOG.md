@@ -1,5 +1,11 @@
 # @ember-link/svelte
 
+## 0.0.4
+
+### Patch Changes
+
+- 870b2ae: Match react package naming and better align to svelte state usage for others and presence
+
 ## 0.0.3
 
 ### Patch Changes
