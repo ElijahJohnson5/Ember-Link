@@ -1,6 +1,6 @@
 {
-  "name": "@ember-link/yjs-storage",
-  "version": "0.0.8",
+  "name": "@ember-link/yjs-provider",
+  "version": "0.0.1",
   "module": "src/index.ts",
   "type": "module",
   "scripts": {
@@ -25,8 +25,10 @@
     "typescript": "^5.7.3"
   },
   "dependencies": {
-    "@ember-link/event-emitter": "workspace:^",
-    "@ember-link/storage": "workspace:^",
+    "lib0": "^0.2.102",
     "yjs": "^13.6.24"
+  },
+  "peerDependencies": {
+    "@ember-link/core": "workspace:^"
   }
 }

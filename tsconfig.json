@@ -35,6 +35,9 @@
       "path": "packages/svelte"
     },
     {
+      "path": "packages/yjs-provider"
+    },
+    {
       "path": "packages/yjs-storage"
     }
   ]

@@ -114,9 +114,10 @@ export function createYJSStorageProvider(): IStorageProvider {
 
   const doc = new Y.Doc();
 
-  // TODO: Figure out setting origin here and apply update so we don't send extra data
-  doc.on('update', (data) => {
-    eventEmitter.emit('update', data);
+  doc.on('update', (data, origin) => {
+    if (origin !== 'backend') {
+      eventEmitter.emit('update', data);
+    }
   });
 
   const storage: IStorage = {
@@ -134,7 +135,7 @@ export function createYJSStorageProvider(): IStorageProvider {
     },
 
     applyUpdate: (event) => {
-      Y.applyUpdate(doc, event);
+      Y.applyUpdate(doc, event, 'backend');
     },
 
     events: eventEmitter.observable

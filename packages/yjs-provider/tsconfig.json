@@ -1,0 +1,20 @@
+{
+  "extends": ["../../tsconfig.json"],
+  "compilerOptions": {
+    "emitDeclarationOnly": true,
+    "outDir": "dist/",
+    "target": "ES2024",
+    "paths": {
+      "~/*": ["./src/*"],
+      "@ember-link/core": ["../core/src/index.ts"],
+      "@ember-link/core/*": ["../core/src/*"]
+    }
+  },
+  "include": ["./src/**/*", "../core/**/*"],
+  "exclude": ["dist/", "../core/vitest.config.ts"],
+  "references": [
+    {
+      "path": "../core"
+    }
+  ]
+}

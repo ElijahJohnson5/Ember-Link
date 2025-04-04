@@ -1,0 +1,1 @@
+# @ember-link/yjs-provider
