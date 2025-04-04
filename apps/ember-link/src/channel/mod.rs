@@ -17,7 +17,7 @@ use serde_json::Value;
 use crate::{
     event_listener_primitives::{Bag, BagOnce, HandlerId},
     participant::actor::ParticipantMessage,
-    storage::{Storage, StorageError},
+    storage::{yjs::YjsStorage, Storage, StorageError},
 };
 
 #[derive(Default)]
@@ -31,6 +31,7 @@ struct Handlers {
 struct Inner {
     id: String,
     storage: Option<Box<dyn Storage + Sync + Send + 'static>>,
+    yjs_provider_storage: YjsStorage,
     participant_refs: Mutex<HashMap<String, ActorRef<ParticipantMessage>>>,
     participant_presence_state: Mutex<HashMap<String, (Value, i32)>>,
     handlers: Handlers,
@@ -63,6 +64,7 @@ impl Channel {
             inner: Arc::new(Inner {
                 id,
                 storage,
+                yjs_provider_storage: YjsStorage::new(yrs::Doc::new()),
                 participant_refs: Mutex::default(),
                 participant_presence_state: Mutex::default(),
                 handlers: Handlers::default(),
@@ -93,6 +95,38 @@ impl Channel {
         }
 
         Ok(None)
+    }
+
+    pub fn handle_provider_sync_message(
+        &self,
+        message: StorageSyncMessage,
+    ) -> Result<Option<Vec<StorageSyncMessage>>, StorageError> {
+        return self
+            .inner
+            .yjs_provider_storage
+            .handle_sync_message(&message);
+    }
+
+    pub fn handle_provider_update_message(
+        &self,
+        message: StorageUpdateMessage,
+        participant_id: String,
+    ) -> Result<(), StorageError> {
+        self.inner
+            .yjs_provider_storage
+            .handle_update_message(&message)?;
+
+        self.inner
+            .handlers
+            .storage_updated
+            .call_simple(&message.update);
+
+        self.broadcast(
+            ServerMessage::ProviderUpdate(message),
+            Some(&participant_id),
+        );
+
+        Ok(())
     }
 
     pub fn handle_update_message(

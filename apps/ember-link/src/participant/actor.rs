@@ -28,6 +28,8 @@ pub enum ParticipantMessage {
     MyPresence { data: ClientPresenceMessage<Value> },
     StorageUpdate { data: StorageUpdateMessage },
     StorageSync { data: StorageSyncMessage },
+    ProviderSync { data: StorageSyncMessage },
+    ProviderUpdate { data: StorageUpdateMessage },
     ServerMessage { data: ServerMessage<Value, Value> },
 }
 
@@ -113,6 +115,34 @@ impl Actor for Participant {
                                 .send(Message::text(
                                     serde_json::to_string(
                                         &ServerMessage::<Value, Value>::StorageSync(msg),
+                                    )
+                                    .unwrap(),
+                                ))
+                                .await
+                                .expect("Could not send response sync messages");
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            ParticipantMessage::ProviderUpdate { data } => {
+                state
+                    .channel
+                    .handle_provider_update_message(data, state.id.clone())
+                    .expect("Could not handle storage update");
+            }
+            ParticipantMessage::ProviderSync { data } => {
+                match state.channel.handle_provider_sync_message(data) {
+                    Err(e) => {
+                        tracing::error!("Could not sync storage: {}", e);
+                    }
+                    Ok(Some(msgs)) => {
+                        for msg in msgs {
+                            state
+                                .socket_write_sink
+                                .send(Message::text(
+                                    serde_json::to_string(
+                                        &ServerMessage::<Value, Value>::ProviderSync(msg),
                                     )
                                     .unwrap(),
                                 ))

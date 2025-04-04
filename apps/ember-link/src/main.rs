@@ -360,6 +360,16 @@ fn handle_client_message(
                 .cast(ParticipantMessage::StorageSync { data: msg })
                 .expect("Could not send message to participant");
         }
+        ClientMessage::ProviderSync(msg) => {
+            participant
+                .cast(ParticipantMessage::ProviderSync { data: msg })
+                .expect("Could not send message to participant");
+        }
+        ClientMessage::ProviderUpdate(msg) => {
+            participant
+                .cast(ParticipantMessage::ProviderUpdate { data: msg })
+                .expect("Could not send message to participant");
+        }
         ClientMessage::Custom(msg) => participant
             .cast(ParticipantMessage::ServerMessage {
                 data: ServerMessage::Custom(msg),
