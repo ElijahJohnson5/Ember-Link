@@ -44,7 +44,7 @@ export const Page = () => {
       </div>
 
       <div className="cursors-container">
-        {Object.values(others).map((other) => {
+        {others.map((other) => {
           return <Cursor key={other.clientId} user={other} />;
         })}
       </div>

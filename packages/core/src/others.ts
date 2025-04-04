@@ -21,7 +21,7 @@ export class ManagedOthers<P extends Record<string, unknown> = DefaultPresence> 
   readonly states: ReactiveMap<string, P>;
   readonly meta: ReactiveMap<string, MetaClientState>;
 
-  public readonly signal: ObservableReadonly<P[]>;
+  public readonly signal: ObservableReadonly<User<P>[]>;
 
   constructor(emitter: Emitter<OtherEvents>) {
     this.states = new ReactiveMap();
@@ -29,8 +29,8 @@ export class ManagedOthers<P extends Record<string, unknown> = DefaultPresence> 
 
     this.emitter = emitter;
     this.signal = $.memo(() => {
-      return Array.from(this.states.entries()).map(([_clientId, state]) => {
-        return state;
+      return Array.from(this.states.entries()).map(([clientId, state]) => {
+        return { ...state, clientId: clientId };
       });
     });
 

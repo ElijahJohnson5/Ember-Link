@@ -60,9 +60,8 @@ export function createClient<
     authEndpoint,
     jwtSignerPublicKey,
     multiTenant,
-    onAuthenticated: (value) => {
+    onAuthenticated: (_value) => {
       // TODO: Set user
-      console.log(value);
     }
   });
 

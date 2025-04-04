@@ -1,5 +1,5 @@
 <script lang="ts" module>
-	export const name = 'EMBER_LINK_CLIENT';
+	const name = 'EMBER_LINK_PROVIDER';
 
 	export function getClientContext<
 		P extends Record<string, unknown> = DefaultPresence,
@@ -26,8 +26,9 @@
 		type EmberClient
 	} from '@ember-link/core';
 
-	const { clientOptions, children }: { clientOptions: CreateClientOptions; children: Snippet<[]> } =
-		$props();
+	type Props = { children: Snippet<[]> } & CreateClientOptions;
+
+	const { children, ...clientOptions }: Props = $props();
 
 	const client = createClient<P, C>(clientOptions);
 

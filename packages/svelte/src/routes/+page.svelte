@@ -1,3 +1,11 @@
-<h1>Welcome to your library project</h1>
-<p>Create your package using @sveltejs/package and preview/showcase your work with SvelteKit</p>
-<p>Visit <a href="https://svelte.dev/docs/kit">svelte.dev/docs/kit</a> to read the documentation</p>
+<script lang="ts">
+	import { getChannelContext } from '$lib/channel-provider.svelte';
+
+	const channel = getChannelContext();
+</script>
+
+<div>
+	{#each channel.others as other (other.clientId)}
+		<div>{other.clientId}</div>
+	{/each}
+</div>

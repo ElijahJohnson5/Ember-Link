@@ -1,7 +1,8 @@
-import ClientProvider from './ClientProvider.svelte';
-import ChannelProvider from './ChannelProvider.svelte';
+import EmberLinkProvider from './ember-link-provider.svelte';
+import ChannelProvider from './channel-provider.svelte';
 
-export * from './ClientProvider.svelte';
-export * from './ChannelProvider.svelte';
+export * from './ember-link-provider.svelte';
+export * from './channel-provider.svelte';
+export * from '@ember-link/core';
 
-export { ClientProvider, ChannelProvider }
+export { EmberLinkProvider, ChannelProvider };

@@ -13,7 +13,7 @@ export const useClientOrNull = <
   P extends DefaultPresence,
   C extends DefaultCustomMessageData
 >(): EmberClient<P, C> | null => {
-  return useContext(ClientContext);
+  return useContext(ClientContext) as EmberClient<P, C> | null;
 };
 
 export const useClient = <

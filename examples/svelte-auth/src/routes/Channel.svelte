@@ -1,29 +1,9 @@
 <script lang="ts">
-	import { SvelteMap } from 'svelte/reactivity';
 	import { getChannelContext } from '@ember-link/svelte';
 
 	const COLORS = ['#DC2626', '#D97706', '#059669', '#7C3AED', '#DB2777'];
 
-	let cursorPosition = $state<{ x: number; y: number } | null>(null);
-	let otherCursors = new SvelteMap<string, { x: number; y: number } | null>();
-
-	const channel = getChannelContext('test');
-
-	channel.events.subscribe('presence', (presence) => {
-		cursorPosition = presence?.cursor ?? null;
-	});
-
-	channel.events.others.subscribe('join', (user) => {
-		otherCursors.set(user.clientId, user.cursor);
-	});
-
-	channel.events.others.subscribe('update', (user) => {
-		otherCursors.set(user.clientId, user.cursor);
-	});
-
-	channel.events.others.subscribe('leave', (user) => {
-		otherCursors.delete(user.clientId);
-	});
+	const channel = getChannelContext();
 </script>
 
 <svelte:document
@@ -41,21 +21,21 @@
 
 <div class="wholePage">
 	<div>
-		{cursorPosition
-			? `${cursorPosition.x} × ${cursorPosition.y}`
+		{channel.myPresence && channel.myPresence.cursor
+			? `${channel.myPresence.cursor.x} × ${channel.myPresence.cursor.y}`
 			: 'Move your cursor to broadcast its position to other people in the Channel.'}
 	</div>
 
 	<div class="cursorsContainer">
-		{#each otherCursors as [id, cursor]}
-			{#if cursor}
+		{#each channel.others as other (other.clientId)}
+			{#if other.cursor}
 				<svg
 					class="cursor"
-					id={`cursor-${id}`}
+					id={`cursor-${other.clientId}`}
 					width="24"
 					height="36"
 					viewBox="0 0 24 36"
-					style={`transform: translateX(${cursor.x}px) translateY(${cursor.y}px);`}
+					style={`transform: translateX(${other.cursor.x}px) translateY(${other.cursor.y}px);`}
 					fill={COLORS[Math.floor(Math.random() * COLORS.length)]}
 					xmlns="http://www.w3.org/2000/svg"
 				>
