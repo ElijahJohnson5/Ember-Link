@@ -6518,7 +6518,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"prosemirror-view@npm:^1.0.0, prosemirror-view@npm:^1.1.0, prosemirror-view@npm:^1.27.0, prosemirror-view@npm:^1.31.0, prosemirror-view@npm:^1.37.0, prosemirror-view@npm:^1.37.2":
+"prosemirror-view@npm:^1.0.0, prosemirror-view@npm:^1.1.0, prosemirror-view@npm:^1.27.0, prosemirror-view@npm:^1.31.0, prosemirror-view@npm:^1.37.0, prosemirror-view@npm:^1.37.2, prosemirror-view@npm:^1.39.1":
   version: 1.39.1
   resolution: "prosemirror-view@npm:1.39.1"
   dependencies:
@@ -6635,6 +6635,7 @@ __metadata:
     "@ember-link/react": "npm:^0.0.3"
     "@ember-link/yjs-provider": "workspace:^"
     "@eslint/js": "npm:^9.21.0"
+    "@tiptap/core": "npm:^2.11.7"
     "@tiptap/extension-collaboration": "npm:^2.11.7"
     "@tiptap/extension-collaboration-cursor": "npm:^2.11.7"
     "@tiptap/pm": "npm:^2.11.7"
@@ -6647,6 +6648,9 @@ __metadata:
     eslint-plugin-react-hooks: "npm:^5.1.0"
     eslint-plugin-react-refresh: "npm:^0.4.19"
     globals: "npm:^15.15.0"
+    prosemirror-model: "npm:^1.25.0"
+    prosemirror-state: "npm:^1.4.3"
+    prosemirror-view: "npm:^1.39.1"
     react: "npm:^19.0.0"
     react-dom: "npm:^19.0.0"
     typescript: "npm:~5.7.2"
