@@ -1,5 +1,15 @@
 # @ember-link/react
 
+## 0.0.3
+
+### Patch Changes
+
+- a9bee5f: Add useOthers and useMyPresence hooks
+- 870b2ae: Switch to using useSyncExternalStore as it more aligns to what is needed vs custom useState wrappers
+- Updated dependencies [870b2ae]
+- Updated dependencies [a9bee5f]
+  - @ember-link/core@0.0.10
+
 ## 0.0.2
 
 ### Patch Changes
