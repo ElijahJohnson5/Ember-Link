@@ -83,3 +83,95 @@ html.dark .shiki span {
 	font-weight: var(--shiki-dark-font-weight) !important;
 	text-decoration: var(--shiki-dark-text-decoration) !important;
 }
+
+pre.shiki {
+	max-width: 100%;
+	counter-reset: codeblock-line;
+
+	.line {
+		counter-increment: codeblock-line;
+
+		&::before {
+			content: counter(codeblock-line);
+			display: inline-block;
+			width: 0.75rem;
+			margin-right: 2rem;
+			text-align: right;
+			color: gray;
+		}
+	}
+}
+
+pre:has(code) {
+	position: relative;
+}
+
+code button.copy-button {
+	position: absolute;
+	right: 8px;
+	top: 8px;
+	height: 32px;
+	width: 32px;
+	padding: 0;
+	display: flex;
+	padding: 4px;
+	border-radius: 4px;
+
+	&:hover {
+		@apply bg-accent;
+	}
+
+	& span {
+		width: 100%;
+		aspect-ratio: 1 / 1;
+		background-repeat: no-repeat;
+		background-position: center;
+		background-size: cover;
+	}
+
+	& .ready {
+		background-color: currentcolor !important;
+		-webkit-mask-image: url(./clipboard-copy.svg);
+		mask-image: url(./clipboard-copy.svg);
+		mask-repeat: no-repeat;
+		mask-position: center;
+		transition: all 300ms ease-in-out;
+	}
+
+	& .success {
+		background-color: currentcolor !important;
+		opacity: 0;
+		-webkit-mask-image: url(./check.svg);
+		mask-image: url(./check.svg);
+		mask-repeat: no-repeat;
+		mask-position: center;
+		transition: all 300ms ease-in-out;
+		position: absolute;
+		right: 0px;
+		top: 0px;
+	}
+
+	&.copied {
+		& .success {
+			opacity: 100;
+		}
+
+		& .ready {
+			opacity: 0;
+		}
+	}
+}
+
+html.dark code button.copy-button {
+	&:hover {
+		background-color: hsl(var(--background));
+	}
+
+	& .ready {
+		background-color: var(--shiki-dark) !important;
+	}
+
+	& .success {
+		background-color: var(--shiki-dark) !important;
+	}
+}

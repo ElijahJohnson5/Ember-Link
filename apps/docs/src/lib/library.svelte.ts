@@ -33,8 +33,10 @@ const libraryOptions: Array<LibraryOption> = [
 	}
 ];
 
-const selectedLibrary = $state({
-	current: libraryOptions[0]
-});
+class SelectedLibrary {
+	current = $state(libraryOptions[0]);
+}
+
+const selectedLibrary = new SelectedLibrary();
 
 export { selectedLibrary, libraryOptions };

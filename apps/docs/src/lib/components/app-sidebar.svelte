@@ -4,6 +4,7 @@
 	import GalleryVerticalEnd from '@lucide/svelte/icons/gallery-vertical-end';
 	import type { ComponentProps } from 'svelte';
 	import { type NavData } from '$lib/types';
+	import Button from '$lib/components/ui/button/button.svelte';
 
 	type Props = ComponentProps<typeof Sidebar.Root> & {
 		data: NavData;
@@ -36,7 +37,19 @@
 	<Sidebar.Content>
 		{#each data.navMain as mainItem (mainItem.title)}
 			<Sidebar.Group>
-				<Sidebar.GroupLabel>{mainItem.title}</Sidebar.GroupLabel>
+				<Sidebar.GroupLabel class="text-sm text-primary">
+					{#snippet child({ props })}
+						{#if mainItem.url}
+							<Button variant="link" {...props} class="justify-start" href={mainItem.url}
+								>{mainItem.title}</Button
+							>
+						{:else}
+							<div {...props}>
+								{mainItem.title}
+							</div>
+						{/if}
+					{/snippet}
+				</Sidebar.GroupLabel>
 				<Sidebar.Menu>
 					<Sidebar.MenuItem>
 						{#if mainItem.items?.length}

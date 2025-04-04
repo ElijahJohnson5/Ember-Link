@@ -1,20 +1,9 @@
 <script lang="ts">
-	import { Flame } from '@lucide/svelte';
-	import type { PageData } from './$types';
-	import exampleCode from './example.ts?raw';
-
-	const { data }: { data: PageData } = $props();
-
-	const codeExample = data.highlighter.codeToHtml(exampleCode, {
-		lang: 'typescript',
-		themes: {
-			light: 'github-light',
-			dark: 'github-dark'
-		}
-	});
+	import Flame from '@lucide/svelte/icons/flame';
+	import Example from './example.md';
 </script>
 
-<div class="prose dark:prose-invert mx-auto max-w-4xl p-6">
+<div class="prose mx-auto w-full max-w-4xl p-6 dark:prose-invert">
 	<div class="flex flex-col items-center">
 		<Flame size={60} class="mb-4" />
 		<h1 class="mb-0">Ember Link</h1>
@@ -52,11 +41,10 @@
 		integrate:
 	</p>
 
-	<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-	{@html codeExample}
+	<Example />
 
 	<p>
-		Ember Link makes real-time collaboration powerful yet simple. <a href="/get-started">
+		Ember Link makes real-time collaboration powerful yet simple. <a href="/installation-usage">
 			Get started today
 		</a>
 		and bring seamless teamwork to your app! 🚀

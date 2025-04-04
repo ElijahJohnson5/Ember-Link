@@ -1,7 +1,7 @@
 <script lang="ts">
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb';
 
-	let { items }: { items: Array<string> } = $props();
+	let { items }: { items: Array<{ title: string; url?: string }> } = $props();
 </script>
 
 <Breadcrumb.Root>
@@ -9,12 +9,12 @@
 		{#each items as item, index (item)}
 			{#if index !== items.length - 1}
 				<Breadcrumb.Item class="hidden md:block">
-					<Breadcrumb.Link>{item}</Breadcrumb.Link>
+					<Breadcrumb.Link href={item.url}>{item.title}</Breadcrumb.Link>
 				</Breadcrumb.Item>
 				<Breadcrumb.Separator class="hidden md:block" />
 			{:else}
 				<Breadcrumb.Item>
-					<Breadcrumb.Page>{item}</Breadcrumb.Page>
+					<Breadcrumb.Page>{item.title}</Breadcrumb.Page>
 				</Breadcrumb.Item>
 			{/if}
 		{/each}
