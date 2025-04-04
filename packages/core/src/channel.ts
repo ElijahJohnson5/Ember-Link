@@ -5,7 +5,11 @@ import {
 } from '@ember-link/event-emitter';
 import { ManagedPresence } from './presence';
 import { ManagedSocket, Status } from './socket-client';
-import { ServerMessage } from '@ember-link/protocol';
+import {
+  ServerMessage,
+  type StorageSyncMessage,
+  type StorageUpdateMessage
+} from '@ember-link/protocol';
 import $ from 'oby';
 import { ManagedOthers, OtherEvents } from './others';
 import { IStorage, IStorageProvider, MessageEvents } from '@ember-link/storage';
@@ -40,9 +44,14 @@ export type Channel<
   getStorage: () => IStorage;
   getStatus: () => Status;
   getOthers: () => User<P>[];
-  getPresence: () => P;
+  getName: () => string;
+  getPresence: () => P | null;
+  destroy: () => void;
+  updateYDoc: (data: StorageUpdateMessage) => void;
+  syncYDoc: (data: StorageSyncMessage) => void;
   events: Observable<ChannelEvents<P, C>> & {
     others: Observable<OtherEvents<P>>;
+    yjsProvider: Observable<YjsProviderEvents>;
   };
 };
 
@@ -53,21 +62,21 @@ type ChannelEvents<
   presence: (self: P) => void;
   status: (status: Status) => void;
   others: (others: User<P>[]) => void;
+  destroy: () => void;
   customMessage: (message: Extract<ServerMessage<P, C>, { type: 'custom' }>['data']) => void;
+};
+
+type YjsProviderEvents = {
+  syncMessage: (message: StorageSyncMessage) => void;
+  updateMessage: (message: StorageUpdateMessage) => void;
 };
 
 export function createChannel<
   S extends IStorageProvider,
   P extends Record<string, unknown> = DefaultPresence,
   C extends Record<string, unknown> = DefaultCustomMessageData
->({
-  options,
-  ...config
-}: ChannelConfig<S, P>): {
-  channel: Channel<P>;
-  leave: () => void;
-} {
-  const managedSocket = new ManagedSocket({ ...config });
+>({ options, ...config }: ChannelConfig<S, P>): Channel<P> {
+  const managedSocket = new ManagedSocket<P, C>({ ...config });
 
   const otherEventEmitter = createEventEmitter<OtherEvents<P>>();
   const managedOthers = new ManagedOthers<P>(otherEventEmitter);
@@ -88,6 +97,7 @@ export function createChannel<
   });
 
   const storageEventEmitter = createEventEmitter<MessageEvents>();
+  const yjsProviderEventEmitter = createEventEmitter<YjsProviderEvents>();
 
   managedSocket.events.subscribe('message', (e) => {
     if (typeof e.data === 'string') {
@@ -106,6 +116,10 @@ export function createChannel<
         storage?.applyUpdate(Uint8Array.from(message.update));
       } else if (message.type === 'storageSync') {
         storageEventEmitter.emit('message', message);
+      } else if (message.type === 'providerSync') {
+        yjsProviderEventEmitter.emit('syncMessage', message);
+      } else if (message.type === 'providerUpdate') {
+        yjsProviderEventEmitter.emit('updateMessage', message);
       } else if (message.type === 'custom') {
         eventEmitter.emit('customMessage', message.data);
       }
@@ -161,17 +175,39 @@ export function createChannel<
     eventEmitter.resume('status');
   }, 0);
 
-  function leave() {
+  function destroy() {
     clearTimeout(timeout);
+    eventEmitter.emit('destroy');
+    managedOthers.destroy();
+    presence.destroy();
     managedSocket.destroy();
   }
 
   function updatePresence(state: P) {
-    presence.state(state);
+    presence.state((oldState) => {
+      return {
+        ...oldState,
+        ...state
+      };
+    });
   }
 
   function getStatus() {
     return status();
+  }
+
+  function syncYDoc(data: StorageSyncMessage) {
+    managedSocket.message({
+      type: 'providerSync',
+      ...data
+    });
+  }
+
+  function updateYDoc(data: StorageUpdateMessage) {
+    managedSocket.message({
+      type: 'providerUpdate',
+      ...data
+    });
   }
 
   const shouldConnect = options?.autoConnect ?? true;
@@ -181,17 +217,19 @@ export function createChannel<
   }
 
   return {
-    channel: {
-      updatePresence,
-      getStorage,
-      getStatus,
-      getOthers: () => managedOthers.signal(),
-      getPresence: () => presence.state(),
-      events: {
-        ...eventEmitter.observable,
-        others: otherEventEmitter.observable
-      }
+    updatePresence,
+    getStorage,
+    getStatus,
+    getOthers: () => managedOthers.signal(),
+    getPresence: () => presence.state(),
+    getName: () => config.channelName,
+    updateYDoc,
+    syncYDoc,
+    events: {
+      ...eventEmitter.observable,
+      others: otherEventEmitter.observable,
+      yjsProvider: yjsProviderEventEmitter.observable
     },
-    leave
+    destroy
   };
 }

@@ -44,6 +44,7 @@ export class ManagedSocket<
   }
 
   message(data: ClientMessage<P, C>) {
+    // TODO: Batch messages if the socket is not open
     this.machine.send({ type: 'message', value: JSON.stringify(data) });
   }
 
@@ -473,7 +474,6 @@ function createWebSocketStateMachine({ authenticate, createWebSocket }: SocketOp
 
   actor.subscribe((snapshot) => {
     const currentStatus = valueToStatus(snapshot.value, snapshot.context.successCount);
-
     if (lastStatus !== currentStatus) {
       // Emit a change status event;
       eventEmitter.emit('statusChange', currentStatus);

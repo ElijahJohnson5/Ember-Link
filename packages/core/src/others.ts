@@ -80,4 +80,8 @@ export class ManagedOthers<P extends Record<string, unknown> = DefaultPresence> 
     this.states.clear();
     this.emitter.emit('reset');
   }
+
+  destroy() {
+    clearInterval(this.checkInterval);
+  }
 }
