@@ -12,7 +12,7 @@ declare global {
 }
 
 const client = createClient({
-  baseUrl: 'https://ember-link-sandbox.onrender.com'
+  baseUrl: 'http://localhost:9000'
 });
 
 const { channel } = client.joinChannel('test');
