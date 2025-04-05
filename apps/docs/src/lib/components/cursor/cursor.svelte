@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { getChannelContext } from '@ember-link/svelte';
 	import { onDestroy } from 'svelte';
+	import { Badge } from '$lib/components/ui/badge';
 
 	const COLORS = ['#DC2626', '#D97706', '#059669', '#7C3AED', '#DB2777'];
 
@@ -14,7 +15,7 @@
 </script>
 
 <div
-	class="page flex h-48 items-center justify-center md:h-60 lg:h-96"
+	class="page relative flex h-48 items-center justify-center md:h-60 lg:h-96"
 	onpointermove={(event) => {
 		const rect = event.currentTarget.getBoundingClientRect();
 		const x = event.clientX - rect.left;
@@ -30,6 +31,12 @@
 		});
 	}}
 >
+	<div class="absolute right-2 top-2">
+		<Badge>
+			{channel.status.toUpperCase()}
+		</Badge>
+	</div>
+
 	<div class="flex items-center justify-center text-center">
 		{channel.myPresence && channel.myPresence.cursor
 			? `${channel.myPresence.cursor.x} × ${channel.myPresence.cursor.y}`
