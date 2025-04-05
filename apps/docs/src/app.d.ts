@@ -8,6 +8,16 @@ declare global {
 		// interface PageState {}
 		// interface Platform {}
 	}
+
+	interface EmberLink {
+		Presence: {
+			cursor?: {
+				x: number;
+				y: number;
+			} | null;
+			isTyping?: boolean;
+		};
+	}
 }
 
 export {};

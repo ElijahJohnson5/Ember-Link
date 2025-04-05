@@ -41,6 +41,7 @@ export type Channel<
   C extends Record<string, unknown> = DefaultCustomMessageData
 > = {
   updatePresence: (state: P) => void;
+  hasStorage: () => boolean;
   getStorage: () => IStorage;
   getStatus: () => Status;
   getOthers: () => User<P>[];
@@ -168,6 +169,10 @@ export function createChannel<
     throw new Error('A storage provider must be configured to use storage');
   }
 
+  function hasStorage() {
+    return Boolean(storage);
+  }
+
   eventEmitter.pause('status');
 
   // Resume status event emitter on next microtask so that consumers can set up listeners in time
@@ -219,6 +224,7 @@ export function createChannel<
   return {
     updatePresence,
     getStorage,
+    hasStorage,
     getStatus,
     getOthers: () => managedOthers.signal(),
     getPresence: () => presence.state(),

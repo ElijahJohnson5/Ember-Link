@@ -559,7 +559,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@ember-link/yjs-storage@npm:^0.0.8, @ember-link/yjs-storage@workspace:packages/yjs-storage":
+"@ember-link/yjs-storage@npm:^0.0.8, @ember-link/yjs-storage@workspace:^, @ember-link/yjs-storage@workspace:packages/yjs-storage":
   version: 0.0.0-use.local
   resolution: "@ember-link/yjs-storage@workspace:packages/yjs-storage"
   dependencies:
@@ -3438,6 +3438,7 @@ __metadata:
   resolution: "docs@workspace:apps/docs"
   dependencies:
     "@ember-link/svelte": "workspace:^"
+    "@ember-link/yjs-storage": "workspace:^"
     "@eslint/compat": "npm:^1.2.5"
     "@eslint/js": "npm:^9.18.0"
     "@lucide/svelte": "npm:^0.486.0"
@@ -3470,8 +3471,10 @@ __metadata:
     tailwindcss-animate: "npm:^1.0.7"
     typescript: "npm:^5.0.0"
     typescript-eslint: "npm:^8.20.0"
+    uuid: "npm:^11.1.0"
     vite: "npm:^6.0.0"
     vitest: "npm:^3.0.0"
+    yjs: "npm:^13.6.24"
   languageName: unknown
   linkType: soft
 
@@ -7978,12 +7981,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"uuid@npm:^11.0.5":
-  version: 11.0.5
-  resolution: "uuid@npm:11.0.5"
+"uuid@npm:^11.0.5, uuid@npm:^11.1.0":
+  version: 11.1.0
+  resolution: "uuid@npm:11.1.0"
   bin:
     uuid: dist/esm/bin/uuid
-  checksum: 10c0/6f59f0c605e02c14515401084ca124b9cb462b4dcac866916a49862bcf831874508a308588c23a7718269226ad11a92da29b39d761ad2b86e736623e3a33b6e7
+  checksum: 10c0/34aa51b9874ae398c2b799c88a127701408cd581ee89ec3baa53509dd8728cbb25826f2a038f9465f8b7be446f0fbf11558862965b18d21c993684297628d4d3
   languageName: node
   linkType: hard
 

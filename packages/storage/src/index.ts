@@ -34,6 +34,8 @@ export interface MapStorage<K extends string, V> {
   delete: (key: K) => void;
   has: (key: K) => boolean;
   clear: () => void;
+  [Symbol.iterator](): IterableIterator<[K, V]>;
+  entries: () => IterableIterator<[K, V]>;
 
   subscribe: (callback: (event: StorageEvent) => void) => () => void;
 }

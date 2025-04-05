@@ -88,7 +88,7 @@ function getCursorOrCreate(connectionId: string): HTMLElement {
   if (cursor == null) {
     cursor = document.getElementById('cursor-template')!.cloneNode(true) as HTMLElement;
     cursor.id = `cursor-${connectionId}`;
-    cursor.style.fill = COLORS[Math.floor(Math.random() * COLORS.length)];
+    cursor.style.stroke = COLORS[Math.floor(Math.random() * COLORS.length)];
     cursorsContainer.appendChild(cursor);
   }
 

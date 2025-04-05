@@ -71,6 +71,13 @@ class YMapStorage<V> implements MapStorage<string, V> {
     this.yMap = yMap;
     this.name = name;
   }
+  entries(): IterableIterator<[string, V]> {
+    return this.yMap.entries();
+  }
+
+  [Symbol.iterator](): IterableIterator<[string, V]> {
+    return this.yMap[Symbol.iterator]();
+  }
 
   get(key: string) {
     return this.yMap.get(key);
@@ -126,8 +133,8 @@ export function createYJSStorageProvider(): IStorageProvider {
       return new YArrayStorage(name, doc.getArray(name));
     },
 
-    getMap: (name: string) => {
-      return new YMapStorage(name, doc.getMap(name));
+    getMap: <K extends string, V>(name: string) => {
+      return new YMapStorage(name, doc.getMap(name)) as MapStorage<K, V>;
     },
 
     subscribe: (object, callback) => {

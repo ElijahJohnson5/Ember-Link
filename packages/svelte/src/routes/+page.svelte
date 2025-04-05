@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { getChannelContext } from '$lib/channel-provider.svelte';
+	import { getChannelContext } from '$lib/index.js';
 
 	const channel = getChannelContext();
 </script>
