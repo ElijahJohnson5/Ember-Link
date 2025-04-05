@@ -1,5 +1,11 @@
 # @ember-link/protocol
 
+## 0.0.9
+
+### Patch Changes
+
+- 3ffbcd9: Support yjs-provider with new message types
+
 ## 0.0.8
 
 ### Patch Changes
