@@ -2,6 +2,8 @@
 
 An open-source platform that enables developers to effortlessly add real-time collaboration features to their applications. With full self-hosting capabilities, this project allows complete control over your collaboration infrastructure. The included SDKs make it incredibly easy to integrate real-time functionality, providing a seamless setup experience. Whether you're building a team collaboration tool, a shared workspace, or any real-time application, this solution is fully customizable, easy to deploy, and 100% open-source.
 
+**[Documentation](https://docs.emberlink.io/)**
+
 ## Getting Started
 
 The easiest way to get started is to run the latest ember-link docker image locally and then run an example.
