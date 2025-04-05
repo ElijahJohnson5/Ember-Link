@@ -1,7 +1,7 @@
 <script lang="ts">
-	// import type { PageData } from './$types';
-
-	// let { data }: { data: PageData } = $props();
+	import Client from './client.md';
 </script>
 
-<div>Coming Soon</div>
+<div class="prose mx-auto w-full max-w-4xl p-6 dark:prose-invert">
+	<Client />
+</div>

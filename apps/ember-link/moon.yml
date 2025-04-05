@@ -16,3 +16,5 @@ tasks:
     command: 'cargo build --release'
   build-docker:
     command: 'docker build -f "apps/ember-link/Dockerfile" . -t emberlinkio/ember-link:latest'
+    options:
+      runFromWorkspaceRoot: true

@@ -53,14 +53,18 @@
 				title: 'API Reference',
 				url: '/api-reference',
 				items: [
-					// {
-					// 	title: 'Client',
-					// 	url: '/client'
-					// },
-					// {
-					// 	title: 'Channel',
-					// 	url: '/channel'
-					// }
+					{
+						title: 'Client',
+						url: '/client'
+					},
+					{
+						title: 'Channel',
+						url: '/channel'
+					},
+					{
+						title: 'Global Types',
+						url: '/global-types'
+					}
 				]
 			}
 		]

@@ -73,16 +73,30 @@ impl Channel {
     }
 
     pub fn broadcast(&self, message: ServerMessage<Value, Value>, exclude_id: Option<&String>) {
+        let mut participants_to_remove = vec![];
+
         for (key, value) in self.inner.participant_refs.lock().iter() {
             if exclude_id.is_some_and(|id| *id == *key) {
                 continue;
             }
 
-            value
-                .cast(ParticipantMessage::ServerMessage {
-                    data: message.clone(),
-                })
-                .expect("Could not broadcast message");
+            match value.cast(ParticipantMessage::ServerMessage {
+                data: message.clone(),
+            }) {
+                Err(e) => {
+                    tracing::error!(
+                        error = e.to_string(),
+                        participant_id = key,
+                        "Could not send message to participant in channel",
+                    );
+                    participants_to_remove.push(key.clone())
+                }
+                Ok(()) => {}
+            }
+        }
+
+        for participant in participants_to_remove {
+            self.remove_participant(&participant);
         }
     }
 

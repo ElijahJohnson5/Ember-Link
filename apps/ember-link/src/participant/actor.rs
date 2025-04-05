@@ -154,11 +154,21 @@ impl Actor for Participant {
                 }
             }
             ParticipantMessage::ServerMessage { data } => {
-                state
+                match state
                     .socket_write_sink
                     .send(Message::text(serde_json::to_string(&data).unwrap()))
                     .await
-                    .expect("Could not send message");
+                {
+                    Err(e) => {
+                        tracing::error!(
+                            error = e.to_string(),
+                            "Could not send message to participant removing them from the channel"
+                        );
+
+                        state.channel.remove_participant(&state.id);
+                    }
+                    Ok(()) => {}
+                }
             }
         }
 

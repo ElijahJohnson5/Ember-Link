@@ -106,16 +106,24 @@ pre:has(code) {
 	position: relative;
 }
 
-code button.copy-button {
-	position: absolute;
-	right: 8px;
-	top: 8px;
-	height: 32px;
-	width: 32px;
+div.code-container {
+	display: flex;
+
+	& pre.shiki {
+		@apply flex-grow;
+	}
+}
+
+div.code-container button.copy-button {
+	height: 34px;
+	width: 34px;
 	padding: 0;
 	display: flex;
-	padding: 4px;
+	position: relative;
+	padding: 6px;
 	border-radius: 4px;
+
+	@apply mt-9;
 
 	&:hover {
 		@apply bg-accent;

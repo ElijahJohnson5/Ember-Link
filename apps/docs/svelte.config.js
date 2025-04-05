@@ -31,7 +31,7 @@ const config = {
 							},
 							transformers: [
 								{
-									code(node) {
+									root(node) {
 										if (!meta) {
 											return;
 										}
@@ -41,6 +41,15 @@ const config = {
 										if (!match) {
 											return;
 										}
+
+										const newNode = {
+											type: 'element',
+											tagName: 'div',
+											properties: {
+												class: 'code-container'
+											},
+											children: [node]
+										};
 
 										node.children.push({
 											type: 'element',
@@ -73,6 +82,8 @@ const config = {
 												}
 											]
 										});
+
+										return newNode;
 									}
 								}
 							]

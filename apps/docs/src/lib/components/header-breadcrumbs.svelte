@@ -9,7 +9,11 @@
 		{#each items as item, index (item)}
 			{#if index !== items.length - 1}
 				<Breadcrumb.Item class="hidden md:block">
-					<Breadcrumb.Link href={item.url}>{item.title}</Breadcrumb.Link>
+					{#if item.url}
+						<Breadcrumb.Link href={item.url}>{item.title}</Breadcrumb.Link>
+					{:else}
+						{item.title}
+					{/if}
 				</Breadcrumb.Item>
 				<Breadcrumb.Separator class="hidden md:block" />
 			{:else}

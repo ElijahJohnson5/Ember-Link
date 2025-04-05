@@ -170,6 +170,10 @@ function createWebSocketStateMachine({ authenticate, createWebSocket }: SocketOp
             websocket.removeEventListener('error', errorHandler);
             websocket.removeEventListener('close', closeHandler);
             websocket.removeEventListener('message', messageHandler);
+
+            if (websocket.readyState === websocket.OPEN) {
+              websocket.close();
+            }
           };
         }
       )
