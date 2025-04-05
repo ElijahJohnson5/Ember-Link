@@ -37,7 +37,7 @@
 		</Badge>
 	</div>
 
-	<div class="flex items-center justify-center text-center">
+	<div class="flex select-none items-center justify-center text-center">
 		{channel.myPresence && channel.myPresence.cursor
 			? `${channel.myPresence.cursor.x} × ${channel.myPresence.cursor.y}`
 			: 'Move your cursor to broadcast its position to other people in the Channel.'}
