@@ -1,5 +1,11 @@
 # @ember-link/server
 
+## 0.0.4
+
+### Patch Changes
+
+- 261688d: Make sending messages to participants not panic all the time
+
 ## 0.0.3
 
 ### Patch Changes

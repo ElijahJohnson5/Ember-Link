@@ -1,5 +1,11 @@
 # @ember-link/svelte
 
+## 0.0.6
+
+### Patch Changes
+
+- 261688d: Expose status in state, make using storage easier by implementing the base storage interfaces
+
 ## 0.0.5
 
 ### Patch Changes
