@@ -31,7 +31,7 @@ const config = {
 							},
 							transformers: [
 								{
-									code(node) {
+									root(node) {
 										if (!meta) {
 											return;
 										}
@@ -42,46 +42,48 @@ const config = {
 											return;
 										}
 
-										node.children.unshift({
+										const newNode = {
 											type: 'element',
 											tagName: 'div',
 											properties: {
-												class: 'copy-button-container'
+												class: 'code-container'
 											},
-											children: [
-												{
-													type: 'element',
-													tagName: 'button',
-													properties: {
-														type: 'button',
-														data: this.source,
-														title: 'Copy code',
-														'aria-label': 'Copy code',
-														class: 'copy-button',
-														'data-name': 'copy-button',
-														onclick: /* javascript */ `
+											children: [node]
+										};
+
+										node.children.push({
+											type: 'element',
+											tagName: 'button',
+											properties: {
+												type: 'button',
+												data: this.source,
+												title: 'Copy code',
+												'aria-label': 'Copy code',
+												class: 'copy-button',
+												'data-name': 'copy-button',
+												onclick: /* javascript */ `
 													navigator.clipboard.writeText(this.attributes.data.value);
 													this.classList.add('copied');
 													window.setTimeout(() => this.classList.remove('copied'), ${3000});
 												`
-													},
-													children: [
-														{
-															type: 'element',
-															tagName: 'span',
-															properties: { class: 'ready' },
-															children: []
-														},
-														{
-															type: 'element',
-															tagName: 'span',
-															properties: { class: 'success' },
-															children: []
-														}
-													]
+											},
+											children: [
+												{
+													type: 'element',
+													tagName: 'span',
+													properties: { class: 'ready' },
+													children: []
+												},
+												{
+													type: 'element',
+													tagName: 'span',
+													properties: { class: 'success' },
+													children: []
 												}
 											]
 										});
+
+										return newNode;
 									}
 								}
 							]
