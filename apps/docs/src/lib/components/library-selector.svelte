@@ -9,7 +9,9 @@
 		{#snippet child({ props })}
 			<Button variant="ghost" {...props}>
 				<svelte:component this={selectedLibrary.current.icon} />
-				{selectedLibrary.current.display}
+				<span class="hidden md:block">
+					{selectedLibrary.current.display}
+				</span>
 			</Button>
 		{/snippet}
 	</DropdownMenu.Trigger>

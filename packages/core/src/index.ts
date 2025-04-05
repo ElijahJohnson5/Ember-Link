@@ -26,3 +26,4 @@ export { IStorageProvider };
 export { createClient, CreateClientOptions, EmberClient } from './client';
 export { User } from './user';
 export { Channel, ChannelConfig } from './channel';
+export * from '@ember-link/storage';

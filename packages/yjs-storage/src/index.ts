@@ -71,6 +71,13 @@ class YMapStorage<V> implements MapStorage<string, V> {
     this.yMap = yMap;
     this.name = name;
   }
+  entries(): IterableIterator<[string, V]> {
+    return this.yMap.entries();
+  }
+
+  [Symbol.iterator](): IterableIterator<[string, V]> {
+    return this.yMap[Symbol.iterator]();
+  }
 
   get(key: string) {
     return this.yMap.get(key);
@@ -114,9 +121,10 @@ export function createYJSStorageProvider(): IStorageProvider {
 
   const doc = new Y.Doc();
 
-  // TODO: Figure out setting origin here and apply update so we don't send extra data
-  doc.on('update', (data) => {
-    eventEmitter.emit('update', data);
+  doc.on('update', (data, origin) => {
+    if (origin !== 'backend') {
+      eventEmitter.emit('update', data);
+    }
   });
 
   const storage: IStorage = {
@@ -125,8 +133,8 @@ export function createYJSStorageProvider(): IStorageProvider {
       return new YArrayStorage(name, doc.getArray(name));
     },
 
-    getMap: (name: string) => {
-      return new YMapStorage(name, doc.getMap(name));
+    getMap: <K extends string, V>(name: string) => {
+      return new YMapStorage(name, doc.getMap(name)) as MapStorage<K, V>;
     },
 
     subscribe: (object, callback) => {
@@ -134,7 +142,7 @@ export function createYJSStorageProvider(): IStorageProvider {
     },
 
     applyUpdate: (event) => {
-      Y.applyUpdate(doc, event);
+      Y.applyUpdate(doc, event, 'backend');
     },
 
     events: eventEmitter.observable

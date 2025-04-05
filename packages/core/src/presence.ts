@@ -39,7 +39,7 @@ export class ManagedPresence<P extends Record<string, unknown> = DefaultPresence
     this.checkInterval = setInterval(() => {
       const now = new Date().getTime();
 
-      if (this.state && outdatedTimeout / 2 <= now - this.meta.lastUpdated) {
+      if (this.state && outdatedTimeout / 2 >= now - this.meta.lastUpdated) {
         this.state((oldState) => {
           return { ...oldState };
         });
@@ -53,5 +53,9 @@ export class ManagedPresence<P extends Record<string, unknown> = DefaultPresence
       data: this.state(),
       type: 'presence'
     };
+  }
+
+  destroy() {
+    clearInterval(this.checkInterval);
   }
 }

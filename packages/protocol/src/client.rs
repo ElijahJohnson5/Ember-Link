@@ -14,6 +14,8 @@ pub enum ClientMessage<P, C> {
     Presence(ClientPresenceMessage<P>),
     StorageUpdate(StorageUpdateMessage),
     StorageSync(StorageSyncMessage),
+    ProviderSync(StorageSyncMessage),
+    ProviderUpdate(StorageUpdateMessage),
     Custom(CustomMessage<C>),
 }
 

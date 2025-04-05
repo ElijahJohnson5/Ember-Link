@@ -272,7 +272,12 @@ async fn handle_socket(
                     Some(msg) => {
                         match msg {
                             Ok(msg) => {
-                                handle_message(&participant, msg).await.unwrap()
+                                match handle_message(&participant, msg).await {
+                                    Err(error) => {
+                                        tracing::info!(error = error.to_string(), "Could not handle message");
+                                    }
+                                    Ok(()) => {}
+                                }
                             }
                             Err(error) => {
                                 tracing::info!(error = error.to_string());
@@ -309,7 +314,7 @@ async fn handle_message(
         ws::Message::Ping(data) => {
             participant
                 .cast(ParticipantMessage::PingMessage { data: data })
-                .expect("Could not send message to participant");
+                .ok();
         }
         ws::Message::Text(data) => {
             let data = data.to_string();
@@ -319,11 +324,19 @@ async fn handle_message(
                     .cast(ParticipantMessage::TextPingMessage {
                         data: "pong".into(),
                     })
-                    .expect("Could not send message to participant");
+                    .ok();
             } else {
                 match serde_json::from_str(&data) {
                     Ok(message) => {
-                        handle_client_message(participant, message);
+                        match handle_client_message(participant, message) {
+                            Err(e) => {
+                                tracing::error!(
+                                    error = e.to_string(),
+                                    "Could not send message to participant"
+                                )
+                            }
+                            Ok(()) => {}
+                        };
                     }
 
                     Err(e) => {
@@ -342,28 +355,26 @@ async fn handle_message(
 fn handle_client_message(
     participant: &ActorRef<ParticipantMessage>,
     msg: ClientMessage<Value, Value>,
-) {
+) -> Result<(), ractor::MessagingErr<ParticipantMessage>> {
     match msg {
         ClientMessage::Presence(msg) => {
             // TODO broadcast to the channel and store in the channel
-            participant
-                .cast(ParticipantMessage::MyPresence { data: msg })
-                .expect("Could not send message to participant");
+            participant.cast(ParticipantMessage::MyPresence { data: msg })
         }
         ClientMessage::StorageUpdate(msg) => {
-            participant
-                .cast(ParticipantMessage::StorageUpdate { data: msg })
-                .expect("Could not send message to participant");
+            participant.cast(ParticipantMessage::StorageUpdate { data: msg })
         }
         ClientMessage::StorageSync(msg) => {
-            participant
-                .cast(ParticipantMessage::StorageSync { data: msg })
-                .expect("Could not send message to participant");
+            participant.cast(ParticipantMessage::StorageSync { data: msg })
         }
-        ClientMessage::Custom(msg) => participant
-            .cast(ParticipantMessage::ServerMessage {
-                data: ServerMessage::Custom(msg),
-            })
-            .expect("Could not send message to participant"),
+        ClientMessage::ProviderSync(msg) => {
+            participant.cast(ParticipantMessage::ProviderSync { data: msg })
+        }
+        ClientMessage::ProviderUpdate(msg) => {
+            participant.cast(ParticipantMessage::ProviderUpdate { data: msg })
+        }
+        ClientMessage::Custom(msg) => participant.cast(ParticipantMessage::ServerMessage {
+            data: ServerMessage::Custom(msg),
+        }),
     }
 }

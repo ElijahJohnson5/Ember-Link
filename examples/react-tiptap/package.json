@@ -1,0 +1,43 @@
+{
+  "name": "react-tiptap",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "eslint .",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@ember-link/core": "workspace:^",
+    "@ember-link/react": "^0.0.3",
+    "@ember-link/yjs-provider": "workspace:^",
+    "@tiptap/core": "^2.11.7",
+    "@tiptap/extension-collaboration": "^2.11.7",
+    "@tiptap/extension-collaboration-cursor": "^2.11.7",
+    "@tiptap/pm": "^2.11.7",
+    "@tiptap/react": "^2.11.7",
+    "@tiptap/starter-kit": "^2.11.7",
+    "prosemirror-model": "^1.25.0",
+    "prosemirror-state": "^1.4.3",
+    "prosemirror-view": "^1.39.1",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "y-prosemirror": "^1.3.0",
+    "y-protocols": "^1.0.6",
+    "yjs": "^13.6.24"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.21.0",
+    "@types/react": "^19.0.10",
+    "@types/react-dom": "^19.0.4",
+    "@vitejs/plugin-react-swc": "^3.8.0",
+    "eslint": "^9.21.0",
+    "eslint-plugin-react-hooks": "^5.1.0",
+    "eslint-plugin-react-refresh": "^0.4.19",
+    "globals": "^15.15.0",
+    "typescript": "~5.7.2",
+    "typescript-eslint": "^8.24.1",
+    "vite": "^6.2.0"
+  }
+}

@@ -33,6 +33,23 @@
 				]
 			},
 			{
+				title: 'Examples',
+				items: [
+					{
+						title: 'Cursors',
+						url: '/cursors'
+					},
+					{
+						title: 'Todos',
+						url: '/todos'
+					},
+					{
+						title: 'Collaborative Editing',
+						url: '/collaborative'
+					}
+				]
+			},
+			{
 				title: 'API Reference',
 				url: '/api-reference',
 				items: [
@@ -74,6 +91,12 @@
 	});
 </script>
 
+<svelte:head>
+	<title>Ember Link</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<link rel="icon" href="/favicon.png" type="image/png" sizes="16x16" />
+</svelte:head>
+
 <ModeWatcher />
 
 <Sidebar.Provider>
@@ -89,7 +112,7 @@
 			<div class="ml-auto">
 				<LibrarySelector />
 
-				<Button size="icon" variant="ghost" onclick={toggleMode}>
+				<Button size="icon" variant="ghost" onclick={toggleMode} aria-label="Toggle dark mode">
 					<Sun
 						class="h-[1.2rem] w-[1.2rem] -rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100"
 					/>
@@ -98,7 +121,13 @@
 					/>
 				</Button>
 
-				<Button size="icon" variant="ghost" href="https://discord.gg/YU2wGQtgE7" target="_blank">
+				<Button
+					size="icon"
+					variant="ghost"
+					href="https://discord.gg/YU2wGQtgE7"
+					target="_blank"
+					aria-label="Join Discord"
+				>
 					<Discord />
 				</Button>
 
@@ -107,12 +136,13 @@
 					variant="ghost"
 					href="https://github.com/ElijahJohnson5/Ember-Link"
 					target="_blank"
+					aria-label="Github Repo"
 				>
 					<Github />
 				</Button>
 			</div>
 		</header>
-		<div class="flex w-full">
+		<div class="flex w-full flex-grow">
 			{@render children()}
 		</div>
 	</Sidebar.Inset>

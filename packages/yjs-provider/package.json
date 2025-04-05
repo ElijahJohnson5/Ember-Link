@@ -1,0 +1,34 @@
+{
+  "name": "@ember-link/yjs-provider",
+  "version": "0.0.1",
+  "module": "src/index.ts",
+  "type": "module",
+  "scripts": {
+    "build": "yarn build:cjs && yarn build:esm && yarn build:types",
+    "build:cjs": "esbuild src/index.ts --minify --outfile=dist/index.cjs --external:yjs --format=cjs --bundle",
+    "build:esm": "esbuild src/index.ts --minify --outfile=dist/index.js --external:yjs --format=esm --bundle",
+    "build:types": "tsc -b && dts-bundle-generator dist/src/index.d.ts -o dist/index.d.ts --inline-declare-global --export-referenced-types=false && cp dist/index.d.ts dist/indes.d.cts && rm -r dist/src && rm dist/tsconfig.tsbuildinfo"
+  },
+  "main": "./dist/index.cjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "import": {
+      "import": "./dist/index.js"
+    },
+    "require": {
+      "default": "./dist/index.cjs"
+    }
+  },
+  "devDependencies": {
+    "dts-bundle-generator": "^9.5.1",
+    "esbuild": "^0.25.1",
+    "typescript": "^5.7.3"
+  },
+  "dependencies": {
+    "lib0": "^0.2.102",
+    "yjs": "^13.6.24"
+  },
+  "peerDependencies": {
+    "@ember-link/core": "workspace:^"
+  }
+}

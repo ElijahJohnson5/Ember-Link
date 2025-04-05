@@ -55,7 +55,7 @@ export function createClient<
   P extends Record<string, unknown> = DefaultPresence,
   C extends Record<string, unknown> = DefaultCustomMessageData
 >({ baseUrl, authEndpoint, jwtSignerPublicKey, multiTenant }: CreateClientOptions): EmberClient {
-  const channels = new Map<string, { channel: Channel<P>; leave: () => void }>();
+  const channels = new Map<string, { channel: Channel<P, C>; unsubs: Set<() => void> }>();
   const auth = createAuth({
     authEndpoint,
     jwtSignerPublicKey,
@@ -65,15 +65,35 @@ export function createClient<
     }
   });
 
+  function borrowChannel({ channel, unsubs }: { channel: Channel<P, C>; unsubs: Set<() => void> }) {
+    const leave = () => {
+      const selfLeave = leave;
+
+      if (!unsubs.delete(selfLeave)) {
+        console.warn(
+          'This leave function was already called. Calling it more than once has no effect.'
+        );
+      } else {
+        if (unsubs.size === 0) {
+          channels.delete(channel.getName());
+          channel.destroy();
+        }
+      }
+    };
+
+    unsubs.add(leave);
+    return { channel, leave };
+  }
+
   function joinChannel<S extends IStorageProvider>(
     channelName: string,
     options?: ChannelConfig<S, P>['options']
   ) {
     if (channels.has(channelName)) {
-      return channels.get(channelName)!;
+      return borrowChannel(channels.get(channelName)!);
     }
 
-    const { channel, leave } = createChannel<S, P, C>({
+    const channel = createChannel<S, P, C>({
       channelName,
       baseUrl,
       authenticate: async () => {
@@ -115,15 +135,14 @@ export function createClient<
       options
     });
 
-    channels.set(channelName, { channel, leave });
-
-    return {
+    const channelWithUnsubs = {
       channel,
-      leave: () => {
-        channels.delete(channelName);
-        leave();
-      }
+      unsubs: new Set<() => void>()
     };
+
+    channels.set(channelName, channelWithUnsubs);
+
+    return borrowChannel(channelWithUnsubs);
   }
 
   return {
