@@ -1,5 +1,19 @@
 # @ember-link/core
 
+## 0.0.11
+
+### Patch Changes
+
+- 3ffbcd9: Add support for YJS provider package, fix small bug in presence, fix leaking setIntervals in others and presence. Borrow channels instead of always creating a new one
+- 3ffbcd9: Update Storage to have iterators for map methods
+  Update yjs storage to implement the new iterators
+  Update core to be able to tell if storage is specified
+  Update svelte package for convinence to use with storage methods
+- Updated dependencies [3ffbcd9]
+- Updated dependencies [3ffbcd9]
+  - @ember-link/storage@0.0.9
+  - @ember-link/protocol@0.0.9
+
 ## 0.0.10
 
 ### Patch Changes

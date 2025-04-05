@@ -1,6 +1,6 @@
 {
   "name": "@ember-link/yjs-storage",
-  "version": "0.0.8",
+  "version": "0.0.9",
   "module": "src/index.ts",
   "type": "module",
   "scripts": {

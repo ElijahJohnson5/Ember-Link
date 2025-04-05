@@ -1,5 +1,14 @@
 # @ember-link/svelte
 
+## 0.0.5
+
+### Patch Changes
+
+- 3ffbcd9: Update Storage to have iterators for map methods
+  Update yjs storage to implement the new iterators
+  Update core to be able to tell if storage is specified
+  Update svelte package for convinence to use with storage methods
+
 ## 0.0.4
 
 ### Patch Changes

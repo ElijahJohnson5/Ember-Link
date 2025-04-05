@@ -1,5 +1,17 @@
 # @ember-link/yjs-storage
 
+## 0.0.9
+
+### Patch Changes
+
+- 3ffbcd9: Update Storage to have iterators for map methods
+  Update yjs storage to implement the new iterators
+  Update core to be able to tell if storage is specified
+  Update svelte package for convinence to use with storage methods
+- 3ffbcd9: Make sure you not send unneeded updates back to the server that were recieved from the backend
+- Updated dependencies [3ffbcd9]
+  - @ember-link/storage@0.0.9
+
 ## 0.0.8
 
 ### Patch Changes
