@@ -1,5 +1,11 @@
 # @ember-link/core
 
+## 0.0.12
+
+### Patch Changes
+
+- 261688d: Export status from the websocket client and make sure we try to close the websocket more gracefully when destroying the state machine
+
 ## 0.0.11
 
 ### Patch Changes
