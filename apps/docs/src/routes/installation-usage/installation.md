@@ -46,30 +46,20 @@ The easiest way to get started is by running the latest Ember Link Docker image 
 
 1. **Download the Docker image:**
 
-   ```sh
+   ```sh copyButton
    docker pull emberlinkio/ember-link:latest
    ```
 
 2. **Run the Docker container:**
    This will run the server on port `9000` and expose it for your application to connect. The `ALLOW_UNAUTHORIZED` flag is enabled for easier testing.
 
-   ```sh
+   ```sh copyButton
    docker run -d -p 9000:9000 --env PORT=9000 --env HOST=0.0.0.0 --env ALLOW_UNAUTHORIZED=true emberlinkio/ember-link:latest
    ```
 
 ### **Server Configuration**
 
-You can configure the Ember Link server using environment variables:
-
-| Env Variable Name       | Description                                                     | Required | Default Value |
-| ----------------------- | --------------------------------------------------------------- | -------- | ------------- |
-| HOST                    | The host address the server should run on                       | X        | 127.0.0.1     |
-| PORT                    | The port the server should run on                               | X        | 9000          |
-| ALLOW_UNAUTHORIZED      | Allow unauthorized connections to the server (without JWTs)     | X        | false         |
-| WEBHOOK_URL             | URL to send webhook notifications to                            | X        |               |
-| JWT_SIGNER_KEY          | Key used for signing JWT tokens                                 | X        |               |
-| JWT_SIGNER_KEY_ENDPOINT | Endpoint to retrieve JWT_SIGNER_KEY for multi-tenant operations | X        |               |
-| STORAGE_ENDPOINT        | Endpoint for loading and saving storage data                    | X        |               |
+View all server configuration environment variables <a href="https://github.com/ElijahJohnson5/Ember-Link?tab=readme-ov-file#server-config" target="_blank">here</a>
 
 ## **Connecting to Ember Link**
 
@@ -271,11 +261,11 @@ channel.events.subscribe('status', (status) => {
 ```svelte copyButton
 <script lang="ts">
 	const channel = getChannelContext();
-
-	channel.events.subscribe('status', (status) => {
-		console.log('Current websocket status: ', status);
-	});
 </script>
+
+<div>
+	{channel.status}
+</div>
 ```
 
 {/if}

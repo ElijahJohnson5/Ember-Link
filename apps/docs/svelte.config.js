@@ -42,34 +42,43 @@ const config = {
 											return;
 										}
 
-										node.children.push({
+										node.children.unshift({
 											type: 'element',
-											tagName: 'button',
+											tagName: 'div',
 											properties: {
-												type: 'button',
-												data: this.source,
-												title: 'Copy code',
-												'aria-label': 'Copy code',
-												class: 'copy-button',
-												'data-name': 'copy-button',
-												onclick: /* javascript */ `
-													navigator.clipboard.writeText(this.attributes.data.value);
-													this.classList.add('copied');
-													window.setTimeout(() => this.classList.remove('copied'), ${3000});
-												`
+												class: 'copy-button-container'
 											},
 											children: [
 												{
 													type: 'element',
-													tagName: 'span',
-													properties: { class: 'ready' },
-													children: []
-												},
-												{
-													type: 'element',
-													tagName: 'span',
-													properties: { class: 'success' },
-													children: []
+													tagName: 'button',
+													properties: {
+														type: 'button',
+														data: this.source,
+														title: 'Copy code',
+														'aria-label': 'Copy code',
+														class: 'copy-button',
+														'data-name': 'copy-button',
+														onclick: /* javascript */ `
+													navigator.clipboard.writeText(this.attributes.data.value);
+													this.classList.add('copied');
+													window.setTimeout(() => this.classList.remove('copied'), ${3000});
+												`
+													},
+													children: [
+														{
+															type: 'element',
+															tagName: 'span',
+															properties: { class: 'ready' },
+															children: []
+														},
+														{
+															type: 'element',
+															tagName: 'span',
+															properties: { class: 'success' },
+															children: []
+														}
+													]
 												}
 											]
 										});

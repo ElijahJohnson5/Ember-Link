@@ -106,12 +106,21 @@ pre:has(code) {
 	position: relative;
 }
 
+code div.copy-button-container {
+	position: sticky;
+	top: 0px;
+	left: 100%;
+	height: 0;
+	width: 0;
+	overflow: visible;
+}
+
 code button.copy-button {
 	position: absolute;
-	right: 8px;
-	top: 8px;
-	height: 32px;
-	width: 32px;
+	right: -16px;
+	top: -16px;
+	height: 30px;
+	width: 30px;
 	padding: 0;
 	display: flex;
 	padding: 4px;
