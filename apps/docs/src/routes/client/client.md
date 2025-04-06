@@ -1,6 +1,6 @@
 # **Client** API Reference
 
-The `Client` object is the main entry point for interacting with EmberLink's real-time collaboration platform. It is able to create **Channels** that connect to the specified URL, handles authentication and multi tenant support.
+The `Client` object is the main entry point for interacting with Ember Link's real-time collaboration platform. It is able to create **Channels** that connect to the specified URL, handles authentication and multi tenant support.
 
 ---
 
@@ -23,7 +23,7 @@ interface CreateClientOptions {
 
 | Name               | Type         | Required | Description                                              |
 | ------------------ | ------------ | -------- | -------------------------------------------------------- |
-| baseUrl            | string       | ✅       | The base URL of your EmberLink backend.                  |
+| baseUrl            | string       | ✅       | The base URL of your Ember Link backend.                 |
 | authEndpoint       | AuthEndpoint | ❌       | Configuration for authentication.                        |
 | └ URL              | string       | ❌       | A URL for the authentication endpoint.                   |
 | └ function         | function     | ❌       | A function that returns a signed JWT for authentication. |
