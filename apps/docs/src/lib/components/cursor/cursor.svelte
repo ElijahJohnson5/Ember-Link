@@ -30,6 +30,34 @@
 			cursor: null
 		});
 	}}
+	ontouchstart={(event) => {
+		const rect = event.currentTarget.getBoundingClientRect();
+		const x = event.touches[0].clientX - rect.left;
+		const y = event.touches[0].clientY - rect.top;
+
+		channel.updatePresence({
+			cursor: { x: Math.round(x), y: Math.round(y) }
+		});
+	}}
+	ontouchmove={(event) => {
+		const rect = event.currentTarget.getBoundingClientRect();
+		const x = event.touches[0].clientX - rect.left;
+		const y = event.touches[0].clientY - rect.top;
+
+		channel.updatePresence({
+			cursor: { x: Math.round(x), y: Math.round(y) }
+		});
+	}}
+	ontouchend={() => {
+		channel.updatePresence({
+			cursor: null
+		});
+	}}
+	ontouchcancel={() => {
+		channel.updatePresence({
+			cursor: null
+		});
+	}}
 >
 	<div class="absolute right-2 top-2">
 		<Badge>
