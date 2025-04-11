@@ -7,6 +7,6 @@ export {
   useCustomMessage
 } from './channel-provider';
 export { useOthers } from './others';
-export { useStorageArray, useStorageMap } from './storage';
+export { useArrayStorage, useMapStorage } from './storage';
 export { useStatus } from './status';
 export * from '@ember-link/core';

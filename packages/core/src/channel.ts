@@ -41,6 +41,7 @@ export type Channel<
   C extends Record<string, unknown> = DefaultCustomMessageData
 > = {
   updatePresence: (state: P) => void;
+  sendCustomMessage: (data: C) => void;
   hasStorage: () => boolean;
   getStorage: () => IStorage;
   getStatus: () => Status;
@@ -76,7 +77,7 @@ export function createChannel<
   S extends IStorageProvider,
   P extends Record<string, unknown> = DefaultPresence,
   C extends Record<string, unknown> = DefaultCustomMessageData
->({ options, ...config }: ChannelConfig<S, P>): Channel<P> {
+>({ options, ...config }: ChannelConfig<S, P>): Channel<P, C> {
   const managedSocket = new ManagedSocket<P, C>({ ...config });
 
   const otherEventEmitter = createEventEmitter<OtherEvents<P>>();
@@ -197,6 +198,10 @@ export function createChannel<
     });
   }
 
+  function sendCustomMessage(data: C) {
+    managedSocket.message({ type: 'custom', data });
+  }
+
   function getStatus() {
     return status();
   }
@@ -223,6 +228,7 @@ export function createChannel<
 
   return {
     updatePresence,
+    sendCustomMessage,
     getStorage,
     hasStorage,
     getStatus,
