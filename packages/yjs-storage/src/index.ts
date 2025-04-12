@@ -12,109 +12,99 @@ import * as Y from 'yjs';
 
 export type YjsStorageProvider = IStorageProvider;
 
-class YArrayStorage<T> implements ArrayStorage<T> {
-  private name: string;
-  private yArray: Y.Array<T>;
+const createYArrayStorage = <T>(name: string, yArray: Y.Array<T>) => {
+  return {
+    subscribe(callback: (event: StorageEvent) => void) {
+      const wrappedCallback = (yArrayEvent: Y.YArrayEvent<T>, _transaction: Y.Transaction) => {
+        callback({ changes: yArrayEvent.changes });
+      };
 
-  constructor(name: string, yArray: Y.Array<T>) {
-    this.yArray = yArray;
-    this.name = name;
-  }
+      yArray.observe(wrappedCallback);
 
-  subscribe(callback: (event: StorageEvent) => void) {
-    const wrappedCallback = (yArrayEvent: Y.YArrayEvent<T>, _transaction: Y.Transaction) => {
-      callback({ changes: yArrayEvent.changes });
-    };
+      return () => {
+        yArray.unobserve(wrappedCallback);
+      };
+    },
 
-    this.yArray.observe(wrappedCallback);
+    toArray() {
+      return yArray.toArray();
+    },
 
-    return () => {
-      this.yArray.unobserve(wrappedCallback);
-    };
-  }
+    [Symbol.iterator](): IterableIterator<T> {
+      return yArray[Symbol.iterator]();
+    },
 
-  toArray() {
-    return this.yArray.toArray();
-  }
-  [Symbol.iterator](): IterableIterator<T> {
-    return this.yArray[Symbol.iterator]();
-  }
+    insertAt(index: number, value: T): void {
+      yArray.insert(index, [value]);
+    },
 
-  insertAt(index: number, value: T): void {
-    this.yArray.insert(index, [value]);
-  }
+    push(value: T): void {
+      yArray.push([value]);
+    },
 
-  push(value: T): void {
-    this.yArray.push([value]);
-  }
+    delete(index: number, length: number) {
+      return yArray.delete(index, length);
+    },
 
-  delete(index: number, length: number) {
-    return this.yArray.delete(index, length);
-  }
+    forEach(callback: (value: T, index: number, array: ArrayStorage<T>) => void) {
+      return yArray.forEach((value, index) => {
+        callback(value, index, this);
+      });
+    },
 
-  forEach(callback: (value: T, index: number, array: ArrayStorage<T>) => void) {
-    return this.yArray.forEach((value, index) => {
-      callback(value, index, this);
-    });
-  }
+    get length() {
+      return yArray.length;
+    }
+  } satisfies ArrayStorage<T>;
+};
 
-  public get length() {
-    return this.yArray.length;
-  }
-}
+const createYMapStorage = <V>(name: string, yMap: Y.Map<V>) => {
+  return {
+    entries(): IterableIterator<[string, V]> {
+      return yMap.entries();
+    },
 
-class YMapStorage<V> implements MapStorage<string, V> {
-  private name: string;
-  private yMap: Y.Map<V>;
+    [Symbol.iterator](): IterableIterator<[string, V]> {
+      return yMap[Symbol.iterator]();
+    },
 
-  constructor(name: string, yMap: Y.Map<V>) {
-    this.yMap = yMap;
-    this.name = name;
-  }
-  entries(): IterableIterator<[string, V]> {
-    return this.yMap.entries();
-  }
+    get(key: string) {
+      return yMap.get(key);
+    },
 
-  [Symbol.iterator](): IterableIterator<[string, V]> {
-    return this.yMap[Symbol.iterator]();
-  }
+    set(key: string, value: V) {
+      return yMap.set(key, value);
+    },
 
-  get(key: string) {
-    return this.yMap.get(key);
-  }
+    delete(key: string) {
+      return yMap.delete(key);
+    },
 
-  set(key: string, value: V) {
-    return this.yMap.set(key, value);
-  }
+    has(key: string) {
+      return yMap.has(key);
+    },
 
-  delete(key: string) {
-    return this.yMap.delete(key);
-  }
+    clear() {
+      return yMap.clear();
+    },
 
-  has(key: string) {
-    return this.yMap.has(key);
-  }
+    get size() {
+      return yMap.size;
+    },
 
-  clear() {
-    return this.yMap.clear();
-  }
+    subscribe(callback: (event: StorageEvent) => void) {
+      const wrappedCallback = (yArrayEvent: Y.YMapEvent<V>, _transaction: Y.Transaction) => {
+        callback({ changes: yArrayEvent.changes });
+      };
 
-  public get size() {
-    return this.yMap.size;
-  }
+      yMap.observe(wrappedCallback);
 
-  subscribe(callback: (event: StorageEvent) => void) {
-    const wrappedCallback = (yArrayEvent: Y.YMapEvent<V>, _transaction: Y.Transaction) => {
-      callback({ changes: yArrayEvent.changes });
-    };
-
-    this.yMap.observe(wrappedCallback);
-
-    return () => {
-      this.yMap.unobserve(wrappedCallback);
-    };
-  }
-}
+      return () => {
+        yMap.unobserve(wrappedCallback);
+      };
+    }
+  } satisfies MapStorage<string, V>;
+};
 
 export function createYJSStorageProvider(): IStorageProvider {
   const eventEmitter = createEventEmitter<StorageEvents>();
@@ -130,11 +120,11 @@ export function createYJSStorageProvider(): IStorageProvider {
   const storage: IStorage = {
     root: doc,
     getArray: (name: string) => {
-      return new YArrayStorage(name, doc.getArray(name));
+      return createYArrayStorage(name, doc.getArray(name));
     },
 
     getMap: <K extends string, V>(name: string) => {
-      return new YMapStorage(name, doc.getMap(name)) as MapStorage<K, V>;
+      return createYMapStorage(name, doc.getMap(name)) as MapStorage<K, V>;
     },
 
     subscribe: (object, callback) => {
