@@ -22,6 +22,7 @@ export class SvelteArrayStorage<T> implements ArrayStorage<T> {
 	toArray() {
 		return this.inner.toArray();
 	}
+	
 	[Symbol.iterator](): IterableIterator<T> {
 		return this.inner[Symbol.iterator]();
 	}

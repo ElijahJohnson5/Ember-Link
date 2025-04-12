@@ -25,5 +25,11 @@ export default defineConfig({
       }
     },
     copyPublicDir: false
-  }
+  },
+  test: {
+    environment: 'jsdom',
+    alias: {
+      '~/': new URL('./lib/', import.meta.url).pathname, 
+    }
+  },
 });

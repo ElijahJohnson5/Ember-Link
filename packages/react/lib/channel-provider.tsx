@@ -40,7 +40,7 @@ export const useChannel = <
 
 interface ChannelProviderProps<S extends IStorageProvider, P extends DefaultPresence> {
   channelName: string;
-  options: ChannelConfig<S, P>['options'];
+  options?: ChannelConfig<S, P>['options'];
 }
 
 interface ChannelAndLeave<P extends DefaultPresence, C extends DefaultCustomMessageData> {
@@ -140,4 +140,27 @@ export const useMyPresence = <P extends DefaultPresence, C extends DefaultCustom
   );
 
   return [myPresence, setMyPresence] as const;
+};
+
+export const useCustomMessage = <P extends DefaultPresence, C extends DefaultCustomMessageData>(
+  callback: (message: C) => void
+) => {
+  const channel = useChannel<P, C>();
+
+  const sendCustomMessage = useCallback(
+    (data: C) => {
+      channel.sendCustomMessage(data);
+    },
+    [channel]
+  );
+
+  useEffect(() => {
+    const unsub = channel.events.subscribe('customMessage', callback);
+
+    return () => {
+      unsub();
+    };
+  }, [callback, channel.events]);
+
+  return sendCustomMessage;
 };
