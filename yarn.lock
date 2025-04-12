@@ -459,6 +459,8 @@ __metadata:
   resolution: "@ember-link/react@workspace:packages/react"
   dependencies:
     "@ember-link/core": "workspace:^"
+    "@ember-link/protocol": "workspace:*"
+    "@ember-link/storage": "workspace:^"
     "@eslint/js": "npm:^9.21.0"
     "@testing-library/react": "npm:^16.3.0"
     "@types/react": "npm:^19.0.10"

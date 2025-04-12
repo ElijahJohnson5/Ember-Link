@@ -9,6 +9,8 @@ tasks:
     command: 'yarn build'
     deps:
       - 'core:build'
+  test:
+    command: 'yarn test'
 
 toolchain:
   typescript:

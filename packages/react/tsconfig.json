@@ -1,5 +1,7 @@
 {
-  "extends": ["../../tsconfig.json"],
+  "extends": [
+    "../../tsconfig.json"
+  ],
   "files": [],
   "references": [
     {
@@ -10,14 +12,34 @@
     },
     {
       "path": "../core"
+    },
+    {
+      "path": "../protocol"
+    },
+    {
+      "path": "../storage"
     }
   ],
-  "include": ["../core/**/*", "**/*"],
+  "include": [
+    "../core/**/*",
+    "../protocol/**/*",
+    "../storage/**/*",
+    "**/*"
+  ],
+  "exclude": [
+    "**/__test__/*"
+  ],
   "compilerOptions": {
     "paths": {
-      "~/*": ["./lib/*"],
-      "@ember-link/core": ["../core/src/index.ts"],
-      "@ember-link/core/*": ["../core/src/*"]
+      "~/*": [
+        "./lib/*"
+      ],
+      "@ember-link/core": [
+        "../core/src/index.ts"
+      ],
+      "@ember-link/core/*": [
+        "../core/src/*"
+      ]
     }
   }
 }

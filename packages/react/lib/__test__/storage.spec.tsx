@@ -8,29 +8,41 @@ import {
 } from '~/storage';
 import { EmberLinkProvider } from '~/ember-link-provider';
 import { ChannelProvider } from '~/channel-provider';
-import { mockStorageProvider } from './mock-storage-provider';
+import { mockStorageProvider } from '@ember-link/storage/testing';
 
-const wrapper = ({ children }: { children: React.ReactNode }) => (
-  <EmberLinkProvider baseUrl="http://localhost:9000">
-    <ChannelProvider
-      channelName="test"
-      options={{
-        storageProvider: mockStorageProvider
-      }}
-    >
-      {children}
-    </ChannelProvider>
-  </EmberLinkProvider>
-);
+const createWrapper =
+  (withStorageProvider: boolean = true) =>
+  ({ children }: { children: React.ReactNode }) => (
+    <EmberLinkProvider baseUrl="http://localhost:9000">
+      <ChannelProvider
+        channelName="test"
+        options={{
+          ...(withStorageProvider && {
+            storageProvider: mockStorageProvider
+          })
+        }}
+      >
+        {children}
+      </ChannelProvider>
+    </EmberLinkProvider>
+  );
 
 describe('useStorageArray', () => {
+  it("throws error if there isn't a storage provider", () => {
+    expect(() =>
+      renderHook(() => useArrayStorage('test'), {
+        wrapper: createWrapper(false)
+      })
+    ).toThrowError('A storage provider must be configured to use storage');
+  });
+
   it('should return an array and update when the array is updated', () => {
     const {
       result
     }: RenderHookResult<ArrayStorageHookResult<string>, string> = renderHook(
       () => useArrayStorage('test'),
       {
-        wrapper
+        wrapper: createWrapper()
       }
     );
 
@@ -57,7 +69,7 @@ describe('useStorageArray', () => {
       (arrayName) => useArrayStorage(arrayName),
       {
         initialProps: 'test',
-        wrapper
+        wrapper: createWrapper()
       }
     );
 
@@ -80,13 +92,21 @@ describe('useStorageArray', () => {
 });
 
 describe('useStorageMap', () => {
+  it("throws error if there isn't a storage provider", () => {
+    expect(() =>
+      renderHook(() => useMapStorage('test'), {
+        wrapper: createWrapper(false)
+      })
+    ).toThrowError('A storage provider must be configured to use storage');
+  });
+
   it('should return a map and update when the map is updated', () => {
     const {
       result
     }: RenderHookResult<MapStorageHookResult<string, string>, string> = renderHook(
       () => useMapStorage('test'),
       {
-        wrapper
+        wrapper: createWrapper()
       }
     );
 
@@ -114,7 +134,7 @@ describe('useStorageMap', () => {
       (name) => useMapStorage(name),
       {
         initialProps: 'test',
-        wrapper
+        wrapper: createWrapper()
       }
     );
 
