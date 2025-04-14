@@ -10,7 +10,13 @@ export function BlockNote() {
       editor: {
         class: 'h-full'
       }
-    }
+    },
+
+    initialContent: [
+      {
+        type: 'heading'
+      }
+    ]
   });
 
   return <BlockNoteView editor={editor} className="h-full max-w-4xl mx-auto p-6" theme="light" />;

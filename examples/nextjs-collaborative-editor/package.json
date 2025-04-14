@@ -13,6 +13,7 @@
     "@blocknote/shadcn": "^0.28.0",
     "@ember-link/react": "workspace:^",
     "@ember-link/yjs-provider": "workspace:^",
+    "@ember-link/yjs-storage": "workspace:^",
     "@radix-ui/react-dialog": "^1.1.7",
     "@radix-ui/react-separator": "^1.1.3",
     "@radix-ui/react-slot": "^1.2.0",
@@ -24,7 +25,8 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "tailwind-merge": "^3.2.0",
-    "tw-animate-css": "^1.2.5"
+    "tw-animate-css": "^1.2.5",
+    "uuid": "^11.1.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

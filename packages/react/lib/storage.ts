@@ -11,6 +11,18 @@ export type ArrayStorageHookResult<T> = { current: Array<T> } & ArrayStorage<T>;
 
 export type MapStorageHookResult<K extends string, V> = { current: Map<K, V> } & MapStorage<K, V>;
 
+const emptyArray: unknown[] = [];
+
+const getEmptyArray = <T>() => {
+  return emptyArray as Array<T>;
+};
+
+const emptyMap: Map<unknown, unknown> = new Map();
+
+const getEmptyMap = <K extends string, V>() => {
+  return emptyMap as Map<K, V>;
+};
+
 export const useArrayStorage = <T, P extends DefaultPresence, C extends DefaultCustomMessageData>(
   name: string
 ): ArrayStorageHookResult<T> => {
@@ -45,7 +57,7 @@ export const useArrayStorage = <T, P extends DefaultPresence, C extends DefaultC
     () => {
       return cachedInnerArray;
     },
-    () => []
+    () => getEmptyArray()
   );
 
   return { current: syncedArray, ...inner };
@@ -90,7 +102,7 @@ export const useMapStorage = <
     () => {
       return cachedInnerMap;
     },
-    () => new Map()
+    () => getEmptyMap()
   );
 
   return { current: syncedMap, ...inner };

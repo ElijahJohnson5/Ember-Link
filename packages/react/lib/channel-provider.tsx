@@ -104,7 +104,7 @@ const ChannelProviderInner = <
   }
 >) => {
   const [{ channel }, setChannelLeavePair] = useState(() => {
-    return joinChannel(channelName, { ...options, autoConnect: false });
+    return joinChannel(channelName, { ...options });
   });
 
   useEffect(() => {
