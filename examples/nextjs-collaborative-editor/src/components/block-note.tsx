@@ -13,5 +13,5 @@ export function BlockNote() {
     }
   });
 
-  return <BlockNoteView editor={editor} className="h-full" theme="light" />;
+  return <BlockNoteView editor={editor} className="h-full max-w-4xl mx-auto p-6" theme="light" />;
 }
