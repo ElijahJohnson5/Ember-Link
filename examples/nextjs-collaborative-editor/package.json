@@ -9,6 +9,8 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@blocknote/react": "^0.28.0",
+    "@blocknote/shadcn": "^0.28.0",
     "@ember-link/react": "workspace:^",
     "@radix-ui/react-dialog": "^1.1.7",
     "@radix-ui/react-separator": "^1.1.3",

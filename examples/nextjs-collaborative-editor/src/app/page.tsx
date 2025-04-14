@@ -1,5 +1,5 @@
-import Image from 'next/image';
+import { BlockNote } from '@/components/dynamic-block-note';
 
 export default function Home() {
-  return <div>Page</div>;
+  return <BlockNote />;
 }

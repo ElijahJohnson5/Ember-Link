@@ -31,8 +31,6 @@ export default function RootLayout({
           <AppSidebar />
           <SidebarInset>
             <main className="flex flex-col h-full">
-              <header>Notion</header>
-
               <div className="flex-grow h-full">{children}</div>
             </main>
           </SidebarInset>
