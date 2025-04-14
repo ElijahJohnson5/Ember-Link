@@ -64,6 +64,9 @@ export const ChannelProvider = <
       const cached = cache.get(channelName);
 
       if (cached) {
+        if (options?.autoConnect ?? true) {
+          cached.channel.connect();
+        }
         return cached;
       }
 
@@ -104,7 +107,7 @@ const ChannelProviderInner = <
   }
 >) => {
   const [{ channel }, setChannelLeavePair] = useState(() => {
-    return joinChannel(channelName, { ...options });
+    return joinChannel(channelName, { ...options, autoConnect: false });
   });
 
   useEffect(() => {

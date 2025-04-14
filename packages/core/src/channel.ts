@@ -49,6 +49,7 @@ export type Channel<
   getName: () => string;
   getPresence: () => P | null;
   destroy: () => void;
+  connect: () => void;
   updateYDoc: (data: StorageUpdateMessage) => void;
   syncYDoc: (data: StorageSyncMessage) => void;
   events: Observable<ChannelEvents<P, C>> & {
@@ -237,11 +238,12 @@ export function createChannel<
     getName: () => config.channelName,
     updateYDoc,
     syncYDoc,
+    destroy,
+    connect: () => managedSocket.connect(),
     events: {
       ...eventEmitter.observable,
       others: otherEventEmitter.observable,
       yjsProvider: yjsProviderEventEmitter.observable
-    },
-    destroy
+    }
   };
 }
