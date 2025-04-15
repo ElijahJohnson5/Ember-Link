@@ -21,7 +21,6 @@ import Link from 'next/link';
 import { useDocuments } from '@/hooks/use-documents';
 import { usePathname } from 'next/navigation';
 
-// This is sample data.
 const data = {
   navMain: [
     {
