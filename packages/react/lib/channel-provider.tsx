@@ -64,6 +64,9 @@ export const ChannelProvider = <
       const cached = cache.get(channelName);
 
       if (cached) {
+        if (options?.autoConnect ?? true) {
+          cached.channel.connect();
+        }
         return cached;
       }
 
