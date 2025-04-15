@@ -608,7 +608,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@ember-link/svelte@npm:^0.0.6, @ember-link/svelte@workspace:^, @ember-link/svelte@workspace:packages/svelte":
+"@ember-link/svelte@npm:^0.0.7, @ember-link/svelte@workspace:^, @ember-link/svelte@workspace:packages/svelte":
   version: 0.0.0-use.local
   resolution: "@ember-link/svelte@workspace:packages/svelte"
   dependencies:
@@ -11602,7 +11602,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "svelte-auth@workspace:examples/svelte-auth"
   dependencies:
-    "@ember-link/svelte": "npm:^0.0.6"
+    "@ember-link/svelte": "npm:^0.0.7"
     "@eslint/compat": "npm:^1.2.5"
     "@eslint/js": "npm:^9.18.0"
     "@sveltejs/adapter-auto": "npm:^4.0.0"

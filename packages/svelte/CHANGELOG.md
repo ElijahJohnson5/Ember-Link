@@ -1,5 +1,11 @@
 # @ember-link/svelte
 
+## 0.0.7
+
+### Patch Changes
+
+- e14364b: Make sure svlete package gets updated when core does
+
 ## 0.0.6
 
 ### Patch Changes
