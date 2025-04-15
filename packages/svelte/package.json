@@ -36,6 +36,9 @@
 	"peerDependencies": {
 		"svelte": "^5.0.0"
 	},
+	"dependencies": {
+		"@ember-link/core": "workspace:^"
+	},
 	"devDependencies": {
 		"@ember-link/core": "workspace:^",
 		"@eslint/compat": "^1.2.5",
