@@ -9,13 +9,12 @@ export function useCreateDocumentAction() {
 
   const createDocumentAction = useCallback(() => {
     const newDoc = {
-      id: uuid(),
+      id: uuid()
     };
-  
+
     docs.push(newDoc);
     router.push(`/${newDoc.id}`);
   }, [docs, router]);
-
 
   return createDocumentAction;
 }
