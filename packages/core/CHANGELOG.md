@@ -1,5 +1,13 @@
 # @ember-link/core
 
+## 0.0.13
+
+### Patch Changes
+
+- a0c92d4: Add connect function to channel to let users control when it connects if needed
+- Updated dependencies [860cae2]
+  - @ember-link/storage@0.0.10
+
 ## 0.0.12
 
 ### Patch Changes

@@ -1,5 +1,11 @@
 # @ember-link/storage
 
+## 0.0.10
+
+### Patch Changes
+
+- 860cae2: Add mock storage provider to use for packages during tests
+
 ## 0.0.9
 
 ### Patch Changes

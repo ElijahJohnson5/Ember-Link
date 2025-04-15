@@ -1,5 +1,13 @@
 # @ember-link/yjs-storage
 
+## 0.0.10
+
+### Patch Changes
+
+- 860cae2: Rewrite yjs-storage to not use a class and instead use an object
+- Updated dependencies [860cae2]
+  - @ember-link/storage@0.0.10
+
 ## 0.0.9
 
 ### Patch Changes
