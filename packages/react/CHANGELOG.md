@@ -1,5 +1,14 @@
 # @ember-link/react
 
+## 0.0.6
+
+### Patch Changes
+
+- 860cae2: Add useStorageMap, useStorageArray, useStatus, and useCustomMessage hooks
+- a0c92d4: Export types for hooks, and connect channel manually if needed
+- Updated dependencies [a0c92d4]
+  - @ember-link/core@0.0.13
+
 ## 0.0.5
 
 ### Patch Changes

@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@ember-link/core": "workspace:^",
-    "@ember-link/react": "^0.0.5",
+    "@ember-link/react": "^0.0.6",
     "@ember-link/yjs-provider": "workspace:^",
     "@tiptap/core": "^2.11.7",
     "@tiptap/extension-collaboration": "^2.11.7",
