@@ -161,7 +161,7 @@ pub fn worker_error_into_response(error: worker::Error) -> axum::response::Respo
     response.into_response()
 }
 
-fn get_config(env: &worker::Env) -> Result<Config, envconfig::Error> {
+pub(crate) fn get_config(env: &worker::Env) -> Result<Config, envconfig::Error> {
     let mut map = HashMap::new();
 
     for key in config_keys() {

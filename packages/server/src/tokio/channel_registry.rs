@@ -413,7 +413,13 @@ mod tests {
     }
 
     fn create_config() -> TokioConfig {
-        let config_values = HashMap::new();
+        let mut config_values = HashMap::new();
+
+        #[cfg(feature = "webhook")]
+        {
+            config_values.insert("WEBHOOK_URL".into(), "fakeurl".into());
+            config_values.insert("WEBHOOK_SECRET_KEY".into(), "secret".into());
+        }
 
         TokioConfig::init_from_hashmap(&config_values).unwrap()
     }
@@ -547,12 +553,12 @@ mod tests {
     #[tokio::test]
     #[cfg(feature = "webhook")]
     async fn it_sets_callbacks_for_participant_added() {
-        use crate::tokio::{participant::actor::tests::create_participant, webhook_processor};
+        use crate::tokio::participant::actor::tests::create_participant;
         use std::time::Duration;
 
         let webhook_processor_state: Arc<Mutex<TestWebhookActorState>> = Arc::default();
         let (webhook_processor, webhook_processor_handle) =
-            Actor::spawn(None, TestWebhookActor, Arc::default())
+            Actor::spawn(None, TestWebhookActor, webhook_processor_state.clone())
                 .await
                 .expect("Actor failed to start");
 
@@ -607,8 +613,7 @@ mod tests {
     #[tokio::test]
     #[cfg(feature = "webhook")]
     async fn it_sets_callbacks_for_participant_removed() {
-        use crate::tokio::{participant::actor::tests::create_participant, webhook_processor};
-        use std::time::Duration;
+        use crate::tokio::participant::actor::tests::create_participant;
 
         let webhook_processor_state: Arc<Mutex<TestWebhookActorState>> = Arc::default();
         let (webhook_processor, webhook_processor_handle) =

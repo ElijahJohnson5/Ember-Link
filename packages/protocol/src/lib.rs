@@ -114,3 +114,10 @@ pub enum StorageType {
 pub struct StorageEndpointResponse {
     pub updates: Vec<Vec<u8>>,
 }
+
+#[derive(Clone, Deserialize, Debug, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../src/bindings/index.ts")]
+pub struct SignerKeyResponse {
+    pub public_signer_key: String,
+}

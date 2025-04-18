@@ -26,12 +26,16 @@ pub struct Config {
     pub storage_endpoint: Option<String>,
 }
 
-pub fn config_keys() -> Vec<&'static str> {
+#[allow(unused)]
+pub(crate) fn config_keys() -> Vec<&'static str> {
     vec![
+        #[cfg(feature = "webhook")]
         "WEBHOOK_URL",
+        #[cfg(feature = "webhook")]
         "WEBHOOK_SECRET_KEY",
         "ALLOW_UNAUTHORIZED",
         "JWT_SIGNER_KEY",
+        #[cfg(feature = "multi-tenant")]
         "JWT_SIGNER_KEY_ENDPOINT",
         "STORAGE_ENDPOINT",
     ]

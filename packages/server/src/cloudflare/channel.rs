@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use super::cloudflare_websocket_upgrade::WebSocketUpgrade;
+use super::{cloudflare_websocket_upgrade::WebSocketUpgrade, get_config};
 use axum::response::IntoResponse;
 use protocol::{
     client::ClientMessage,
@@ -12,6 +12,7 @@ use worker::{wasm_bindgen, WebSocketIncomingMessage};
 
 use crate::{
     channel::Channel,
+    config::Config,
     storage::{
         self,
         yjs::{init_storage, YjsStorage},
@@ -27,6 +28,8 @@ pub struct CloudflareChannel {
     tenant_id: Option<String>,
     #[cfg(feature = "webhook")]
     queue_name: Option<String>,
+    storage_initialized: bool,
+    config: Config,
     storage: Option<Box<dyn storage::Storage + Send + Sync>>,
     provider: YjsStorage,
     env: worker::Env,
@@ -50,16 +53,54 @@ impl CloudflareChannel {
 
         Ok(())
     }
+
+    async fn create_storage(
+        &mut self,
+        storage_type: Option<StorageType>,
+        channel_name: &String,
+    ) -> Result<(), StorageError> {
+        if let Some(storage_type) = storage_type {
+            match storage_type {
+                StorageType::Yjs => {
+                    let yjs_storage: Box<dyn storage::Storage + Send + Sync> =
+                        Box::new(init_storage());
+
+                    self.storage = Some(yjs_storage);
+
+                    if !self.storage_initialized {
+                        self.storage
+                            .as_ref()
+                            .unwrap()
+                            .init_storage_from_endpoint(
+                                channel_name,
+                                &self.config.storage_endpoint,
+                                &self.tenant_id,
+                            )
+                            .await?;
+
+                        self.storage_initialized = true;
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
 }
 
 #[worker::durable_object]
 impl worker::DurableObject for CloudflareChannel {
     fn new(state: State, env: worker::Env) -> Self {
+        // If we are here that means the other fetch request was able to parse the config
+        let config = get_config(&env).unwrap();
+
         Self {
             state,
             env,
             channel_name: None,
+            config,
             storage: None,
+            storage_initialized: false,
             user_state: HashMap::new(),
             provider: YjsStorage::new(yrs::Doc::new()),
             tenant_id: None,
@@ -108,7 +149,12 @@ impl worker::DurableObject for CloudflareChannel {
         self.channel_name.replace(channel_name.clone());
 
         if self.storage.is_none() {
-            self.storage = create_storage(storage_type, channel_name).await;
+            match self.create_storage(storage_type, channel_name).await {
+                Err(_e) => {
+                    // TODO notify the client we weren't able to sync the data from the endpoint
+                }
+                Ok(()) => {}
+            }
         }
 
         let participant_id = uuid::Uuid::new_v4().to_string();
@@ -257,9 +303,9 @@ impl worker::DurableObject for CloudflareChannel {
     async fn websocket_close(
         &mut self,
         ws: worker::WebSocket,
-        code: usize,
-        reason: String,
-        was_clean: bool,
+        _code: usize,
+        _reason: String,
+        _was_clean: bool,
     ) -> worker::Result<()> {
         let tags = self.state.get_tags(&ws);
 
@@ -286,23 +332,6 @@ impl worker::DurableObject for CloudflareChannel {
 
         Ok(())
     }
-}
-
-async fn create_storage(
-    storage_type: Option<StorageType>,
-    channel_name: &String,
-) -> Option<Box<dyn storage::Storage + Send + Sync>> {
-    if let Some(storage_type) = storage_type {
-        match storage_type {
-            StorageType::Yjs => {
-                let yjs_storage: Box<dyn storage::Storage + Send + Sync> = Box::new(init_storage());
-
-                return Some(yjs_storage);
-            }
-        }
-    }
-
-    None
 }
 
 impl Channel for CloudflareChannel {

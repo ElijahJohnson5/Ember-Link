@@ -35,10 +35,12 @@ use ractor::ActorRef;
 use serde_json::Value;
 use std::error::Error as StdError;
 use tokio::signal;
-use tokio::sync::Mutex;
 use tower_http::trace::{DefaultMakeSpan, TraceLayer};
 use tracing::instrument;
 use tracing_subscriber::FmtSubscriber;
+
+#[cfg(feature = "multi-tenant")]
+use tokio::sync::Mutex;
 
 use crate::auth::{validate_token, AuthData};
 use crate::channel::create_channel_name;
@@ -51,6 +53,7 @@ struct TokioAppState {
     pub config: TokioConfig,
     pub channel_registry: Arc<ChannelRegistry>,
     // TODO: Move this to redis or have an option to use redis
+    #[cfg(feature = "multi-tenant")]
     pub jwt_signer_key_cache: Arc<Mutex<HashMap<String, String>>>,
 }
 
@@ -65,12 +68,14 @@ impl AppState for TokioAppState {
         self.config.base_config.jwt_signer_key.clone()
     }
 
+    #[cfg(feature = "multi-tenant")]
     async fn get_cached_key(&self, tenant_id: &String) -> Option<String> {
         let cache = self.jwt_signer_key_cache.lock().await;
 
         return cache.get(tenant_id).cloned();
     }
 
+    #[cfg(feature = "multi-tenant")]
     async fn cache_key(&self, tenant_id: String, key: String) {
         let mut cache = self.jwt_signer_key_cache.lock().await;
 
@@ -105,6 +110,7 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let app_state = TokioAppState {
         config,
         channel_registry,
+        #[cfg(feature = "multi-tenant")]
         jwt_signer_key_cache: Arc::default(),
     };
 

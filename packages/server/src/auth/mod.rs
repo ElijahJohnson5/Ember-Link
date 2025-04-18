@@ -1,18 +1,25 @@
-use std::{collections::HashMap, error::Error as StdError};
-
 use axum::{
-    extract::{FromRequestParts, Query},
-    http::{request::Parts, StatusCode},
+    http::StatusCode,
     response::{IntoResponse, Response},
-    RequestPartsExt,
-};
-use axum_extra::{
-    headers::{authorization::Bearer, Authorization},
-    TypedHeader,
 };
 use jsonwebtoken::{decode, DecodingKey, TokenData, Validation};
 use protocol::WebSocketCloseCode;
 use serde::{Deserialize, Serialize};
+use std::error::Error as StdError;
+
+#[cfg(feature = "tokio")]
+use axum::{
+    extract::{FromRequestParts, Query},
+    http::request::Parts,
+    RequestPartsExt,
+};
+#[cfg(feature = "tokio")]
+use axum_extra::{
+    headers::{authorization::Bearer, Authorization},
+    TypedHeader,
+};
+#[cfg(feature = "tokio")]
+use std::collections::HashMap;
 
 use crate::AppState;
 
@@ -126,12 +133,6 @@ where
     }
 }
 
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct SignerKeyResponse {
-    public_signer_key: String,
-}
-
 #[cfg(not(feature = "multi-tenant"))]
 pub async fn validate_token<S>(
     token: &String,
@@ -192,11 +193,14 @@ where
 
         #[cfg(feature = "tokio")]
         tracing::info!("Signing Key Endpoint status: {}", response.status());
-        let response = response.json::<SignerKeyResponse>().await.map_err(|e| {
-            #[cfg(feature = "tokio")]
-            tracing::error!("Error: {e}");
-            AuthError::InvalidSignerEndpoint
-        })?;
+        let response = response
+            .json::<protocol::SignerKeyResponse>()
+            .await
+            .map_err(|e| {
+                #[cfg(feature = "tokio")]
+                tracing::error!("Error: {e}");
+                AuthError::InvalidSignerEndpoint
+            })?;
 
         app_state
             .cache_key(tenant_id.clone(), response.public_signer_key.clone())

@@ -26,9 +26,11 @@ trait AppState: Send + Sync {
     fn jwt_signer_key_endpoint(&self) -> Option<String>;
     fn jwt_signer_key(&self) -> Option<String>;
 
+    #[cfg(feature = "multi-tenant")]
     async fn get_cached_key(&self, tenant_id: &String) -> Option<String> {
         None
     }
+    #[cfg(feature = "multi-tenant")]
     async fn cache_key(&self, tenant_id: String, key: String) {}
 }
 
