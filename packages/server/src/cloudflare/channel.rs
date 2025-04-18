@@ -115,9 +115,9 @@ impl worker::DurableObject for CloudflareChannel {
 
         #[cfg(feature = "webhook")]
         let queue = self.env.queue(self.queue_name.as_ref().unwrap().as_str())?;
-
+        #[cfg(feature = "webhook")]
         let websocket_count = self.state.get_websockets().len() + 1;
-
+        #[cfg(feature = "webhook")]
         let channel_name = channel_name.clone();
 
         worker::Response::try_from(socket.on_upgrade(

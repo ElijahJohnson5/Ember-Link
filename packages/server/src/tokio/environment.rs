@@ -1,15 +1,18 @@
+use crate::tokio::config::TokioConfig;
+
+#[cfg(feature = "webhook")]
+use crate::tokio::webhook_processor::actor::WebhookProcessorMessage;
+#[cfg(feature = "webhook")]
 use ractor::ActorRef;
+#[cfg(feature = "webhook")]
 use tokio::task::JoinHandle;
 
-use crate::{
-    tokio::config::TokioConfig,
-    tokio::webhook_processor::{actor::WebhookProcessorMessage, start_webhook_processor},
-};
-
 pub struct Environment {
-    webhook_processor_actor: Option<WebhookProcessorActor>,
+    #[cfg(feature = "webhook")]
+    webhook_processor_actor: WebhookProcessorActor,
 }
 
+#[cfg(feature = "webhook")]
 pub struct WebhookProcessorActor {
     webhook_processor: ActorRef<WebhookProcessorMessage>,
     handle: JoinHandle<()>,
@@ -17,41 +20,41 @@ pub struct WebhookProcessorActor {
 
 impl Environment {
     pub async fn from_config(config: &TokioConfig) -> Self {
-        let mut webhook_processor_actor = None;
-        
-
-        if let Some(webhook_url) = config.base_config.webhook_url.clone() {
-            let (webhook_processor, webhook_processor_handle) = start_webhook_processor(
-                webhook_url,
-                config
-                    .base_config
-                    .webhook_secret_key
-                    .clone()
-                    .expect("Webhook secret key is required when webhook_url is specified"),
-            )
-            .await;
-
-            webhook_processor_actor.replace(WebhookProcessorActor {
-                webhook_processor,
-                handle: webhook_processor_handle,
-            });
-        }
+        #[cfg(feature = "webhook")]
+        let webhook_processor_actor = webhook_processor_actor(config).await;
 
         Self {
+            #[cfg(feature = "webhook")]
             webhook_processor_actor,
         }
     }
 
-    pub fn webhook_processor(&self) -> Option<ActorRef<WebhookProcessorMessage>> {
-        self.webhook_processor_actor
-            .as_ref()
-            .map(|webhook_processor_actor| webhook_processor_actor.webhook_processor.clone())
+    #[cfg(feature = "webhook")]
+    pub fn webhook_processor(&self) -> ActorRef<WebhookProcessorMessage> {
+        self.webhook_processor_actor.webhook_processor.clone()
     }
 
     pub async fn cleanup(self) {
-        if let Some(webhook_processor_actor) = self.webhook_processor_actor {
-            webhook_processor_actor.webhook_processor.stop(None);
-            webhook_processor_actor.handle.await.unwrap();
+        #[cfg(feature = "webhook")]
+        {
+            self.webhook_processor_actor.webhook_processor.stop(None);
+            self.webhook_processor_actor.handle.await.unwrap();
         }
+    }
+}
+
+#[cfg(feature = "webhook")]
+async fn webhook_processor_actor(config: &TokioConfig) -> WebhookProcessorActor {
+    use crate::tokio::webhook_processor::start_webhook_processor;
+
+    let (webhook_processor, webhook_processor_handle) = start_webhook_processor(
+        config.base_config.webhook_url.clone(),
+        config.base_config.webhook_secret_key.clone(),
+    )
+    .await;
+
+    WebhookProcessorActor {
+        webhook_processor,
+        handle: webhook_processor_handle,
     }
 }

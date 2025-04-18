@@ -2,12 +2,14 @@ use envconfig::Envconfig;
 
 #[derive(Envconfig, Clone, Debug)]
 pub struct Config {
+    #[cfg(feature = "webhook")]
     #[envconfig(from = "WEBHOOK_URL")]
-    pub webhook_url: Option<String>,
+    pub webhook_url: String,
 
     // Used for signing webhook payloads
+    #[cfg(feature = "webhook")]
     #[envconfig(from = "WEBHOOK_SECRET_KEY")]
-    pub webhook_secret_key: Option<String>,
+    pub webhook_secret_key: String,
 
     #[envconfig(from = "ALLOW_UNAUTHORIZED", default = "false")]
     pub allow_unauthorized: bool,

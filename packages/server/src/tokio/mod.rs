@@ -5,6 +5,7 @@ mod config;
 mod environment;
 mod event_listener_primitives;
 mod participant;
+#[cfg(feature = "webhook")]
 mod webhook_processor;
 
 use std::collections::HashMap;
@@ -18,7 +19,7 @@ use axum::routing::any;
 use axum::Router;
 use axum_extra::headers;
 use axum_extra::TypedHeader;
-use channel_registry::ChannelRegistry;
+use channel_registry::{ChannelRegistry, ChannelRegistryBuilder};
 use config::TokioConfig;
 use envconfig::Envconfig;
 use environment::Environment;
@@ -91,10 +92,15 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let environment = Environment::from_config(&config).await;
 
-    let channel_registry: Arc<ChannelRegistry> = Arc::new(ChannelRegistry::new(
-        environment.webhook_processor(),
-        config.clone(),
-    ));
+    #[cfg(feature = "webhook")]
+    let channel_registry = ChannelRegistryBuilder::new(config.clone())
+        .with_webhook_processor(environment.webhook_processor())
+        .build();
+
+    #[cfg(not(feature = "webhook"))]
+    let channel_registry = ChannelRegistryBuilder::new(config.clone()).build();
+
+    let channel_registry: Arc<ChannelRegistry> = Arc::new(channel_registry);
 
     let app_state = TokioAppState {
         config,
@@ -271,7 +277,7 @@ async fn handle_socket(
 
     let channel = match app_state
         .channel_registry
-        .get_or_create_channel(name, storage_type, tenant_id)
+        .get_or_create_channel(name, channel_name, storage_type, tenant_id)
         .await
     {
         Err(e) => {

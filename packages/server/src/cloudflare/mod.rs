@@ -1,12 +1,15 @@
 use std::collections::HashMap;
 
 use axum::{extract::Query, response::IntoResponse, routing::any};
+#[cfg(feature = "webhook")]
 use axum_extra::headers;
 use envconfig::Envconfig;
+#[cfg(feature = "webhook")]
 use hmac::{Hmac, Mac};
 use http::StatusCode;
 use protocol::WebhookMessage;
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "webhook")]
 use sha2::Sha256;
 use tower_http::cors::{Any, CorsLayer};
 use tower_service::Service;
@@ -223,6 +226,7 @@ pub struct CloudflareQueueMessage {
     pub message: WebhookMessage,
 }
 
+#[cfg(feature = "webhook")]
 pub async fn queue(
     message_batch: worker::MessageBatch<CloudflareQueueMessage>,
     env: worker::Env,
@@ -242,17 +246,7 @@ pub async fn queue(
         }
     };
 
-    if let None = config.webhook_secret_key {
-        return Err(worker::Error::RustError(
-            "Missing webhook secret key".to_string(),
-        ));
-    }
-
-    if let None = config.webhook_url {
-        return Err(worker::Error::RustError("Missing webhook url".to_string()));
-    }
-
-    let mut mac = Hmac::<Sha256>::new_from_slice(config.webhook_secret_key.unwrap().as_bytes())
+    let mut mac = Hmac::<Sha256>::new_from_slice(config.webhook_secret_key.as_bytes())
         .expect("HMAC can take key of any size");
 
     #[cfg(feature = "multi-tenant")]
@@ -288,7 +282,7 @@ pub async fn queue(
 
     let future = worker::send::SendFuture::new(
         client
-            .post(config.webhook_url.unwrap())
+            .post(config.webhook_url)
             .header("webhook-signature", signature)
             .header("content-type", headers::ContentType::json().to_string())
             .body(message_string)
