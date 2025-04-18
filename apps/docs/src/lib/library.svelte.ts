@@ -34,7 +34,7 @@ const libraryOptions: Array<LibraryOption> = [
 ];
 
 class SelectedLibrary {
-	current = $state(libraryOptions[0]);
+	current = $state(libraryOptions[2]);
 }
 
 const selectedLibrary = new SelectedLibrary();
