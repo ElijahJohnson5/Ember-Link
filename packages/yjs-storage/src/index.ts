@@ -126,10 +126,8 @@ export function createYJSStorageProvider(): IStorageProvider {
 
   const storage: IStorage = {
     root: doc,
-    getArray: <T>(name: string, initialValue: T[] = []) => {
+    getArray: <T>(name: string) => {
       const yArray = doc.getArray<T>(name);
-
-      yArray.insert(0, initialValue);
 
       return createYArrayStorage(doc, name, yArray);
     },

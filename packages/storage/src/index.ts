@@ -56,7 +56,7 @@ export interface IStorage {
   root: unknown;
   applyUpdate(event: Uint8Array): void;
 
-  getArray<T>(name: string, initialValue?: T[]): ArrayStorage<T>;
+  getArray<T>(name: string): ArrayStorage<T>;
   getMap<K extends string, V>(name: string): MapStorage<K, V>;
 
   subscribe<T>(

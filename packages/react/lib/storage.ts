@@ -19,8 +19,7 @@ const getEmptyMap = <K extends string, V>() => {
 };
 
 export const useArrayStorage = <T, P extends DefaultPresence, C extends DefaultCustomMessageData>(
-  name: string,
-  initialValue: Array<T> = getEmptyArray()
+  name: string
 ): ArrayStorageHookResult<T> => {
   const channel = useChannel<P, C>();
 
@@ -30,10 +29,7 @@ export const useArrayStorage = <T, P extends DefaultPresence, C extends DefaultC
 
   const storage = useMemo(() => channel.getStorage(), [channel]);
 
-  const inner = useMemo(
-    () => storage.getArray<T>(name, initialValue),
-    [name, storage, initialValue]
-  );
+  const inner = useMemo(() => storage.getArray<T>(name), [name, storage]);
 
   const [cachedInnerArray, setCachedInnerArray] = useState<Array<T>>([]);
 
