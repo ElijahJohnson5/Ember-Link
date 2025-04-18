@@ -18,6 +18,7 @@ export interface IStorageProvider {
 export interface ArrayStorage<T> {
   readonly length: number;
   insertAt: (index: number, value: T) => void;
+  replace: (index: number, value: T) => void;
   push: (value: T) => void;
   toArray: () => Array<T>;
   delete: (index: number, length: number) => void;

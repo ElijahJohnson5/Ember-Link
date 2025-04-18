@@ -1,6 +1,5 @@
 use async_trait::async_trait;
 use protocol::{StorageSyncMessage, StorageUpdateMessage};
-use serde::Deserialize;
 use url::Url;
 use yrs::{
     updates::{decoder::Decode, encoder::Encode},
@@ -17,12 +16,6 @@ impl YjsStorage {
     pub fn new(doc: Doc) -> Self {
         Self { doc }
     }
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct StorageEndpointResponse {
-    updates: Vec<Vec<u8>>,
 }
 
 #[async_trait]
@@ -51,7 +44,7 @@ impl Storage for YjsStorage {
             let response = response
                 .error_for_status()
                 .map_err(|e| StorageError::EndpointError(Box::new(e)))?
-                .json::<StorageEndpointResponse>()
+                .json::<protocol::StorageEndpointResponse>()
                 .await
                 .map_err(|e| StorageError::EndpointError(Box::new(e)))?;
 

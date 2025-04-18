@@ -6,16 +6,11 @@ import type {
 } from '@ember-link/core';
 import { useChannel } from './channel-provider';
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { getEmptyArray } from './utils';
 
 export type ArrayStorageHookResult<T> = { current: Array<T> } & ArrayStorage<T>;
 
 export type MapStorageHookResult<K extends string, V> = { current: Map<K, V> } & MapStorage<K, V>;
-
-const emptyArray: unknown[] = [];
-
-const getEmptyArray = <T>() => {
-  return emptyArray as Array<T>;
-};
 
 const emptyMap: Map<unknown, unknown> = new Map();
 

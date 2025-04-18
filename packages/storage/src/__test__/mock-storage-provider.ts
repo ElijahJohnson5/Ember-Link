@@ -42,6 +42,10 @@ const createMockArrayStorage = <T>() => {
       notifySubscribers({} as StorageEvent);
     },
 
+    replace(index: number, value: T) {
+      inner.splice(index, 1, value);
+    },
+
     forEach(callback: (value: T, index: number, array: ArrayStorage<T>) => void) {
       inner.forEach((value, index) => {
         callback(value, index, this);
