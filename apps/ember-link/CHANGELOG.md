@@ -1,5 +1,11 @@
 # @ember-link/server
 
+## 0.0.5
+
+### Patch Changes
+
+- 71eb424: Move storage endpoint response to protocol so that it can be used by peopl
+
 ## 0.0.4
 
 ### Patch Changes

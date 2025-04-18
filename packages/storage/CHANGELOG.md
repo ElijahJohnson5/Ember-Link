@@ -1,5 +1,13 @@
 # @ember-link/storage
 
+## 0.0.11
+
+### Patch Changes
+
+- 71eb424: Add replace method to array storage
+- Updated dependencies [71eb424]
+  - @ember-link/protocol@0.0.10
+
 ## 0.0.10
 
 ### Patch Changes

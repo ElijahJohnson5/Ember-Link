@@ -1,5 +1,12 @@
 # @ember-link/yjs-provider
 
+## 0.0.5
+
+### Patch Changes
+
+- Updated dependencies [0bf16b0]
+  - @ember-link/core@0.0.14
+
 ## 0.0.4
 
 ### Patch Changes
