@@ -1,5 +1,4 @@
-use async_trait::async_trait;
-use protocol::{StorageSyncMessage, StorageUpdateMessage};
+use protocol::{StorageEndpointResponse, StorageSyncMessage, StorageUpdateMessage};
 use url::Url;
 use yrs::{
     updates::{decoder::Decode, encoder::Encode},
@@ -18,7 +17,7 @@ impl YjsStorage {
     }
 }
 
-#[async_trait]
+#[async_trait::async_trait]
 impl Storage for YjsStorage {
     async fn init_storage_from_endpoint(
         &self,
@@ -37,16 +36,7 @@ impl Storage for YjsStorage {
             url.query_pairs_mut()
                 .append_pair("channel_name", channel_name);
 
-            let response = reqwest::get(url)
-                .await
-                .map_err(|e| StorageError::EndpointError(Box::new(e)))?;
-
-            let response = response
-                .error_for_status()
-                .map_err(|e| StorageError::EndpointError(Box::new(e)))?
-                .json::<protocol::StorageEndpointResponse>()
-                .await
-                .map_err(|e| StorageError::EndpointError(Box::new(e)))?;
+            let response = response_for_endpoint(url).await?;
 
             let mut transaction = Transact::transact_mut(&self.doc);
 
@@ -67,8 +57,6 @@ impl Storage for YjsStorage {
         &self,
         message: &StorageSyncMessage,
     ) -> Result<Option<Vec<StorageSyncMessage>>, StorageError> {
-        tracing::info!("Got sync message of type: {}", message.sync_type);
-
         match message.sync_type.as_str() {
             "SyncStep1" => {
                 let txn = self.doc.transact();
@@ -111,9 +99,7 @@ impl Storage for YjsStorage {
                     sync_type: "SyncDone".to_string(),
                 }]));
             }
-            &_ => {
-                tracing::warn!("Unknown sync message type: {}", message.sync_type);
-            }
+            &_ => {}
         }
 
         Ok(None)
@@ -140,4 +126,41 @@ pub fn init_storage() -> YjsStorage {
     let doc = Doc::new();
 
     YjsStorage::new(doc)
+}
+
+#[cfg(feature = "cloudflare")]
+async fn response_for_endpoint(url: Url) -> Result<StorageEndpointResponse, StorageError> {
+    let response = {
+        let response = worker::send::SendFuture::new(reqwest::get(url))
+            .await
+            .map_err(|e| StorageError::EndpointError(Box::new(e)))?;
+
+        let response = response
+            .error_for_status()
+            .map_err(|e| StorageError::EndpointError(Box::new(e)))?;
+
+        worker::send::SendFuture::new(response.json::<StorageEndpointResponse>())
+            .await
+            .map_err(|e| StorageError::EndpointError(Box::new(e)))?
+    };
+
+    Ok(response)
+}
+
+#[cfg(not(feature = "cloudflare"))]
+async fn response_for_endpoint(url: Url) -> Result<StorageEndpointResponse, StorageError> {
+    let response = {
+        let response = reqwest::get(url)
+            .await
+            .map_err(|e| StorageError::EndpointError(Box::new(e)))?;
+
+        response
+            .error_for_status()
+            .map_err(|e| StorageError::EndpointError(Box::new(e)))?
+            .json::<StorageEndpointResponse>()
+            .await
+            .map_err(|e| StorageError::EndpointError(Box::new(e)))?
+    };
+
+    Ok(response)
 }

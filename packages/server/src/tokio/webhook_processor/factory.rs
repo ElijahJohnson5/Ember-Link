@@ -9,6 +9,8 @@ use ractor::{
     Actor, ActorProcessingErr, ActorRef,
 };
 
+use crate::webhook::calculate_backoff;
+
 pub struct WebhookSenderMessage {
     pub messages: HashMap<String, Vec<WebhookMessage>>,
     pub signature: String,
@@ -70,12 +72,7 @@ impl Worker for WebhookSender {
 
         let attempt = msg.attempt + 1;
 
-        let backoff = Duration::from_millis(
-            // One day is max timeout
-            ((std::cmp::min(86_400_000, attempt * attempt * 1000) as f32)
-                + 2000.0 * msg.random_seed)
-                .floor() as u64,
-        );
+        let backoff = Duration::from_millis(calculate_backoff(attempt, msg.random_seed) as u64);
 
         match request_future.await {
             Err(e) => {

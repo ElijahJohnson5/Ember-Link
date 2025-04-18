@@ -5,10 +5,11 @@ use axum::{
     routing::post,
     Json, Router,
 };
-use josekit::jwt::JwtPayload;
 use protocol::{server::ServerMessage, CustomMessage};
 
-use crate::AppState;
+use crate::{auth::AuthPayload, channel::Channel};
+
+use super::TokioAppState;
 
 async fn api_fallback() -> (StatusCode, Json<serde_json::Value>) {
     (
@@ -19,8 +20,8 @@ async fn api_fallback() -> (StatusCode, Json<serde_json::Value>) {
 
 async fn broadcast(
     Path(channel_name): Path<String>,
-    State(state): State<AppState>,
-    _jwt: JwtPayload,
+    State(state): State<TokioAppState>,
+    _jwt: AuthPayload,
     Json(payload): Json<serde_json::Value>,
 ) -> impl IntoResponse {
     // TODO: Probably should just put it in some redis pub sub queue so that every server is notified (once redis is used for multiple servers)
@@ -51,7 +52,7 @@ async fn broadcast(
     )
 }
 
-pub fn api_routes() -> Router<AppState> {
+pub fn api_routes() -> Router<TokioAppState> {
     let api_routes = Router::new()
         .route("/broadcast/{channel_name}", post(broadcast))
         .fallback(api_fallback);

@@ -12,7 +12,7 @@ declare global {
 }
 
 const client = createClient({
-  baseUrl: 'http://localhost:9000'
+  baseUrl: 'http://localhost:8787'
 });
 
 const { channel } = client.joinChannel('test');
@@ -89,6 +89,7 @@ function getCursorOrCreate(connectionId: string): HTMLElement {
     cursor = document.getElementById('cursor-template')!.cloneNode(true) as HTMLElement;
     cursor.id = `cursor-${connectionId}`;
     cursor.style.stroke = COLORS[Math.floor(Math.random() * COLORS.length)];
+    cursor.style.display = 'block';
     cursorsContainer.appendChild(cursor);
   }
 

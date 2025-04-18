@@ -1,4 +1,3 @@
-use async_trait::async_trait;
 use protocol::{StorageSyncMessage, StorageUpdateMessage};
 use std::error::Error as StdError;
 
@@ -19,7 +18,7 @@ pub enum StorageError {
     UpdateError(#[source] BoxDynError),
 }
 
-#[async_trait]
+#[async_trait::async_trait]
 pub trait Storage {
     async fn init_storage_from_endpoint(
         &self,

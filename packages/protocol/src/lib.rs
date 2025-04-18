@@ -36,7 +36,7 @@ pub enum WebhookMessage {
 pub struct NewChannel {
     pub id: String,
     pub channel_name: String,
-    pub timestamp: u128,
+    pub timestamp: u64,
     pub num_channels: usize,
 }
 
@@ -46,7 +46,7 @@ pub struct NewChannel {
 pub struct CloseChannel {
     pub id: String,
     pub channel_name: String,
-    pub timestamp: u128,
+    pub timestamp: u64,
     pub num_channels: usize,
 }
 
@@ -56,7 +56,7 @@ pub struct CloseChannel {
 pub struct NewParticipant {
     pub id: String,
     pub channel_name: String,
-    pub timestamp: u128,
+    pub timestamp: u64,
     pub participant_id: String,
     pub num_pariticipants: usize,
 }
@@ -67,7 +67,7 @@ pub struct NewParticipant {
 pub struct RemoveParticipant {
     pub id: String,
     pub channel_name: String,
-    pub timestamp: u128,
+    pub timestamp: u64,
     pub participant_id: String,
     pub num_pariticipants: usize,
 }
@@ -78,7 +78,7 @@ pub struct RemoveParticipant {
 pub struct StorageUpdated {
     pub id: String,
     pub channel_name: String,
-    pub timestamp: u128,
+    pub timestamp: u64,
     pub data: Vec<u8>,
 }
 
@@ -95,6 +95,8 @@ pub enum WebSocketCloseCode {
     InvalidToken = 3001,
     InvalidSignerKey = 3002,
     ChannelCreationFailed = 3003,
+    #[cfg(feature = "multi-tenant")]
+    MissingTenantId = 3004,
 }
 
 #[derive(Clone, Deserialize, Debug, Serialize, TS)]

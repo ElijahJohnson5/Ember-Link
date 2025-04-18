@@ -1,0 +1,15 @@
+[package]
+name = "cloudflare-ember-link"
+version = "0.0.1"
+edition = "2021"
+
+[dependencies]
+axum = { version = "0.8.3", default-features = false, features = ["macros", "query"] }
+server = { path = "../../packages/server", features = ["cloudflare", "webhook", "multi-tenant"] }
+worker = { version = "0.5.0", features = ['http', 'axum', 'queue'] }
+
+[lib]
+crate-type = ["cdylib"]
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false

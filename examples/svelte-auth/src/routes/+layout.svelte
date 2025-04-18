@@ -7,7 +7,7 @@
 </script>
 
 <EmberLinkProvider
-	baseUrl="http://localhost:9000"
+	baseUrl="http://localhost:8787"
 	authEndpoint="http://localhost:5173/api/auth"
 	jwtSignerPublicKey={PUBLIC_JWT_SIGNER_KEY}
 	multiTenant={{

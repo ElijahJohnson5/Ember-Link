@@ -1,0 +1,28 @@
+name = "axum-on-workers"
+main = "build/worker/shim.mjs"
+compatibility_date = "2023-03-22"
+
+[vars]
+ALLOW_UNAUTHORIZED = "true"
+WEBHOOK_URL = "https://webhook.site/7315d8a3-5d9c-45d6-8af9-cccdad91345c"
+
+[build]
+command = "cargo install worker-build && RUSTFLAGS='--cfg getrandom_backend=\"wasm_js\"' worker-build --release"
+
+[durable_objects]
+bindings = [
+  { name = "CHANNEL", class_name = "CloudflareChannel" } # the `class_name` uses the Rust struct identifier name
+]
+
+[[migrations]]
+tag = "v1" # Should be unique for each entry
+new_classes = ["CloudflareChannel"] # Array of new classes
+
+[[queues.consumers]]
+queue = "webhook-events"
+max_batch_size = 100
+max_batch_timeout = 5
+
+[[queues.producers]]
+queue = "webhook-events"
+binding = "WEBHOOK_EVENTS"

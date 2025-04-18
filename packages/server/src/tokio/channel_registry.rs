@@ -1,5 +1,3 @@
-#![cfg_attr(coverage_nightly, feature(coverage_attribute))]
-
 use futures_util::lock::Mutex;
 use protocol::{
     CloseChannel, NewChannel, NewParticipant, RemoveParticipant, StorageType, StorageUpdated,
@@ -15,16 +13,16 @@ use std::{
 use tracing::instrument;
 
 use crate::{
-    channel::{Channel, WeakChannel},
-    config::Config,
     storage::{yjs::init_storage, Storage},
-    webhook_processor::actor::WebhookProcessorMessage,
+    tokio::channel::{TokioChannel, WeakTokioChannel},
+    tokio::config::TokioConfig,
+    tokio::webhook_processor::actor::WebhookProcessorMessage,
 };
 
 pub struct ChannelRegistry {
-    channels: Arc<Mutex<HashMap<String, WeakChannel>>>,
+    channels: Arc<Mutex<HashMap<String, WeakTokioChannel>>>,
     webhook_processor: Option<ActorRef<WebhookProcessorMessage>>,
-    config: Config,
+    config: TokioConfig,
 }
 
 pub type BoxDynError = Box<dyn StdError + 'static + Send + Sync>;
@@ -39,7 +37,7 @@ pub enum ChannelError {
 impl ChannelRegistry {
     pub fn new(
         webhook_processor: Option<ActorRef<WebhookProcessorMessage>>,
-        config: Config,
+        config: TokioConfig,
     ) -> Self {
         Self {
             channels: Arc::default(),
@@ -54,7 +52,7 @@ impl ChannelRegistry {
         channel_name: String,
         storage_type: Option<StorageType>,
         tenant_id: Option<String>,
-    ) -> Result<Channel, ChannelError> {
+    ) -> Result<TokioChannel, ChannelError> {
         let mut channels = self.channels.lock().await;
 
         let len = channels.len();
@@ -75,7 +73,7 @@ impl ChannelRegistry {
                     );
 
                     channel
-                        .init_storage(&self.config.storage_endpoint, &tenant_id)
+                        .init_storage(&self.config.base_config.storage_endpoint, &tenant_id)
                         .await
                         .map_err(|e| ChannelError::CreationError(Box::new(e)))?;
 
@@ -87,7 +85,7 @@ impl ChannelRegistry {
                     self.create_channel(entry, channel_name, storage_type, &tenant_id, len);
 
                 channel
-                    .init_storage(&self.config.storage_endpoint, &tenant_id)
+                    .init_storage(&self.config.base_config.storage_endpoint, &tenant_id)
                     .await
                     .map_err(|e| ChannelError::CreationError(Box::new(e)))?;
 
@@ -99,7 +97,7 @@ impl ChannelRegistry {
     }
 
     #[instrument(skip(self))]
-    pub async fn get_channel(&self, channel_name: &String) -> Option<WeakChannel> {
+    pub async fn get_channel(&self, channel_name: &String) -> Option<WeakTokioChannel> {
         let channels = self.channels.lock().await;
 
         channels.get(channel_name).cloned()
@@ -108,12 +106,12 @@ impl ChannelRegistry {
     #[instrument(skip(self, entry, old_num_channels))]
     fn create_channel(
         &self,
-        entry: Entry<'_, String, WeakChannel>,
+        entry: Entry<'_, String, WeakTokioChannel>,
         channel_name: String,
         storage_type: Option<StorageType>,
         tenant_id: &Option<String>,
         old_num_channels: usize,
-    ) -> Channel {
+    ) -> TokioChannel {
         let storage = storage_type.map(|t| match t {
             StorageType::Yjs => {
                 let yjs_storage: Box<dyn Storage + Send + Sync> = Box::new(init_storage());
@@ -122,7 +120,7 @@ impl ChannelRegistry {
             }
         });
 
-        let channel = Channel::new(channel_name.clone(), storage);
+        let channel = TokioChannel::new(channel_name.clone(), storage);
 
         match entry {
             Entry::Occupied(mut entry) => {
@@ -151,7 +149,7 @@ impl ChannelRegistry {
                         let webhook_message = WebhookMessage::NewParticipant(NewParticipant {
                             id: uuid::Uuid::new_v4().into(),
                             channel_name: channel_name.clone(),
-                            timestamp: since_the_epoch.as_millis(),
+                            timestamp: since_the_epoch.as_millis() as u64,
                             participant_id: participant_id.clone(),
                             num_pariticipants: *num_participants,
                         });
@@ -184,7 +182,7 @@ impl ChannelRegistry {
                             WebhookMessage::RemoveParticipant(RemoveParticipant {
                                 id: uuid::Uuid::new_v4().into(),
                                 channel_name: channel_name.clone(),
-                                timestamp: since_the_epoch.as_millis(),
+                                timestamp: since_the_epoch.as_millis() as u64,
                                 participant_id: participant_id.clone(),
                                 num_pariticipants: *num_participants,
                             });
@@ -216,7 +214,7 @@ impl ChannelRegistry {
                         let webhook_message = WebhookMessage::StorageUpdated(StorageUpdated {
                             id: uuid::Uuid::new_v4().into(),
                             channel_name: channel_name.clone(),
-                            timestamp: since_the_epoch.as_millis(),
+                            timestamp: since_the_epoch.as_millis() as u64,
                             data: update.clone(),
                         });
 
@@ -240,7 +238,7 @@ impl ChannelRegistry {
             let webhook_message = WebhookMessage::NewChannel(NewChannel {
                 id: uuid::Uuid::new_v4().into(),
                 channel_name: channel_name.clone(),
-                timestamp: since_the_epoch.as_millis(),
+                timestamp: since_the_epoch.as_millis() as u64,
                 num_channels: old_num_channels + 1,
             });
 
@@ -279,7 +277,7 @@ impl ChannelRegistry {
                             let webhook_message = WebhookMessage::CloseChannel(CloseChannel {
                                 id: uuid::Uuid::new_v4().into(),
                                 channel_name,
-                                timestamp: since_the_epoch.as_millis(),
+                                timestamp: since_the_epoch.as_millis() as u64,
                                 num_channels: num,
                             });
 
@@ -304,7 +302,6 @@ impl ChannelRegistry {
 }
 
 #[cfg(test)]
-#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use std::time::Duration;
 
@@ -312,7 +309,7 @@ mod tests {
     use ractor::{Actor, ActorProcessingErr};
     use tokio::task::yield_now;
 
-    use crate::participant::actor::tests::create_participant;
+    use crate::tokio::participant::actor::tests::create_participant;
 
     use super::*;
 
@@ -361,10 +358,10 @@ mod tests {
         }
     }
 
-    fn create_config() -> Config {
+    fn create_config() -> TokioConfig {
         let config_values = HashMap::new();
 
-        Config::init_from_hashmap(&config_values).unwrap()
+        TokioConfig::init_from_hashmap(&config_values).unwrap()
     }
 
     #[tokio::test]

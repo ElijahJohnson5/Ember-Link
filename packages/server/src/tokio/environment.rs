@@ -2,8 +2,8 @@ use ractor::ActorRef;
 use tokio::task::JoinHandle;
 
 use crate::{
-    config::Config,
-    webhook_processor::{actor::WebhookProcessorMessage, start_webhook_processor},
+    tokio::config::TokioConfig,
+    tokio::webhook_processor::{actor::WebhookProcessorMessage, start_webhook_processor},
 };
 
 pub struct Environment {
@@ -16,13 +16,15 @@ pub struct WebhookProcessorActor {
 }
 
 impl Environment {
-    pub async fn from_config(config: &Config) -> Self {
+    pub async fn from_config(config: &TokioConfig) -> Self {
         let mut webhook_processor_actor = None;
+        
 
-        if let Some(webhook_url) = config.webhook_url.clone() {
+        if let Some(webhook_url) = config.base_config.webhook_url.clone() {
             let (webhook_processor, webhook_processor_handle) = start_webhook_processor(
                 webhook_url,
                 config
+                    .base_config
                     .webhook_secret_key
                     .clone()
                     .expect("Webhook secret key is required when webhook_url is specified"),

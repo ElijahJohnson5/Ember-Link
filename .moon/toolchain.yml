@@ -73,7 +73,7 @@ typescript:
 # Configures Rust within the toolchain.
 rust:
   # The Rust toolchain to use. Must be a semantic version that includes major, minor, and patch.
-  version: '1.83.0'
+  version: '1.84.0'
 
   # List of Cargo binaries to install globally and make available to tasks.
   bins:
