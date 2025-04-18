@@ -8,3 +8,5 @@ tasks:
       - 'test'
   test:
     command: 'cargo test'
+    options:
+      cache: false
