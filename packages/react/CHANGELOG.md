@@ -8,7 +8,7 @@
 - Updated dependencies [0bf16b0]
 - Updated dependencies [71eb424]
   - @ember-link/core@0.0.14
-  - @ember-link/protocol@0.0.10
+  - @ember-link/protocol@0.0.11
 
 ## 0.0.6
 

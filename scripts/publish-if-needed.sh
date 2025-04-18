@@ -8,9 +8,11 @@ echo $PACKAGE_NAME
 
 FOUND_VERSION=$(yarn npm info "$PACKAGE_NAME" -f versions | grep "$PACKAGE_VERSION" | xargs)
 
+  moon $PACKAGE_NAME:build 
+
 # If found version is unset or the empty string we need to publish otherwise echo that there is already a published version
 if [ -z "${FOUND_VERSION}" ]; then
-  moon $PACKAGE_NAME:build && yarn npm publish --access public
+  moon $PACKAGE_NAME:build  # && yarn npm publish --access public
 else
   echo "Will not publish package $PACKAGE_NAME, as the version in package.json is already published"
   echo "Found version: $FOUND_VERSION, Package Version: $PACKAGE_VERSION"
