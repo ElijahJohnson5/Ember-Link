@@ -1,6 +1,7 @@
 import type { DefaultCustomMessageData, DefaultPresence, User } from '@ember-link/core';
 import { useChannel } from './channel-provider';
 import { useCallback, useSyncExternalStore } from 'react';
+import { getEmptyArray } from './utils';
 
 export const useOthers = <P extends DefaultPresence, C extends DefaultCustomMessageData>() => {
   const channel = useChannel<P, C>();
@@ -12,7 +13,7 @@ export const useOthers = <P extends DefaultPresence, C extends DefaultCustomMess
     [channel]
   );
 
-  const others = useSyncExternalStore(subscribeFunction, channel.getOthers, () => []);
+  const others = useSyncExternalStore(subscribeFunction, channel.getOthers, () => getEmptyArray());
 
   return others;
 };

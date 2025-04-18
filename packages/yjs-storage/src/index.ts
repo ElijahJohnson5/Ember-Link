@@ -12,7 +12,7 @@ import * as Y from 'yjs';
 
 export type YjsStorageProvider = IStorageProvider;
 
-const createYArrayStorage = <T>(name: string, yArray: Y.Array<T>) => {
+const createYArrayStorage = <T>(doc: Y.Doc, name: string, yArray: Y.Array<T>) => {
   return {
     subscribe(callback: (event: StorageEvent) => void) {
       const wrappedCallback = (yArrayEvent: Y.YArrayEvent<T>, _transaction: Y.Transaction) => {
@@ -36,6 +36,13 @@ const createYArrayStorage = <T>(name: string, yArray: Y.Array<T>) => {
 
     insertAt(index: number, value: T): void {
       yArray.insert(index, [value]);
+    },
+
+    replace(index: number, value: T): void {
+      doc.transact(() => {
+        yArray.delete(index);
+        yArray.insert(index, [value]);
+      });
     },
 
     push(value: T): void {
@@ -119,8 +126,12 @@ export function createYJSStorageProvider(): IStorageProvider {
 
   const storage: IStorage = {
     root: doc,
-    getArray: (name: string) => {
-      return createYArrayStorage(name, doc.getArray(name));
+    getArray: <T>(name: string, initialValue: T[] = []) => {
+      const yArray = doc.getArray<T>(name);
+
+      yArray.insert(0, initialValue);
+
+      return createYArrayStorage(doc, name, yArray);
     },
 
     getMap: <K extends string, V>(name: string) => {

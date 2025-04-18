@@ -9,7 +9,8 @@
       "@ember-link/event-emitter/*": ["../event-emitter/src/*"],
       "@ember-link/storage": ["../storage/src/index.ts"],
       "@ember-link/storage/*": ["../storage/src/*"]
-    }
+    },
+    "types": []
   },
   "exclude": ["dist/"],
   "include": ["../storage/**/*", "../event-emitter/**/*", "./src/**/*"],

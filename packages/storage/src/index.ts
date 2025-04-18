@@ -18,6 +18,7 @@ export interface IStorageProvider {
 export interface ArrayStorage<T> {
   readonly length: number;
   insertAt: (index: number, value: T) => void;
+  replace: (index: number, value: T) => void;
   push: (value: T) => void;
   toArray: () => Array<T>;
   delete: (index: number, length: number) => void;
@@ -55,7 +56,7 @@ export interface IStorage {
   root: unknown;
   applyUpdate(event: Uint8Array): void;
 
-  getArray<T>(name: string): ArrayStorage<T>;
+  getArray<T>(name: string, initialValue?: T[]): ArrayStorage<T>;
   getMap<K extends string, V>(name: string): MapStorage<K, V>;
 
   subscribe<T>(

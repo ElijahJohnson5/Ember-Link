@@ -6,16 +6,11 @@ import type {
 } from '@ember-link/core';
 import { useChannel } from './channel-provider';
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { getEmptyArray } from './utils';
 
 export type ArrayStorageHookResult<T> = { current: Array<T> } & ArrayStorage<T>;
 
 export type MapStorageHookResult<K extends string, V> = { current: Map<K, V> } & MapStorage<K, V>;
-
-const emptyArray: unknown[] = [];
-
-const getEmptyArray = <T>() => {
-  return emptyArray as Array<T>;
-};
 
 const emptyMap: Map<unknown, unknown> = new Map();
 
@@ -24,7 +19,8 @@ const getEmptyMap = <K extends string, V>() => {
 };
 
 export const useArrayStorage = <T, P extends DefaultPresence, C extends DefaultCustomMessageData>(
-  name: string
+  name: string,
+  initialValue: Array<T> = getEmptyArray()
 ): ArrayStorageHookResult<T> => {
   const channel = useChannel<P, C>();
 
@@ -34,7 +30,10 @@ export const useArrayStorage = <T, P extends DefaultPresence, C extends DefaultC
 
   const storage = useMemo(() => channel.getStorage(), [channel]);
 
-  const inner = useMemo(() => storage.getArray<T>(name), [name, storage]);
+  const inner = useMemo(
+    () => storage.getArray<T>(name, initialValue),
+    [name, storage, initialValue]
+  );
 
   const [cachedInnerArray, setCachedInnerArray] = useState<Array<T>>([]);
 

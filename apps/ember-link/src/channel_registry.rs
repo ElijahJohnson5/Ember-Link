@@ -65,21 +65,35 @@ impl ChannelRegistry {
                     tracing::info!("Found existing channel");
                     channel
                 }
-                None => self.create_channel(
-                    Entry::Occupied(entry),
-                    channel_name,
-                    storage_type,
-                    &tenant_id,
-                    len,
-                ),
-            },
-            entry => self.create_channel(entry, channel_name, storage_type, &tenant_id, len),
-        };
+                None => {
+                    let channel = self.create_channel(
+                        Entry::Occupied(entry),
+                        channel_name,
+                        storage_type,
+                        &tenant_id,
+                        len,
+                    );
 
-        channel
-            .init_storage(&self.config.storage_endpoint, &tenant_id)
-            .await
-            .map_err(|e| ChannelError::CreationError(Box::new(e)))?;
+                    channel
+                        .init_storage(&self.config.storage_endpoint, &tenant_id)
+                        .await
+                        .map_err(|e| ChannelError::CreationError(Box::new(e)))?;
+
+                    channel
+                }
+            },
+            entry => {
+                let channel =
+                    self.create_channel(entry, channel_name, storage_type, &tenant_id, len);
+
+                channel
+                    .init_storage(&self.config.storage_endpoint, &tenant_id)
+                    .await
+                    .map_err(|e| ChannelError::CreationError(Box::new(e)))?;
+
+                channel
+            }
+        };
 
         Ok(channel)
     }
