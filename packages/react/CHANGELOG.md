@@ -1,5 +1,15 @@
 # @ember-link/react
 
+## 0.0.7
+
+### Patch Changes
+
+- 71eb424: Fix use others for RSC
+- Updated dependencies [0bf16b0]
+- Updated dependencies [71eb424]
+  - @ember-link/core@0.0.14
+  - @ember-link/protocol@0.0.10
+
 ## 0.0.6
 
 ### Patch Changes

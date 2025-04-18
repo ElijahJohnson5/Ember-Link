@@ -1,5 +1,12 @@
 # @ember-link/svelte
 
+## 0.0.8
+
+### Patch Changes
+
+- Updated dependencies [0bf16b0]
+  - @ember-link/core@0.0.14
+
 ## 0.0.7
 
 ### Patch Changes

@@ -1,5 +1,15 @@
 # @ember-link/core
 
+## 0.0.14
+
+### Patch Changes
+
+- 0bf16b0: Remove unused dependencies from core package
+- Updated dependencies [71eb424]
+- Updated dependencies [71eb424]
+  - @ember-link/protocol@0.0.10
+  - @ember-link/storage@0.0.11
+
 ## 0.0.13
 
 ### Patch Changes
