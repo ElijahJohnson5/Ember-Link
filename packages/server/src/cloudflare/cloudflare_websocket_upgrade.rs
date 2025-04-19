@@ -1,4 +1,4 @@
-// The idea for this code comes from https://github.com/tokio-rs/axum/blob/main/axum/src/extract/ws.rs and is under the following license:
+// Some of the following code comes from https://github.com/tokio-rs/axum/blob/main/axum/src/extract/ws.rs and is under the following license:
 // Copyright (c) 2019 axum Contributors
 // Permission is hereby granted, free of charge, to any
 // person obtaining a copy of this software and associated
