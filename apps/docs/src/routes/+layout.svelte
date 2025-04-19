@@ -96,9 +96,19 @@
 </script>
 
 <svelte:head>
-	<title>Ember Link</title>
 	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-	<link rel="icon" href="/favicon.png" type="image/png" sizes="16x16" />
+	<link rel="icon" href="/favicon.jpg" type="image/jpg" sizes="16x16" />
+	<title>Ember Link</title>
+	<meta
+		name="description"
+		content="Integrate real-time collaboration into any application effortlessly"
+	/>
+	<meta
+		name="keywords"
+		content="Ember Link, documentation, getting started, integration guide, real-time, collaboration"
+	/>
+	<meta property="og:title" content="Getting Started with EmberLink" />
+	<meta property="og:description" content="The Open-Source SDK for Real-Time Collaboration" />
 </svelte:head>
 
 <ModeWatcher />
