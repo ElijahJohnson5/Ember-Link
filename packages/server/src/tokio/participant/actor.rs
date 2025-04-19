@@ -1,4 +1,4 @@
-use crate::channel::Channel;
+use crate::{channel::Channel, tokio::channel::TokioChannel};
 use axum::{
     body::Bytes,
     extract::ws::{Message, WebSocket},
@@ -16,7 +16,7 @@ pub struct Participant;
 
 pub struct ParticipantState {
     id: String,
-    channel: Channel,
+    channel: TokioChannel,
     presence: Option<Value>,
     socket_write_sink: SplitSink<WebSocket, Message>,
 }
@@ -35,7 +35,7 @@ pub enum ParticipantMessage {
 
 pub struct ParticipantArguments {
     pub id: String,
-    pub channel: Channel,
+    pub channel: TokioChannel,
     pub socket_write_sink: SplitSink<WebSocket, Message>,
 }
 
@@ -100,11 +100,11 @@ impl Actor for Participant {
             ParticipantMessage::StorageUpdate { data } => {
                 state
                     .channel
-                    .handle_update_message(data, state.id.clone())
+                    .handle_storage_update_message(data, &state.id)
                     .expect("Could not handle storage update");
             }
             ParticipantMessage::StorageSync { data } => {
-                match state.channel.handle_sync_message(data) {
+                match state.channel.handle_storage_sync_message(data) {
                     Err(e) => {
                         tracing::error!("Could not sync storage: {}", e);
                     }
@@ -128,7 +128,7 @@ impl Actor for Participant {
             ParticipantMessage::ProviderUpdate { data } => {
                 state
                     .channel
-                    .handle_provider_update_message(data, state.id.clone())
+                    .handle_provider_update_message(data, &state.id)
                     .expect("Could not handle storage update");
             }
             ParticipantMessage::ProviderSync { data } => {
@@ -177,7 +177,6 @@ impl Actor for Participant {
 }
 
 #[cfg(test)]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub mod tests {
     use std::sync::Arc;
 

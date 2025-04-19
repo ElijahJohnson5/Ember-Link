@@ -5,7 +5,7 @@ ENV MOON_TOOLCHAIN_FORCE_GLOBALS=true
 
 RUN apt-get update && apt-get install -y protobuf-compiler libprotobuf-dev
 
-RUN curl --proto '=https' --tlsv1.2 https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain=1.83.0
+RUN curl --proto '=https' --tlsv1.2 https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain=1.84.0
 ENV PATH="/root/.cargo/bin:${PATH}"
 
 # Install moon binary

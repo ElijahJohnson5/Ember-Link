@@ -1,5 +1,3 @@
-#![cfg_attr(coverage_nightly, feature(coverage_attribute))]
-
 use std::{
     collections::HashMap,
     fmt,
@@ -15,9 +13,12 @@ use ractor::ActorRef;
 use serde_json::Value;
 
 use crate::{
-    event_listener_primitives::{Bag, BagOnce, HandlerId},
-    participant::actor::ParticipantMessage,
+    channel::Channel,
     storage::{yjs::YjsStorage, Storage, StorageError},
+    tokio::{
+        event_listener_primitives::{Bag, BagOnce, HandlerId},
+        participant::actor::ParticipantMessage,
+    },
 };
 
 #[derive(Default)]
@@ -52,27 +53,12 @@ impl Drop for Inner {
 }
 
 #[derive(Debug, Clone)]
-pub struct Channel {
+pub struct TokioChannel {
     inner: Arc<Inner>,
 }
 
-impl Channel {
-    pub fn new(id: String, storage: Option<Box<dyn Storage + Send + Sync>>) -> Self {
-        tracing::info!("Creating channel {}", id);
-
-        Self {
-            inner: Arc::new(Inner {
-                id,
-                storage,
-                yjs_provider_storage: YjsStorage::new(yrs::Doc::new()),
-                participant_refs: Mutex::default(),
-                participant_presence_state: Mutex::default(),
-                handlers: Handlers::default(),
-            }),
-        }
-    }
-
-    pub fn broadcast(&self, message: ServerMessage<Value, Value>, exclude_id: Option<&String>) {
+impl Channel for TokioChannel {
+    fn broadcast(&self, message: ServerMessage<Value, Value>, exclude_id: Option<&String>) {
         let mut participants_to_remove = vec![];
 
         for (key, value) in self.inner.participant_refs.lock().iter() {
@@ -100,7 +86,7 @@ impl Channel {
         }
     }
 
-    pub fn handle_sync_message(
+    fn handle_storage_sync_message(
         &self,
         message: StorageSyncMessage,
     ) -> Result<Option<Vec<StorageSyncMessage>>, StorageError> {
@@ -111,7 +97,26 @@ impl Channel {
         Ok(None)
     }
 
-    pub fn handle_provider_sync_message(
+    fn handle_storage_update_message(
+        &self,
+        message: StorageUpdateMessage,
+        participant_id: &String,
+    ) -> Result<(), StorageError> {
+        if let Some(storage) = &self.inner.storage {
+            storage.handle_update_message(&message)?;
+        }
+
+        self.inner
+            .handlers
+            .storage_updated
+            .call_simple(&message.update);
+
+        self.broadcast(ServerMessage::StorageUpdate(message), Some(&participant_id));
+
+        Ok(())
+    }
+
+    fn handle_provider_sync_message(
         &self,
         message: StorageSyncMessage,
     ) -> Result<Option<Vec<StorageSyncMessage>>, StorageError> {
@@ -121,10 +126,10 @@ impl Channel {
             .handle_sync_message(&message);
     }
 
-    pub fn handle_provider_update_message(
+    fn handle_provider_update_message(
         &self,
         message: StorageUpdateMessage,
-        participant_id: String,
+        participant_id: &String,
     ) -> Result<(), StorageError> {
         self.inner
             .yjs_provider_storage
@@ -142,24 +147,22 @@ impl Channel {
 
         Ok(())
     }
+}
 
-    pub fn handle_update_message(
-        &self,
-        message: StorageUpdateMessage,
-        participant_id: String,
-    ) -> Result<(), StorageError> {
-        if let Some(storage) = &self.inner.storage {
-            storage.handle_update_message(&message)?;
+impl TokioChannel {
+    pub fn new(id: String, storage: Option<Box<dyn Storage + Send + Sync>>) -> Self {
+        tracing::info!("Creating channel {}", id);
+
+        Self {
+            inner: Arc::new(Inner {
+                id,
+                storage,
+                yjs_provider_storage: YjsStorage::new(yrs::Doc::new()),
+                participant_refs: Mutex::default(),
+                participant_presence_state: Mutex::default(),
+                handlers: Handlers::default(),
+            }),
         }
-
-        self.inner
-            .handlers
-            .storage_updated
-            .call_simple(&message.update);
-
-        self.broadcast(ServerMessage::StorageUpdate(message), Some(&participant_id));
-
-        Ok(())
     }
 
     pub fn add_presence(&self, participant_id: String, state: Value, clock: i32) {
@@ -289,30 +292,29 @@ impl Channel {
 
     /// Get `WeakChannel` that can later be upgraded to `Channel`, but will not prevent channel from
     /// being destroyed
-    pub fn downgrade(&self) -> WeakChannel {
-        WeakChannel {
+    pub fn downgrade(&self) -> WeakTokioChannel {
+        WeakTokioChannel {
             inner: Arc::downgrade(&self.inner),
         }
     }
 }
 
-/// Similar to `Channel`, but doesn't prevent channel from being destroyed
+/// Similar to `TokioChannel`, but doesn't prevent channel from being destroyed
 #[derive(Debug, Clone)]
-pub struct WeakChannel {
+pub struct WeakTokioChannel {
     inner: Weak<Inner>,
 }
 
-impl WeakChannel {
+impl WeakTokioChannel {
     /// Upgrade `WeakChannel` to `Channel`, may return `None` if underlying Channel was destroyed already
-    pub fn upgrade(&self) -> Option<Channel> {
-        self.inner.upgrade().map(|inner| Channel { inner })
+    pub fn upgrade(&self) -> Option<TokioChannel> {
+        self.inner.upgrade().map(|inner| TokioChannel { inner })
     }
 }
 
 #[cfg(test)]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub mod tests {
-    use crate::participant::actor::tests::{create_participant, TestParticipantActorState};
+    use crate::tokio::participant::actor::tests::{create_participant, TestParticipantActorState};
     use tokio::{sync::Mutex, task::yield_now};
 
     use protocol::StorageUpdateMessage;
@@ -328,7 +330,7 @@ pub mod tests {
 
     #[tokio::test]
     async fn it_adds_a_participant_and_sends_initial_presence() {
-        let channel = Channel::new("test".to_string(), None);
+        let channel = TokioChannel::new("test".to_string(), None);
         let (participant, state) = create_participant().await;
 
         let participant_id: String = "participant".into();
@@ -370,7 +372,7 @@ pub mod tests {
 
     #[tokio::test]
     async fn it_calls_participant_added_handler() {
-        let channel = Channel::new("test".to_string(), None);
+        let channel = TokioChannel::new("test".to_string(), None);
         let (participant, _) = create_participant().await;
 
         let participant_id: String = "participant".into();
@@ -393,7 +395,7 @@ pub mod tests {
 
     #[tokio::test]
     async fn it_calls_participant_removed_handler() {
-        let channel = Channel::new("test".to_string(), None);
+        let channel = TokioChannel::new("test".to_string(), None);
         let (participant, _) = create_participant().await;
 
         let participant_id: String = "participant".into();
@@ -420,7 +422,7 @@ pub mod tests {
         let handler_counter = Arc::new(parking_lot::Mutex::new(HandlerCounter { count: 0 }));
 
         {
-            let channel = Channel::new("test".to_string(), None);
+            let channel = TokioChannel::new("test".to_string(), None);
 
             channel
                 .on_close({
@@ -437,7 +439,7 @@ pub mod tests {
 
     #[tokio::test]
     async fn it_broadcasts_to_all_participants() {
-        let channel = Channel::new("test".to_string(), None);
+        let channel = TokioChannel::new("test".to_string(), None);
         let (participant1, state) = create_participant().await;
 
         let participant_id1: String = "participant1".into();
@@ -495,7 +497,7 @@ pub mod tests {
 
     #[tokio::test]
     async fn it_boradcasts_to_all_participants_except_excluded() {
-        let channel = Channel::new("test".to_string(), None);
+        let channel = TokioChannel::new("test".to_string(), None);
         let (participant1, state) = create_participant().await;
 
         let participant_id1: String = "participant1".into();
@@ -539,7 +541,7 @@ pub mod tests {
 
     #[tokio::test]
     async fn it_removes_participant() {
-        let channel = Channel::new("test".to_string(), None);
+        let channel = TokioChannel::new("test".to_string(), None);
         let (participant, _) = create_participant().await;
 
         let participant_id: String = "participant".into();
@@ -559,7 +561,7 @@ pub mod tests {
 
     #[tokio::test]
     async fn it_broadcasts_removed_participant_presence() {
-        let channel = Channel::new("test".to_string(), None);
+        let channel = TokioChannel::new("test".to_string(), None);
         let (participant1, _) = create_participant().await;
 
         let participant_id1: String = "participant1".into();
@@ -612,7 +614,7 @@ pub mod tests {
 
     #[test]
     fn it_can_downgrade_and_upgrade() {
-        let channel = Channel::new("test".to_string(), None);
+        let channel = TokioChannel::new("test".to_string(), None);
 
         let downgrade = channel.downgrade();
 
@@ -622,7 +624,7 @@ pub mod tests {
     #[test]
     fn it_returns_none_when_trying_to_upgrade_dropped_channel() {
         let downgrade = {
-            let channel = Channel::new("test".to_string(), None);
+            let channel = TokioChannel::new("test".to_string(), None);
 
             channel.downgrade()
         };
@@ -632,7 +634,7 @@ pub mod tests {
 
     #[tokio::test]
     async fn it_sends_all_current_presences_to_new_participant() {
-        let channel = Channel::new("test".to_string(), None);
+        let channel = TokioChannel::new("test".to_string(), None);
         let (participant1, _) = create_participant().await;
 
         let participant_id1: String = "participant1".into();

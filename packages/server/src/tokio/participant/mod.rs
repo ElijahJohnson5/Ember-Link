@@ -4,12 +4,12 @@ use futures_util::stream::SplitSink;
 use ractor::{Actor, ActorRef};
 use tokio::task::JoinHandle;
 
-use crate::channel::Channel;
+use super::channel::TokioChannel;
 
 pub mod actor;
 
 pub async fn start_participant(
-    channel: Channel,
+    channel: TokioChannel,
     id: String,
     socket_write_sink: SplitSink<WebSocket, Message>,
 ) -> (ActorRef<ParticipantMessage>, JoinHandle<()>) {

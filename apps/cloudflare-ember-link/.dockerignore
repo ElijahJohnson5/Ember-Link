@@ -1,0 +1,7 @@
+target
+dockerfile
+.dockerignore
+.git
+.gitignore
+
+.moon/cache/

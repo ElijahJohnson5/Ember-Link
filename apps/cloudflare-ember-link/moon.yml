@@ -7,7 +7,7 @@ dependsOn:
 
 tasks:
   run:
-    command: 'cargo run'
+    command: 'npx wrangler dev'
     local: true
   test:
     command: 'cargo test'
@@ -15,7 +15,7 @@ tasks:
     command: 'llvm-cov --html'
   build-release:
     command: 'cargo build --release'
-  build-docker:
-    command: 'docker build -f "apps/ember-link/Dockerfile" . -t emberlinkio/ember-link:latest'
-    options:
-      runFromWorkspaceRoot: true
+  # build-docker:
+  #   command: 'docker build -f "apps/ember-link/Dockerfile" . -t emberlinkio/ember-link:latest'
+  #   options:
+  #     runFromWorkspaceRoot: true
