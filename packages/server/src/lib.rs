@@ -1,11 +1,8 @@
 use axum::response::IntoResponse;
-use mutually_exclusive_features::exactly_one_of;
 use protocol::WebSocketCloseCode;
 
 #[cfg(feature = "multi-tenant")]
 use http::StatusCode;
-
-exactly_one_of!("cloudflare", "tokio");
 
 #[cfg(feature = "cloudflare")]
 pub mod cloudflare;

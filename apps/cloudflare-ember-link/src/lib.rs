@@ -1,4 +1,4 @@
-use server::cloudflare::{fetch, queue, CloudflareQueueMessage, Options};
+use server::cloudflare::{self, CloudflareQueueMessage, Options};
 
 use worker::*;
 
@@ -6,24 +6,40 @@ use worker::*;
 async fn main(
     req: HttpRequest,
     env: Env,
-    ctx: Context,
+    _ctx: Context,
 ) -> Result<axum::http::Response<axum::body::Body>> {
-    fetch(
-        req,
+    let server = match cloudflare::Server::new(
         env,
         Options {
             queue_name: "WEBHOOK_EVENTS".to_string(),
         },
-        ctx,
-    )
-    .await
+    ) {
+        Err(response) => return Ok(response),
+        Ok(server) => server,
+    };
+
+    server.handle_fetch(req).await
 }
 
 #[event(queue)]
 async fn queue_handler(
     message_batch: MessageBatch<CloudflareQueueMessage>,
     env: Env,
-    ctx: Context,
+    _ctx: Context,
 ) -> Result<()> {
-    queue(message_batch, env, ctx).await
+    let server = match cloudflare::Server::new(
+        env,
+        Options {
+            queue_name: "WEBHOOK_EVENTS".to_string(),
+        },
+    ) {
+        Err(_response) => {
+            return Err(worker::Error::RustError(
+                "Could not parse config from env".into(),
+            ))
+        }
+        Ok(server) => server,
+    };
+
+    server.handle_queue(message_batch).await
 }

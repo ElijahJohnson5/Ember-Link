@@ -37,7 +37,6 @@ use std::error::Error as StdError;
 use tokio::signal;
 use tower_http::trace::{DefaultMakeSpan, TraceLayer};
 use tracing::instrument;
-use tracing_subscriber::FmtSubscriber;
 
 #[cfg(feature = "multi-tenant")]
 use tokio::sync::Mutex;
@@ -49,7 +48,7 @@ use crate::AppState;
 pub type BoxDynError = Box<dyn StdError + 'static + Send + Sync>;
 
 #[derive(Clone)]
-struct TokioAppState {
+pub struct TokioAppState {
     pub config: TokioConfig,
     pub channel_registry: Arc<ChannelRegistry>,
     // TODO: Move this to redis or have an option to use redis
@@ -83,63 +82,98 @@ impl AppState for TokioAppState {
     }
 }
 
-pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    tracing::subscriber::set_global_default(FmtSubscriber::default())?;
+pub struct Server {
+    router: axum::Router<TokioAppState>,
+    app_state: TokioAppState,
+    environment: Environment,
+}
 
-    match dotenvy::dotenv() {
-        Err(_e) => {
-            tracing::info!("Could not find .env file")
+impl Server {
+    pub async fn new() -> Self {
+        match dotenvy::dotenv() {
+            Err(_e) => {
+                tracing::info!("Could not find .env file")
+            }
+            _ => {}
         }
-        _ => {}
+
+        let config = TokioConfig::init_from_env().unwrap();
+
+        let environment = Environment::from_config(&config).await;
+
+        #[cfg(feature = "webhook")]
+        let channel_registry = ChannelRegistryBuilder::new(config.clone())
+            .with_webhook_processor(environment.webhook_processor())
+            .build();
+
+        #[cfg(not(feature = "webhook"))]
+        let channel_registry = ChannelRegistryBuilder::new(config.clone()).build();
+
+        let channel_registry: Arc<ChannelRegistry> = Arc::new(channel_registry);
+
+        let app_state = TokioAppState {
+            config,
+            channel_registry,
+            #[cfg(feature = "multi-tenant")]
+            jwt_signer_key_cache: Arc::default(),
+        };
+
+        let router = Router::new()
+            .route("/ws", any(ws_handler))
+            .nest("/api", api::api_routes())
+            .layer(
+                TraceLayer::new_for_http()
+                    .make_span_with(DefaultMakeSpan::default().include_headers(true)),
+            );
+
+        Self {
+            router,
+            app_state,
+            environment,
+        }
     }
 
-    let config = TokioConfig::init_from_env().unwrap();
+    pub async fn serve(
+        mut self,
+        host: Option<String>,
+        port: Option<String>,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        if let Some(host) = host {
+            self.app_state.config.host = host;
+        }
 
-    let environment = Environment::from_config(&config).await;
+        if let Some(port) = port {
+            self.app_state.config.port = port;
+        }
 
-    #[cfg(feature = "webhook")]
-    let channel_registry = ChannelRegistryBuilder::new(config.clone())
-        .with_webhook_processor(environment.webhook_processor())
-        .build();
+        let tcp_listener_addr = format!(
+            "{}:{}",
+            self.app_state.config.host, self.app_state.config.port
+        );
 
-    #[cfg(not(feature = "webhook"))]
-    let channel_registry = ChannelRegistryBuilder::new(config.clone()).build();
+        let listener = tokio::net::TcpListener::bind(tcp_listener_addr)
+            .await
+            .unwrap();
+        tracing::debug!("listening on {}", listener.local_addr().unwrap());
 
-    let channel_registry: Arc<ChannelRegistry> = Arc::new(channel_registry);
+        let router = self.router.with_state(self.app_state.clone());
 
-    let app_state = TokioAppState {
-        config,
-        channel_registry,
-        #[cfg(feature = "multi-tenant")]
-        jwt_signer_key_cache: Arc::default(),
-    };
-
-    let tcp_listener_addr = format!("{}:{}", app_state.config.host, app_state.config.port);
-
-    let app = Router::new()
-        .route("/ws", any(ws_handler))
-        .nest("/api", api::api_routes())
-        .layer(
-            TraceLayer::new_for_http()
-                .make_span_with(DefaultMakeSpan::default().include_headers(true)),
+        axum::serve(
+            listener,
+            router.into_make_service_with_connect_info::<SocketAddr>(),
         )
-        .with_state(app_state);
-
-    let listener = tokio::net::TcpListener::bind(tcp_listener_addr)
+        .with_graceful_shutdown(shutdown_signal())
         .await
         .unwrap();
-    tracing::debug!("listening on {}", listener.local_addr().unwrap());
-    axum::serve(
-        listener,
-        app.into_make_service_with_connect_info::<SocketAddr>(),
-    )
-    .with_graceful_shutdown(shutdown_signal())
-    .await
-    .unwrap();
 
-    environment.cleanup().await;
+        self.environment.cleanup().await;
 
-    Ok(())
+        Ok(())
+    }
+
+    pub fn router_mut(&mut self) -> &mut axum::Router<TokioAppState> {
+        &mut self.router
+    }
 }
 
 async fn shutdown_signal() {

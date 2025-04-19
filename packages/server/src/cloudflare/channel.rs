@@ -49,7 +49,8 @@ impl CloudflareChannel {
             &participant_count,
             queue,
         )
-        .await;
+        .await
+        .ok();
 
         Ok(())
     }
@@ -178,7 +179,8 @@ impl worker::DurableObject for CloudflareChannel {
                     &websocket_count,
                     queue,
                 )
-                .await;
+                .await
+                .ok();
             },
         ))
     }
@@ -292,7 +294,7 @@ impl worker::DurableObject for CloudflareChannel {
                     }
                 }
             }
-            WebSocketIncomingMessage::Binary(message) => {
+            WebSocketIncomingMessage::Binary(_message) => {
                 todo!()
             }
         }

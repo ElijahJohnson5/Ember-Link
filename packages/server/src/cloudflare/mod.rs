@@ -180,45 +180,6 @@ pub struct Options {
     pub queue_name: String,
 }
 
-pub async fn fetch(
-    req: worker::HttpRequest,
-    env: worker::Env,
-    options: Options,
-    _ctx: worker::Context,
-) -> worker::Result<axum::http::Response<axum::body::Body>> {
-    let config = match get_config(&env) {
-        Ok(config) => config,
-        Err(e) => {
-            let response = match e {
-                envconfig::Error::EnvVarMissing { name } => (
-                    StatusCode::BAD_REQUEST,
-                    format!("Missing env var: {}", name),
-                ),
-                envconfig::Error::ParseError { name } => (
-                    StatusCode::BAD_REQUEST,
-                    format!("Env variable misformatted: {}", name),
-                ),
-            };
-
-            return Ok(response.into_response());
-        }
-    };
-
-    #[cfg(feature = "webhook")]
-    let response = router(CloudflareAppState {
-        env,
-        queue_name: options.queue_name,
-        config,
-    })
-    .call(req)
-    .await?;
-
-    #[cfg(not(feature = "webhook"))]
-    let response = router(CloudflareAppState { env, config }).call(req).await?;
-
-    Ok(response)
-}
-
 #[derive(Serialize, Deserialize)]
 pub struct CloudflareQueueMessage {
     #[cfg(feature = "multi-tenant")]
@@ -226,88 +187,132 @@ pub struct CloudflareQueueMessage {
     pub message: WebhookMessage,
 }
 
-#[cfg(feature = "webhook")]
-pub async fn queue(
-    message_batch: worker::MessageBatch<CloudflareQueueMessage>,
-    env: worker::Env,
-    _ctx: worker::Context,
-) -> worker::Result<()> {
-    let config = match get_config(&env) {
-        Ok(config) => config,
-        Err(e) => {
-            let response = match e {
-                envconfig::Error::EnvVarMissing { name } => format!("Missing env var: {}", name),
-                envconfig::Error::ParseError { name } => {
-                    format!("Env variable misformatted: {}", name)
-                }
-            };
+pub struct Server {
+    router: axum::Router,
+    config: Config,
+}
 
-            return Err(worker::Error::RustError(response));
+impl Server {
+    pub fn new(env: worker::Env, options: Options) -> Result<Self, axum::response::Response> {
+        let config = match get_config(&env) {
+            Ok(config) => config,
+            Err(e) => {
+                let response = match e {
+                    envconfig::Error::EnvVarMissing { name } => (
+                        StatusCode::BAD_REQUEST,
+                        format!("Missing env var: {}", name),
+                    ),
+                    envconfig::Error::ParseError { name } => (
+                        StatusCode::BAD_REQUEST,
+                        format!("Env variable misformatted: {}", name),
+                    ),
+                };
+
+                return Err(response.into_response());
+            }
+        };
+
+        Ok(Self {
+            router: router(Server::create_app_state(env, options, config.clone())),
+            config,
+        })
+    }
+
+    pub async fn handle_fetch(
+        mut self,
+        req: worker::HttpRequest,
+    ) -> worker::Result<axum::http::Response<axum::body::Body>> {
+        let response = self.router.call(req).await?;
+
+        Ok(response)
+    }
+
+    #[cfg(feature = "webhook")]
+    pub async fn handle_queue(
+        self,
+        message_batch: worker::MessageBatch<CloudflareQueueMessage>,
+    ) -> worker::Result<()> {
+        let mut mac = Hmac::<Sha256>::new_from_slice(self.config.webhook_secret_key.as_bytes())
+            .expect("HMAC can take key of any size");
+
+        #[cfg(feature = "multi-tenant")]
+        let messages = message_batch.messages()?.into_iter().fold(
+            HashMap::<String, Vec<WebhookMessage>>::new(),
+            |mut acc, message| {
+                let message = message.into_body();
+
+                acc.entry(message.tenant_id)
+                    .or_default()
+                    .push(message.message);
+
+                acc
+            },
+        );
+
+        #[cfg(not(feature = "multi-tenant"))]
+        let messages: Vec<WebhookMessage> = message_batch
+            .messages()?
+            .into_iter()
+            .map(|message| message.into_body().message)
+            .collect();
+
+        let message_string = serde_json::to_string(&messages).unwrap();
+
+        mac.update(message_string.as_bytes());
+
+        let result = mac.finalize().into_bytes();
+
+        let signature = hex::encode(result);
+
+        let client = reqwest::Client::new();
+
+        let future = worker::send::SendFuture::new(
+            client
+                .post(self.config.webhook_url)
+                .header("webhook-signature", signature)
+                .header("content-type", headers::ContentType::json().to_string())
+                .body(message_string)
+                .send(),
+        );
+
+        let response = match future.await {
+            Err(_e) => {
+                message_batch.retry_all();
+                return Ok(());
+            }
+            Ok(response) => response.error_for_status(),
+        };
+
+        match response {
+            Err(_e) => {
+                // TODO Figure out a good way to get the attemp number for these messages
+                // message_batch.retry_all_with_options(QueueRetryOptionsBuilder::new().with_delay_seconds(calculate_backoff(message_batch., random_seed)));
+                message_batch.retry_all();
+                return Ok(());
+            }
+            Ok(_response) => {
+                message_batch.ack_all();
+            }
         }
-    };
 
-    let mut mac = Hmac::<Sha256>::new_from_slice(config.webhook_secret_key.as_bytes())
-        .expect("HMAC can take key of any size");
+        Ok(())
+    }
 
-    #[cfg(feature = "multi-tenant")]
-    let messages = message_batch.messages()?.into_iter().fold(
-        HashMap::<String, Vec<WebhookMessage>>::new(),
-        |mut acc, message| {
-            let message = message.into_body();
+    pub fn router_mut(&mut self) -> &mut axum::Router {
+        &mut self.router
+    }
 
-            acc.entry(message.tenant_id)
-                .or_default()
-                .push(message.message);
-
-            acc
-        },
-    );
-
-    #[cfg(not(feature = "multi-tenant"))]
-    let messages: Vec<WebhookMessage> = message_batch
-        .messages()?
-        .into_iter()
-        .map(|message| message.into_body().message)
-        .collect();
-
-    let message_string = serde_json::to_string(&messages).unwrap();
-
-    mac.update(message_string.as_bytes());
-
-    let result = mac.finalize().into_bytes();
-
-    let signature = hex::encode(result);
-
-    let client = reqwest::Client::new();
-
-    let future = worker::send::SendFuture::new(
-        client
-            .post(config.webhook_url)
-            .header("webhook-signature", signature)
-            .header("content-type", headers::ContentType::json().to_string())
-            .body(message_string)
-            .send(),
-    );
-
-    let response = match future.await {
-        Err(_e) => {
-            message_batch.retry_all();
-            return Ok(());
-        }
-        Ok(response) => response.error_for_status(),
-    };
-
-    match response {
-        Err(_e) => {
-            // TODO Figure out a good way to get the attemp number for these messages
-            // message_batch.retry_all_with_options(QueueRetryOptionsBuilder::new().with_delay_seconds(calculate_backoff(message_batch., random_seed)));
-            message_batch.retry_all();
-            return Ok(());
-        }
-        Ok(_response) => {
-            message_batch.ack_all();
+    #[cfg(feature = "webhook")]
+    fn create_app_state(env: worker::Env, options: Options, config: Config) -> CloudflareAppState {
+        CloudflareAppState {
+            env,
+            queue_name: options.queue_name,
+            config,
         }
     }
 
-    Ok(())
+    #[cfg(not(feature = "webhook"))]
+    fn create_app_state(env: worker::Env, options: Options, config: Config) -> CloudflareAppState {
+        CloudflareAppState { env, config }
+    }
 }
