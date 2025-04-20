@@ -1,11 +1,14 @@
 <script lang="ts">
   import { selectedLibrary } from '$lib/library.svelte';
   import CursorExample from '$lib/components/cursor/index.svelte';
+	import LibrarySelectorTabs from '$lib/components/library-selector-tabs.svelte';
+
 </script>
 
-{#if selectedLibrary.current.value === 'js' || selectedLibrary.current.value === 'ts' }
+<LibrarySelectorTabs>
+{#snippet js()}
 
-```typescript
+```typescript copyButton
 import { createClient } from '@ember-link/core';
 
 const client = createClient({
@@ -33,11 +36,43 @@ channel.events.others.subscribe('leave', (user) => {
 });
 ```
 
-{/if}
+{/snippet}
 
-{#if selectedLibrary.current.value === 'react' }
+{#snippet ts()}
 
-```tsx
+```typescript copyButton
+import { createClient } from '@ember-link/core';
+
+const client = createClient({
+	baseUrl: 'http://localhost:9000'
+});
+
+const { channel } = client.joinChannel('test');
+
+/**
+ * Subscribe to every others presence updates.
+ * The callback will be called if
+ * someone else enters or leaves the channel
+ * or when someones presence is updated
+ */
+channel.events.others.subscribe('join', (user) => {
+	console.log('User join: ', user);
+});
+
+channel.events.others.subscribe('update', (user) => {
+	console.log('User update: ', user);
+});
+
+channel.events.others.subscribe('leave', (user) => {
+	console.log('User leave: ', user);
+});
+```
+
+{/snippet}
+
+{#snippet react()}
+
+```tsx copyButton
 import { ChannelProvider, EmberLinkProvider } from '@ember-link/react';
 
 function App() {
@@ -69,11 +104,13 @@ function Page() {
 }
 ```
 
-{/if}
+{/snippet}
 
-{#if selectedLibrary.current.value === 'svelte' }
+{#snippet svelte()}
 
-```svelte
+```svelte copyButton
+<!-- +layout.tsx -->
+
 <script lang="ts">
 	import '../app.css';
 	import { EmberLinkProvider, ChannelProvider } from '@ember-link/svelte';
@@ -88,7 +125,9 @@ function Page() {
 </EmberLinkProvider>
 ```
 
-```svelte
+```svelte copyButton
+<!-- +page.tsx -->
+
 <script lang="ts">
 	import { getChannelContext } from '@ember-link/svelte';
 
@@ -103,10 +142,6 @@ function Page() {
 </div>
 ```
 
-{/if}
+{/snippet}
 
-<!--
-<div class="flex items-center justify-center">
-  <CursorExample />
-  <CursorExample />
-</div> -->
+</LibrarySelectorTabs>

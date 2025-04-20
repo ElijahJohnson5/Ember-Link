@@ -4,7 +4,8 @@
 
 @layer base {
 	:root {
-		--background: 0 0% 100%;
+		--background: 0 0% 96%;
+		--shiki-background: #fff;
 		--foreground: 20 14.3% 4.1%;
 		--muted: 60 4.8% 95.9%;
 		--muted-foreground: 25 5.3% 44.7%;
@@ -36,6 +37,7 @@
 
 	.dark {
 		--background: 20 14.3% 4.1%;
+		--shiki-background: #24292e;
 		--foreground: 60 9.1% 97.8%;
 		--muted: 12 6.5% 15.1%;
 		--muted-foreground: 24 5.4% 63.9%;
@@ -109,9 +111,21 @@ pre:has(code) {
 div.code-container {
 	display: flex;
 
+	@apply items-center;
+
 	& pre.shiki {
 		@apply flex-grow;
 	}
+}
+
+div.library-selector-tabs .shiki {
+	@apply mt-0 rounded-tl-none;
+}
+
+div.library-selector-tabs div.code-container button.copy-button {
+	position: absolute;
+	top: 0;
+	right: 0;
 }
 
 div.code-container button.copy-button {
@@ -122,8 +136,6 @@ div.code-container button.copy-button {
 	position: relative;
 	padding: 6px;
 	border-radius: 4px;
-
-	@apply mt-9;
 
 	&:hover {
 		@apply bg-accent;
