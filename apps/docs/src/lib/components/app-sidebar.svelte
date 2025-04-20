@@ -5,6 +5,7 @@
 	import type { ComponentProps } from 'svelte';
 	import { type NavData } from '$lib/types';
 	import Button from '$lib/components/ui/button/button.svelte';
+	import { cn } from '$lib/utils';
 
 	type Props = ComponentProps<typeof Sidebar.Root> & {
 		data: NavData;
@@ -37,10 +38,25 @@
 	<Sidebar.Content>
 		{#each data.navMain as mainItem (mainItem.title)}
 			<Sidebar.Group>
-				<Sidebar.GroupLabel class="justify-start text-sm text-primary">
+				<Sidebar.GroupLabel
+					class={cn(
+						'justify-start text-sm text-primary',
+						page.url.pathname === mainItem.url
+							? 'bg-sidebar-accent text-sidebar-accent-foreground'
+							: ''
+					)}
+				>
 					{#snippet child({ props })}
 						{#if mainItem.url}
-							<Button variant="link" {...props} href={mainItem.url}>
+							<Button
+								variant="link"
+								{...props}
+								class={cn(
+									props.class as string,
+									'hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+								)}
+								href={mainItem.url}
+							>
 								{mainItem.title}
 							</Button>
 						{:else}
