@@ -1,8 +1,9 @@
 <script lang="ts">
   import { selectedLibrary } from '$lib/library.svelte';
+	import LibrarySelectorTabs from '$lib/components/library-selector-tabs.svelte';
 </script>
 
-# **Installation & Basic Usage**
+# **Getting Started**
 
 Ember Link makes adding real-time collaboration to your app effortless. This guide will help you set up Ember Link and start using its core features.
 
@@ -67,6 +68,17 @@ View all server configuration environment variables <a href="https://github.com/
 
 After installing, import and create a client instance with the host and port you are running the server on:
 
+{/if}
+
+{#if selectedLibrary.current.value === 'react' || selectedLibrary.current.value === 'svelte'}
+
+After installing, wrap your root component with an **EmberLinkProvider**
+
+{/if}
+
+<LibrarySelectorTabs>
+{#snippet js()}
+
 ```typescript copyButton
 import { createClient } from '@ember-link/core';
 
@@ -75,19 +87,20 @@ const client = createClient({
 });
 ```
 
-Once you have a client instance you can then connect to a **Channel**
+{/snippet}
+{#snippet ts()}
 
-```typescript copyBytton
-// Returns the channel and a function that should be called
-// once a user leaves the channel
-const { channel, leave } = client.joinChannel('test');
+```typescript copyButton
+import { createClient } from '@ember-link/core';
+
+const client = createClient({
+	baseUrl: 'http://localhost:9000'
+});
 ```
 
-{/if}
+{/snippet}
 
-{#if selectedLibrary.current.value === 'react'}
-
-After installing, wrap your root component with an **EmberLinkProvider**
+{#snippet react()}
 
 ```tsx copyButton
 import { ChannelProvider, EmberLinkProvider } from '@ember-link/react';
@@ -97,23 +110,9 @@ function App() {
 }
 ```
 
-Then where you plan on using Ember Link you can wrap that component with a **ChannelProvider** to connect to a **Channel**
+{/snippet}
 
-```tsx copyButton
-function Channel() {
-	return (
-		<ChannelProvider channelName="test" options={{}}>
-			<Page />
-		</ChannelProvider>
-	);
-}
-```
-
-{/if}
-
-{#if selectedLibrary.current.value === 'svelte'}
-
-After installing, wrap your root component with an **EmberLinkProvider**
+{#snippet svelte()}
 
 ```svelte copyButton
 <script lang="ts">
@@ -127,7 +126,56 @@ After installing, wrap your root component with an **EmberLinkProvider**
 </EmberLinkProvider>
 ```
 
+{/snippet}
+</LibrarySelectorTabs>
+
+{#if selectedLibrary.current.value === 'js' || selectedLibrary.current.value === 'ts'}
+
+Once you have a client instance you can then connect to a **Channel**
+
+{/if}
+
+{#if selectedLibrary.current.value === 'react' || selectedLibrary.current.value === 'svelte'}
+
 Then where you plan on using Ember Link you can wrap that component with a **ChannelProvider** to connect to a **Channel**
+
+{/if}
+
+<LibrarySelectorTabs>
+{#snippet js()}
+
+```typescript copyBytton
+// Returns the channel and a function that should be called
+// once a user leaves the channel
+const { channel, leave } = client.joinChannel('test');
+```
+
+{/snippet}
+{#snippet ts()}
+
+```typescript copyBytton
+// Returns the channel and a function that should be called
+// once a user leaves the channel
+const { channel, leave } = client.joinChannel('test');
+```
+
+{/snippet}
+
+{#snippet react()}
+
+```tsx copyButton
+function Channel() {
+	return (
+		<ChannelProvider channelName="test" options={{}}>
+			<Page />
+		</ChannelProvider>
+	);
+}
+```
+
+{/snippet}
+
+{#snippet svelte()}
 
 ```svelte copyButton
 <script lang="ts">
@@ -141,7 +189,8 @@ Then where you plan on using Ember Link you can wrap that component with a **Cha
 </ChannelProvider>
 ```
 
-{/if}
+{/snippet}
+</LibrarySelectorTabs>
 
 ## **Listening to User Presence**
 
@@ -301,6 +350,6 @@ export const Page = () => {
 
 ## **Next Steps**
 
-- Check out the [full API documentation](/api-reference)
+- Check out the [full API documentation for each package](/packages)
 - Check out examples on the [github repo](https://github.com/ElijahJohnson5/Ember-Link/tree/main/examples)
 - Join the Ember Link community on [Discord](https://discord.gg/YU2wGQtgE7) for support & updates

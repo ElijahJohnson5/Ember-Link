@@ -13,7 +13,7 @@
 	<p>
 		Ember Link makes it effortless to add real-time collaboration to your apps. Whether you're
 		building a document editor, whiteboard, or any interactive experience, Ember Link provides the
-		tools you need—with the flexibility to self-host for full control over privacy and
+		tools you needm with the flexibility to self-host for full control over privacy and
 		customization.
 	</p>
 
@@ -44,7 +44,7 @@
 	<Example />
 
 	<p>
-		Ember Link makes real-time collaboration powerful yet simple. <a href="/installation-usage">
+		Ember Link makes real-time collaboration powerful yet simple. <a href="/getting-started">
 			Get started today
 		</a>
 		and bring seamless teamwork to your app! 🚀

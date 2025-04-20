@@ -37,12 +37,12 @@
 	<Sidebar.Content>
 		{#each data.navMain as mainItem (mainItem.title)}
 			<Sidebar.Group>
-				<Sidebar.GroupLabel class="text-sm text-primary">
+				<Sidebar.GroupLabel class="justify-start text-sm text-primary">
 					{#snippet child({ props })}
 						{#if mainItem.url}
-							<Button variant="link" {...props} class="justify-start" href={mainItem.url}
-								>{mainItem.title}</Button
-							>
+							<Button variant="link" {...props} href={mainItem.url}>
+								{mainItem.title}
+							</Button>
 						{:else}
 							<div {...props}>
 								{mainItem.title}
@@ -53,7 +53,7 @@
 				<Sidebar.Menu>
 					<Sidebar.MenuItem>
 						{#if mainItem.items?.length}
-							<Sidebar.MenuSub>
+							<Sidebar.MenuSub class="mx-1">
 								{#each mainItem.items as item (item.title)}
 									<Sidebar.MenuSubItem>
 										<Sidebar.MenuSubButton isActive={page.url.pathname === item.url}>

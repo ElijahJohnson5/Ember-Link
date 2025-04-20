@@ -21,13 +21,10 @@
 		navMain: [
 			{
 				title: 'Getting Started',
+				url: '/getting-started',
 				items: [
 					{
-						title: 'Installation & Usage',
-						url: '/installation-usage'
-					},
-					{
-						title: 'Help & Support',
+						title: 'Support',
 						url: '/support'
 					}
 				]
@@ -50,20 +47,36 @@
 				]
 			},
 			{
-				title: 'API Reference',
-				url: '/api-reference',
+				title: 'Packages',
+				url: '/packages',
 				items: [
 					{
-						title: 'Client',
-						url: '/client'
+						title: '@ember-link/core',
+						url: '/packages/core'
 					},
 					{
-						title: 'Channel',
-						url: '/channel'
+						title: '@ember-link/react',
+						url: '/packages/react'
 					},
 					{
-						title: 'Global Types',
-						url: '/global-types'
+						title: '@ember-link/svelte',
+						url: '/packages/svelte'
+					},
+					{
+						title: '@ember-link/storage',
+						url: '/packages/storage'
+					},
+					{
+						title: '@ember-link/yjs-storage',
+						url: '/packages/yjs-storage'
+					},
+					{
+						title: '@ember-link/yjs-provider',
+						url: '/packages/yjs-provider'
+					},
+					{
+						title: '@ember-link/protocol',
+						url: '/packages/protocol'
 					}
 				]
 			}
@@ -74,7 +87,7 @@
 		let items: Array<{ title: string; url?: string }> = [];
 
 		navData.navMain.forEach((mainItem) => {
-			const currentItem = mainItem.items.find((item) => {
+			const currentItem = (mainItem.items ?? []).find((item) => {
 				return item.url === page.url.pathname;
 			});
 
@@ -115,7 +128,7 @@
 
 <Sidebar.Provider>
 	<AppSidebar data={navData} />
-	<Sidebar.Inset class="w-[calc(100%-14rem)]">
+	<Sidebar.Inset class="w-[calc(100%-16rem)]">
 		<header
 			class="sticky top-0 z-10 flex h-16 shrink-0 items-center gap-2 border-b bg-background px-4"
 		>

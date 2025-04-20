@@ -1,7 +1,7 @@
 <script lang="ts">
-	import Svelte from './svelte.md';
+	import GettingStarted from './getting-started.md';
 </script>
 
 <div class="prose mx-auto w-full max-w-4xl p-6 dark:prose-invert">
-	<Svelte />
+	<GettingStarted />
 </div>

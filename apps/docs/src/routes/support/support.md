@@ -15,8 +15,7 @@ If you'd like a fix sooner, feel free to contribute to the project—PRs are alw
 
 ## **Documentation & Resources**
 
-- **Getting Started Guide** – Follow our [installation guide](/installation-usage) to set up Ember Link quickly.
-- **API Reference** – Explore the full API documentation [here](/api-reference).
+- **Getting Started Guide** – Follow our [installation guide](/getting-started) to set up Ember Link quickly.
 - **Tutorials & Examples** – Learn how to implement key features with examples that can be found [here](https://github.com/ElijahJohnson5/Ember-Link/tree/main/examples).
 
 🚀 **Stay Connected** – Follow us for updates, new features, and community events!

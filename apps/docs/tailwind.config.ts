@@ -21,6 +21,7 @@ const config: Config = {
 				input: 'hsl(var(--input) / <alpha-value>)',
 				ring: 'hsl(var(--ring) / <alpha-value>)',
 				background: 'hsl(var(--background) / <alpha-value>)',
+				'shiki-background': 'var(--shiki-background)',
 				foreground: 'hsl(var(--foreground) / <alpha-value>)',
 				primary: {
 					DEFAULT: 'hsl(var(--primary) / <alpha-value>)',
@@ -88,7 +89,16 @@ const config: Config = {
 				'accordion-down': 'accordion-down 0.2s ease-out',
 				'accordion-up': 'accordion-up 0.2s ease-out',
 				'caret-blink': 'caret-blink 1.25s ease-out infinite'
-			}
+			},
+			typography: {
+        DEFAULT: {
+          css: {
+            blockquote: {
+              quotes: "none",
+            },
+          },
+        },
+      },
 		}
 	},
 	plugins: [tailwindcssAnimate, tailwindTypography]
