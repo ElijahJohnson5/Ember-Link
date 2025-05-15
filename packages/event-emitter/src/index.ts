@@ -2,7 +2,8 @@
 /* eslint-disable @typescript-eslint/no-unsafe-function-type */
 
 import { EventEmitter } from 'tseep/lib/ee-safe';
-import type { Listener } from 'tseep';
+
+type Listener = (...args: any[]) => Promise<any> | void;
 
 export type Observable<T extends { [event in string | symbol]: Listener }> = {
   subscribe<Key extends keyof T>(event: Key, callback: T[Key]): () => void;
