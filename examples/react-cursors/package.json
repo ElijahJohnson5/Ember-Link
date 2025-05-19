@@ -9,8 +9,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@ember-link/core": "^0.0.14",
-    "@ember-link/react": "^0.0.7",
+    "@ember-link/core": "^0.0.15",
+    "@ember-link/react": "^0.0.8",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },

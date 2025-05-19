@@ -1,5 +1,11 @@
 # @ember-link/core
 
+## 0.0.15
+
+### Patch Changes
+
+- 8405a73: Create websocket instance type so that polyfills can be provided
+
 ## 0.0.14
 
 ### Patch Changes
