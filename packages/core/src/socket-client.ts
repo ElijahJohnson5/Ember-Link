@@ -14,7 +14,7 @@ import { createBufferedEventEmitter, Observable } from '@ember-link/event-emitte
 import { ClientMessage, WebSocketCloseCode } from '@ember-link/protocol';
 import { DefaultCustomMessageData, DefaultPresence } from '.';
 import { AuthFailedError, AuthValue } from './auth';
-import { WebSocketNotFoundError } from './client';
+import { IWebSocketInstance, WebSocketNotFoundError } from './types';
 
 const calcBackoff = (attempt: number, randSeed: number, maxVal = 30000): number => {
   if (attempt === 0) {
@@ -67,7 +67,7 @@ export type Status =
   | 'disconnected';
 
 interface Context {
-  ws?: WebSocket;
+  ws?: IWebSocketInstance;
   reconnectAttempt: number;
   authAttempt: number;
   successCount: number;
@@ -95,7 +95,7 @@ type Events =
   | { type: 'destroy' }
   | { type: 'close'; value: CloseEvent }
   | { type: 'error'; value: Event | Error }
-  | { type: 'webSocketCreated'; value: WebSocket }
+  | { type: 'webSocketCreated'; value: IWebSocketInstance }
   | { type: 'message'; value: string | ArrayBufferLike | Blob | ArrayBufferView };
 
 function createWebSocketStateMachine({ authenticate, createWebSocket }: SocketOptions) {
@@ -128,7 +128,7 @@ function createWebSocketStateMachine({ authenticate, createWebSocket }: SocketOp
       }),
       websocketCallback: fromCallback<EventObject, WebSocketCallbackInput>(
         ({ sendBack, input }) => {
-          let websocket: WebSocket;
+          let websocket: IWebSocketInstance;
 
           try {
             websocket = input.createWebSocket(input.authValue);
@@ -137,7 +137,6 @@ function createWebSocketStateMachine({ authenticate, createWebSocket }: SocketOp
             return () => {};
           }
 
-          websocket.binaryType = 'arraybuffer';
           sendBack({ type: 'webSocketCreated', value: websocket });
 
           const openHandler = () => {
@@ -501,5 +500,5 @@ function createWebSocketStateMachine({ authenticate, createWebSocket }: SocketOp
 
 export interface SocketOptions {
   authenticate: () => Promise<AuthValue>;
-  createWebSocket: (authValue: AuthValue) => WebSocket;
+  createWebSocket: (authValue: AuthValue) => IWebSocketInstance;
 }

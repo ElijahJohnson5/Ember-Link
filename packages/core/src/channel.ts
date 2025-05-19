@@ -15,6 +15,7 @@ import { ManagedOthers, OtherEvents } from './others';
 import { IStorage, IStorageProvider, MessageEvents } from '@ember-link/storage';
 import { DefaultCustomMessageData, DefaultPresence, type User } from './index';
 import { AuthValue } from './auth';
+import { IWebSocketInstance } from './types';
 
 export interface ChannelConfig<
   S extends IStorageProvider,
@@ -23,7 +24,7 @@ export interface ChannelConfig<
   channelName: string;
   baseUrl: string;
   authenticate: () => Promise<AuthValue>;
-  createWebSocket: (authValue: AuthValue) => WebSocket;
+  createWebSocket: (authValue: AuthValue) => IWebSocketInstance;
   options?: {
     initialPresence?: P;
 

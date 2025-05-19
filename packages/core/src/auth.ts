@@ -143,15 +143,7 @@ export function createAuth(options: AuthOptions) {
         throw new Error('Expected json to be a plain object with a string token');
       }
 
-      // TODO: refactor to not unsecured jwts
-      const publicKey = await jose.importSPKI(auth.jwtSignerPublicKey, 'RS256');
-      const parsed = await jose.jwtVerify<AccessToken>(data.token, publicKey);
-      const authToken: AuthToken = {
-        raw: data.token,
-        parsed,
-        type: 'AuthToken',
-        tenantId: multiTenant?.tenantId
-      };
+      const authToken = await parseAuthToken(data.token, auth.jwtSignerPublicKey);
       options.onAuthenticated?.({ type: 'private', token: authToken });
       return authToken;
     } else if (auth.type === 'callback') {
@@ -183,14 +175,11 @@ export function createAuth(options: AuthOptions) {
         }
       }
 
-      const publicKey = await jose.importSPKI(auth.jwtSignerPublicKey, 'RS256');
-      const parsed = await jose.jwtVerify<AccessToken>(response.token, publicKey);
-      const authToken: AuthToken = {
-        raw: response.token,
-        parsed,
-        type: 'AuthToken',
-        tenantId: multiTenant?.tenantId
-      };
+      const authToken = await parseAuthToken(
+        auth.jwtSignerPublicKey,
+        response.token,
+        multiTenant?.tenantId
+      );
       options.onAuthenticated?.({ type: 'private', token: authToken });
       return authToken;
     } else {
@@ -242,6 +231,23 @@ export function createAuth(options: AuthOptions) {
   return {
     getAuthValue
   };
+}
+
+async function parseAuthToken(
+  jwtSignerPublicKey: string,
+  token: string,
+  tenantId?: string
+): Promise<AuthToken> {
+  const publicKey = await jose.importSPKI(jwtSignerPublicKey, 'RS256');
+  const parsed = await jose.jwtVerify<AccessToken>(token, publicKey);
+  const authToken: AuthToken = {
+    raw: token,
+    parsed,
+    type: 'AuthToken',
+    tenantId: tenantId
+  };
+
+  return authToken;
 }
 
 export function isPOJO(data: unknown): data is { [key: string]: unknown } {
