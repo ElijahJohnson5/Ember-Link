@@ -4,6 +4,7 @@ import { IStorageProvider } from '@ember-link/storage';
 import { Channel, ChannelConfig, createChannel } from './channel';
 import { DefaultCustomMessageData, DefaultPresence } from './index';
 import { AuthEndpoint, createAuth } from './auth';
+import { IWebSocket, WebSocketNotFoundError } from './types';
 
 /*
 
@@ -21,17 +22,14 @@ let unsub = channel.events.subscribe("presence", (presenceData) => {
 
 */
 
-export class WebSocketNotFoundError extends Error {
-  constructor(reason: string) {
-    super(reason);
-  }
-}
-
 export interface CreateClientOptions {
   baseUrl: string;
   authEndpoint?: AuthEndpoint;
   multiTenant?: {
     tenantId: string;
+  };
+  polyfills?: {
+    websocket?: IWebSocket;
   };
   jwtSignerPublicKey?: string;
 }
@@ -54,7 +52,13 @@ export interface EmberClient<
 export function createClient<
   P extends Record<string, unknown> = DefaultPresence,
   C extends Record<string, unknown> = DefaultCustomMessageData
->({ baseUrl, authEndpoint, jwtSignerPublicKey, multiTenant }: CreateClientOptions): EmberClient {
+>({
+  baseUrl,
+  authEndpoint,
+  jwtSignerPublicKey,
+  multiTenant,
+  polyfills
+}: CreateClientOptions): EmberClient {
   const channels = new Map<string, { channel: Channel<P, C>; unsubs: Set<() => void> }>();
   const auth = createAuth({
     authEndpoint,
@@ -100,7 +104,11 @@ export function createClient<
         return auth.getAuthValue(channelName);
       },
       createWebSocket: (authValue) => {
-        const ws = typeof WebSocket === 'undefined' ? undefined : WebSocket;
+        const ws = polyfills?.websocket
+          ? polyfills?.websocket
+          : typeof WebSocket === 'undefined'
+            ? undefined
+            : WebSocket;
 
         if (!ws) {
           throw new WebSocketNotFoundError(
