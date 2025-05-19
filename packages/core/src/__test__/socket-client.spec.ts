@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { AuthFailedError, AuthValue } from '~/auth';
 import { ManagedSocket, SocketOptions } from '~/socket-client';
-import { WebSocketNotFoundError } from '~/client';
+import { WebSocketNotFoundError } from '~/types';
 import WS from 'vitest-websocket-mock';
 import { WebSocketCloseCode } from '@ember-link/protocol';
 
