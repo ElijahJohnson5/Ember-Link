@@ -19,3 +19,9 @@ yarn-error.log
 
 .devcontainer/data.ms/
 .devcontainer/typesense-data/
+
+.yarn/unplugged
+.yarn/build-state.yml
+
+.yarn/cache/next-*.*
+.yarn/cache/@next-swc-*.*

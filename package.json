@@ -10,11 +10,13 @@
     "version": "yarn changeset version && YARN_ENABLE_IMMUTABLE_INSTALLS=false yarn install",
     "build": "moon run :build --query 'projectSource~packages/*'"
   },
-  "workspaces": [
-    "apps/*",
-    "packages/*",
-    "examples/*"
-  ],
+  "workspaces": {
+    "packages": [
+      "apps/*",
+      "packages/*",
+      "examples/*"
+    ]
+  },
   "devDependencies": {
     "@changesets/cli": "^2.28.1",
     "@eslint/js": "^9.17.0",
@@ -29,5 +31,8 @@
   },
   "engines": {
     "node": "22.12.0"
+  },
+  "resolutions": {
+    "@rushstack/node-core-library@npm:5.13.0": "patch:@rushstack/node-core-library@npm%3A5.13.0#~/.yarn/patches/@rushstack-node-core-library-npm-5.13.0-524f26757e.patch"
   }
 }
