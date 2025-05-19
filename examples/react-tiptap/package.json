@@ -9,9 +9,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@ember-link/core": "^0.0.14",
-    "@ember-link/react": "^0.0.7",
-    "@ember-link/yjs-provider": "^0.0.7",
+    "@ember-link/core": "^0.0.15",
+    "@ember-link/react": "^0.0.8",
+    "@ember-link/yjs-provider": "^0.0.8",
     "@tiptap/core": "^2.11.7",
     "@tiptap/extension-collaboration": "^2.11.7",
     "@tiptap/extension-collaboration-cursor": "^2.11.7",

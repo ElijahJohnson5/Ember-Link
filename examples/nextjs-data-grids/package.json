@@ -8,9 +8,9 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@ember-link/core": "^0.0.14",
+    "@ember-link/core": "^0.0.15",
     "@ember-link/protocol": "workspace:^",
-    "@ember-link/react": "^0.0.7",
+    "@ember-link/react": "^0.0.8",
     "@ember-link/yjs-storage": "^0.0.11",
     "@glideapps/glide-data-grid": "^6.0.3",
     "lodash": "^4.17.21",
