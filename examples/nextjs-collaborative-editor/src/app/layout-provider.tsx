@@ -8,7 +8,7 @@ export function LayoutProvider({ children }: { children: React.ReactNode }) {
   const provider = useMemo(() => createYJSStorageProvider(), []);
 
   return (
-    <EmberLinkProvider baseUrl="https://ember-link-sandbox.onrender.com">
+    <EmberLinkProvider baseUrl="http://localhost:8787">
       <ChannelProvider
         channelName="notion-clone"
         options={{

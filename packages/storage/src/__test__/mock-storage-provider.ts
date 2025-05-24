@@ -5,7 +5,9 @@ import {
   ArrayStorage,
   MapStorage,
   StorageEvent,
-  StorageEvents
+  StorageEvents,
+  IStorageProvider,
+  StorageType
 } from '../index';
 
 const createMockArrayStorage = <T>() => {
@@ -177,5 +179,5 @@ export const mockStorageProvider = {
       }
     };
   },
-  type: 'yjs' as const
-};
+  type: StorageType.Yjs
+} satisfies IStorageProvider;

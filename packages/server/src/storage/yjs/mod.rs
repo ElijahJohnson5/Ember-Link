@@ -61,7 +61,7 @@ impl Storage for YjsStorage {
             "SyncStep1" => {
                 let txn = self.doc.transact();
 
-                let sv = match StateVector::decode_v1(&message.data) {
+                let sv = match StateVector::decode_v1(&message.update) {
                     Err(e) => return Err(StorageError::Sync(Box::new(e))),
                     Ok(sv) => sv,
                 };
@@ -72,11 +72,11 @@ impl Storage for YjsStorage {
 
                 return Ok(Some(vec![
                     StorageSyncMessage {
-                        data: update,
+                        update: update,
                         sync_type: "SyncStep2".to_string(),
                     },
                     StorageSyncMessage {
-                        data: step_1_update,
+                        update: step_1_update,
                         sync_type: "SyncStep1".to_string(),
                     },
                 ]));
@@ -84,7 +84,7 @@ impl Storage for YjsStorage {
             "SyncStep2" => {
                 let mut txn = self.doc.transact_mut();
 
-                let update = match Update::decode_v1(&message.data) {
+                let update = match Update::decode_v1(&message.update) {
                     Err(e) => return Err(StorageError::Sync(Box::new(e))),
                     Ok(sv) => sv,
                 };
@@ -95,7 +95,7 @@ impl Storage for YjsStorage {
                 }
 
                 return Ok(Some(vec![StorageSyncMessage {
-                    data: vec![],
+                    update: vec![],
                     sync_type: "SyncDone".to_string(),
                 }]));
             }

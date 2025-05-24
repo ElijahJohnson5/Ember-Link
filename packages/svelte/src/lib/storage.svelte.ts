@@ -39,6 +39,10 @@ export class SvelteArrayStorage<T> implements ArrayStorage<T> {
 		return this.inner.delete(index, length);
 	}
 
+	replace(index: number, value: T) {
+		this.inner.replace(index, value);
+	}
+
 	forEach(callback: (value: T, index: number, array: ArrayStorage<T>) => void) {
 		return this.inner.forEach((value, index) => {
 			callback(value, index, this);

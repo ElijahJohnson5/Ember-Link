@@ -29,8 +29,9 @@
     "@ember-link/event-emitter": "workspace:^",
     "@ember-link/protocol": "workspace:^",
     "@ember-link/storage": "workspace:^",
+    "alien-deepsignals": "^0.1.0",
+    "alien-signals": "^2.0.5",
     "jose": "^5.9.6",
-    "oby": "^15.1.2",
     "xstate": "^5.19.0"
   },
   "devDependencies": {

@@ -93,7 +93,7 @@ impl ChannelRegistry {
         let channel = match channels.entry(unique_name.clone()) {
             Entry::Occupied(entry) => match entry.get().upgrade() {
                 Some(channel) => {
-                    tracing::info!("Found existing channel");
+                    tracing::debug!("Found existing channel");
                     channel
                 }
                 None => {

@@ -5,7 +5,8 @@ import {
   ArrayStorage,
   MapStorage,
   StorageEvents,
-  StorageEvent
+  StorageEvent,
+  StorageType
 } from '@ember-link/storage';
 
 import * as Y from 'yjs';
@@ -153,18 +154,19 @@ export function createYJSStorageProvider(): IStorageProvider {
         const data = Y.encodeStateVector(doc);
 
         sender.message({
-          data: Array.from(data),
+          update: data.buffer as ArrayBuffer,
           syncType: 'SyncStep1'
         });
 
         events.subscribe('message', (event) => {
           if (event.syncType === 'SyncStep1') {
             sender.message({
-              data: Array.from(Y.encodeStateAsUpdate(doc, Uint8Array.from(event.data))),
+              update: Y.encodeStateAsUpdate(doc, new Uint8Array(event.update))
+                .buffer as ArrayBuffer,
               syncType: 'SyncStep2'
             });
           } else if (event.syncType === 'SyncStep2') {
-            Y.applyUpdate(doc, Uint8Array.from(event.data));
+            Y.applyUpdate(doc, new Uint8Array(event.update));
           } else if (event.syncType === 'SyncDone') {
             resolve(true);
           }
@@ -172,6 +174,6 @@ export function createYJSStorageProvider(): IStorageProvider {
       });
     },
     getStorage: () => storage,
-    type: 'yjs'
+    type: StorageType.Yjs
   };
 }

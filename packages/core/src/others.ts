@@ -1,10 +1,8 @@
-import { ObservableReadonly } from 'oby';
 import { MetaClientState, outdatedTimeout } from './presence';
-import { ReactiveMap } from './reactive-map';
-import $ from 'oby';
 import { Emitter } from '@ember-link/event-emitter';
 import { DefaultPresence } from './index';
 import { User } from './user';
+import { DeepSignal, deepSignal, Shallow, shallow } from 'alien-deepsignals';
 
 export type OtherEvents<P extends Record<string, unknown> = DefaultPresence> = {
   leave: (user: User<P>) => void;
@@ -18,31 +16,27 @@ export class ManagedOthers<P extends Record<string, unknown> = DefaultPresence> 
   // TODO handle cleaning up the interval
   private checkInterval: ReturnType<typeof setInterval>;
 
-  readonly states: ReactiveMap<string, P>;
-  readonly meta: ReactiveMap<string, MetaClientState>;
+  readonly states: Map<string, number>;
+  readonly meta: Map<string, MetaClientState>;
 
-  public readonly signal: ObservableReadonly<User<P>[]>;
+  public readonly signal: DeepSignal<Shallow<User<P>>[]>;
 
   constructor(emitter: Emitter<OtherEvents>) {
-    this.states = new ReactiveMap();
-    this.meta = new ReactiveMap();
+    this.states = new Map();
+    this.meta = new Map();
 
     this.emitter = emitter;
-    this.signal = $.memo(() => {
-      return Array.from(this.states.entries()).map(([clientId, state]) => {
-        return { ...state, clientId: clientId };
-      });
-    });
+    this.signal = deepSignal<Shallow<User<P>>[]>([]);
 
     this.checkInterval = setInterval(() => {
       const now = new Date().getTime();
 
       this.meta.forEach((meta, clientId) => {
         if (outdatedTimeout / 2 <= now - meta.lastUpdated && this.states.has(clientId)) {
-          const state = this.states.get(clientId);
+          const state = this.states.get(clientId)!;
 
           this.states.delete(clientId);
-          this.emitter.emit('leave', { ...state, clientId: clientId });
+          this.emitter.emit('leave', { ...this.signal[state], clientId: clientId });
         }
       });
     }, outdatedTimeout / 10);
@@ -56,8 +50,17 @@ export class ManagedOthers<P extends Record<string, unknown> = DefaultPresence> 
     if (currClock < clock || (currClock === clock && !state && prevState)) {
       if (!state) {
         this.states.delete(clientId);
+        if (prevState) {
+          this.signal.splice(prevState, 1);
+        }
       } else {
-        this.states.set(clientId, state);
+        if (prevState) {
+          // @ts-ignore
+          this.signal[prevState] = shallow({ ...state, clientId });
+        } else {
+          const length = this.signal.push(shallow({ ...state, clientId }));
+          this.states.set(clientId, length - 1);
+        }
       }
 
       this.meta.set(clientId, {

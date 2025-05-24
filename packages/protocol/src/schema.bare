@@ -1,0 +1,59 @@
+type ServerPresenceMessage struct {
+    id: str
+    clock: i32
+    presence: optional<str>
+}
+
+type ClientPresenceMessage struct {
+    clock: i32
+    presence: str
+}
+
+type InitialPresenceMessage struct {
+    presences: list<ServerPresenceMessage>
+}
+
+type AssignIdMessage struct {
+    id: str
+}
+
+type StorageUpdateMessage struct {
+    update: data
+}
+
+type ProviderUpdateMessage StorageUpdateMessage
+
+type StorageSyncMessage struct {
+    syncType: str
+    update: data
+}
+
+type ProviderSyncMessage StorageSyncMessage
+
+type CustomMessage struct {
+    message: str
+}
+
+type ServerMessage union {
+    | ServerPresenceMessage
+    | InitialPresenceMessage
+    | AssignIdMessage
+    | StorageUpdateMessage
+    | StorageSyncMessage
+    | ProviderSyncMessage
+    | ProviderUpdateMessage
+    | CustomMessage
+}
+
+type ClientMessage union {
+    | ClientPresenceMessage
+    | StorageUpdateMessage
+    | StorageSyncMessage
+    | ProviderSyncMessage
+    | ProviderUpdateMessage
+    | CustomMessage
+}
+
+type StorageType enum {
+    YJS
+}

@@ -27,12 +27,11 @@ use futures_util::SinkExt;
 use futures_util::StreamExt;
 use participant::actor::ParticipantMessage;
 use participant::start_participant;
-use protocol::client::ClientMessage;
-use protocol::server::{AssignIdMessage, ServerMessage};
+use protocol::ClientMessage;
+use protocol::{AssignIdMessage, ServerMessage};
 use protocol::StorageType;
 use protocol::WebSocketCloseCode;
 use ractor::ActorRef;
-use serde_json::Value;
 use std::error::Error as StdError;
 use tokio::signal;
 use tower_http::trace::{DefaultMakeSpan, TraceLayer};
@@ -154,7 +153,7 @@ impl Server {
         let listener = tokio::net::TcpListener::bind(tcp_listener_addr)
             .await
             .unwrap();
-        tracing::debug!("listening on {}", listener.local_addr().unwrap());
+        tracing::info!("listening on {}", listener.local_addr().unwrap());
 
         let router = self.router.with_state(self.app_state.clone());
 
@@ -291,10 +290,9 @@ async fn handle_socket(
         token_payload.replace(payload);
     }
 
-    tracing::info!(
-        "New WebSocket connection: {}, query params: {:?}",
+    tracing::debug!(
+        "New WebSocket connection: {}",
         who,
-        query_params,
     );
 
     let channel_name = query_params["channel_name"].to_string();
@@ -339,17 +337,30 @@ async fn handle_socket(
 
     let participant_id = uuid::Uuid::new_v4();
 
-    write
+    match write
         .send(ws::Message::text(
-            serde_json::to_string(&ServerMessage::AssignId::<Value, Value>(AssignIdMessage {
+            serde_json::to_string(&ServerMessage::AssignIdMessage(AssignIdMessage {
                 id: participant_id.to_string(),
             }))
             .unwrap(),
         ))
         .await
-        .unwrap();
+         {
+            Ok(_) => {}
+            Err(e) => {
+                tracing::warn!("Error sending assign id: {}", e);
+                return;
+            }
+        }
+         
 
-    write.send(ws::Message::Ping("".into())).await.unwrap();
+    match write.send(ws::Message::Ping("".into())).await {
+        Ok(_) => {}
+        Err(e) => {
+            tracing::warn!("Error sending ping: {}", e);
+            return;
+        }
+    }
 
     let weak_channel = channel.downgrade();
 
@@ -394,7 +405,7 @@ async fn handle_socket(
         .await
         .expect("Could not await participant join handle");
 
-    tracing::info!("Disconnected");
+    tracing::debug!("Disconnected");
 }
 
 async fn handle_message(
@@ -436,7 +447,25 @@ async fn handle_message(
                 };
             }
         }
-        ws::Message::Binary(_data) => {}
+        ws::Message::Binary(data) => {
+            let message: ClientMessage = match serde_bare::from_slice(&data) {
+                Ok(message) => message,
+                Err(e) => {
+                    tracing::error!("Could not parse message: {}", e);
+                    return Err("Could not parse binary message".into());
+                }
+            };
+
+            match handle_client_message(participant, message) {
+                Err(e) => {
+                    tracing::error!(
+                        error = e.to_string(),
+                        "Could not send message to participant"
+                    )
+                }
+                Ok(()) => {}
+            };
+        }
         _ => {}
     }
 
@@ -445,27 +474,26 @@ async fn handle_message(
 
 fn handle_client_message(
     participant: &ActorRef<ParticipantMessage>,
-    msg: ClientMessage<Value, Value>,
+    msg: ClientMessage,
 ) -> Result<(), ractor::MessagingErr<ParticipantMessage>> {
     match msg {
-        ClientMessage::Presence(msg) => {
-            // TODO broadcast to the channel and store in the channel
+        ClientMessage::ClientPresenceMessage(msg) => {
             participant.cast(ParticipantMessage::MyPresence { data: msg })
         }
-        ClientMessage::StorageUpdate(msg) => {
+        ClientMessage::StorageUpdateMessage(msg) => {
             participant.cast(ParticipantMessage::StorageUpdate { data: msg })
         }
-        ClientMessage::StorageSync(msg) => {
+        ClientMessage::StorageSyncMessage(msg) => {
             participant.cast(ParticipantMessage::StorageSync { data: msg })
         }
-        ClientMessage::ProviderSync(msg) => {
+        ClientMessage::ProviderSyncMessage(msg) => {
             participant.cast(ParticipantMessage::ProviderSync { data: msg })
         }
-        ClientMessage::ProviderUpdate(msg) => {
+        ClientMessage::ProviderUpdateMessage(msg) => {
             participant.cast(ParticipantMessage::ProviderUpdate { data: msg })
         }
-        ClientMessage::Custom(msg) => participant.cast(ParticipantMessage::ServerMessage {
-            data: ServerMessage::Custom(msg),
+        ClientMessage::CustomMessage(msg) => participant.cast(ParticipantMessage::ServerMessage {
+            data: serde_json::to_string(&ServerMessage::CustomMessage(msg)).unwrap(),
         }),
     }
 }

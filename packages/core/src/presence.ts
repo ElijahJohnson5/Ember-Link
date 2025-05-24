@@ -1,5 +1,5 @@
 import { ClientMessage } from '@ember-link/protocol';
-import $, { type Observable as Signal } from 'oby';
+import { effect, signal } from 'alien-signals';
 import { DefaultPresence } from '.';
 
 export const outdatedTimeout = 30000;
@@ -14,22 +14,20 @@ export interface MetaClientState {
 }
 
 export class ManagedPresence<P extends Record<string, unknown> = DefaultPresence> {
-  public state: Signal<P>;
+  public state: { (): P; (value: P): void };
 
   private meta: MetaClientState;
   // TODO cleanup interval when destroyed or something like that
   private checkInterval: ReturnType<typeof setInterval>;
 
   constructor(initialPresence?: P) {
-    this.state = $<P>(initialPresence ?? ({} as P), {
-      equals: () => false
-    });
+    this.state = signal<P>(initialPresence ?? ({} as P));
     this.meta = {
       clock: 0,
       lastUpdated: new Date().getTime()
     };
 
-    $.effect(() => {
+    effect(() => {
       this.state();
 
       this.meta.clock++;
@@ -40,18 +38,18 @@ export class ManagedPresence<P extends Record<string, unknown> = DefaultPresence
       const now = new Date().getTime();
 
       if (this.state && outdatedTimeout / 2 >= now - this.meta.lastUpdated) {
-        this.state((oldState) => {
-          return { ...oldState };
-        });
+        this.state({ ...this.state() });
       }
     }, outdatedTimeout / 10);
   }
 
-  getPresenceMessage(): Extract<ClientMessage<P, Record<string, unknown>>, { type: 'presence' }> {
+  getPresenceMessage(): Extract<ClientMessage, { tag: 'ClientPresenceMessage' }> {
     return {
-      clock: this.meta.clock,
-      data: this.state(),
-      type: 'presence'
+      val: {
+        clock: this.meta.clock,
+        presence: JSON.stringify(this.state())
+      },
+      tag: 'ClientPresenceMessage'
     };
   }
 

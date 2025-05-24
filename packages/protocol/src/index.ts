@@ -1,7 +1,10 @@
+export * from './generated';
 export * from './bindings';
 
 export enum WebSocketCloseCode {
-  TokenNotFound = 3000,
-  InvalidToken = 3001,
-  InvalidSignerKey = 3002
+  TokenNotFound = 4000,
+  InvalidToken = 4001,
+  InvalidSignerKey = 4002,
+  ChannelCreationFailed = 4003,
+  MissingTenantId = 4004
 }

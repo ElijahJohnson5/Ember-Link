@@ -1,4 +1,6 @@
-**/bindings/**/*
+src/generated.ts
+src/generated.rs
+src/bindings
 
 tsconfig.tsbuildinfo
 

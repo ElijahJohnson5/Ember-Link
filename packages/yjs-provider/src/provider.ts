@@ -31,13 +31,13 @@ export class EmberLinkYjsProvider extends ObservableV2<{
       doc,
       syncYDoc: (data: Uint8Array, syncType: string) => {
         channel.syncYDoc({
-          data: Array.from(data),
+          update: data.buffer as ArrayBuffer,
           syncType: syncType
         });
       },
       updateYDoc: (data: Uint8Array) => {
         channel.updateYDoc({
-          update: Array.from(data)
+          update: data.buffer as ArrayBuffer
         });
       }
     });
@@ -55,7 +55,7 @@ export class EmberLinkYjsProvider extends ObservableV2<{
     this.unsubscribers.push(
       this.channel.events.yjsProvider.subscribe('syncMessage', (message) => {
         this.docHandler.handleServerUpdate({
-          update: Uint8Array.from(message.data),
+          update: new Uint8Array(message.update),
           syncType: message.syncType
         });
       })
@@ -64,7 +64,7 @@ export class EmberLinkYjsProvider extends ObservableV2<{
     this.unsubscribers.push(
       this.channel.events.yjsProvider.subscribe('updateMessage', (message) => {
         this.docHandler.handleServerUpdate({
-          update: Uint8Array.from(message.update)
+          update: new Uint8Array(message.update)
         });
       })
     );

@@ -1,4 +1,4 @@
-use tracing_subscriber::FmtSubscriber;
+use tracing_subscriber::{FmtSubscriber};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

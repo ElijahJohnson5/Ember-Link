@@ -1,0 +1,27 @@
+diff --git a/dist/bin/bare.js b/dist/bin/bare.js
+index d16981f91dea173fdf4a7eadddeb5a27ac5c00b4..5a5029f26852d0fd314dfae3debf0ac8703e565f 100644
+--- a/dist/bin/bare.js
++++ b/dist/bin/bare.js
+@@ -80,7 +80,7 @@ function main() {
+         }
+         else {
+             if (positionals.length > 1 && positionals[0] === "compile") {
+-                positionals.pop();
++                positionals.splice(0, 1);
+             }
+             if (positionals.length > 1) {
+                 console.error("only one argument is expected");
+@@ -97,11 +97,11 @@ function main() {
+                 console.error("Invalid <generator> value");
+                 process.exit(1);
+             }
+-            compileAction(out, {
++            compileAction(schema, {
+                 generator,
+                 legacy: values.legacy,
+                 lib: values.lib,
+-                out: values.out,
++                out,
+                 pedantic: values.pedantic,
+                 schema,
+                 useClass: values["use-class"],

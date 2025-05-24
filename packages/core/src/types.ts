@@ -13,6 +13,8 @@ export interface IWebSocketInstance {
 
   readonly readyState: number;
 
+  binaryType: 'blob' | 'arraybuffer';
+
   addEventListener(type: "close", listener: (this: IWebSocketInstance, ev: CloseEvent) => unknown): void; // prettier-ignore
   addEventListener(type: "message", listener: (this: IWebSocketInstance, ev: MessageEvent) => unknown): void; // prettier-ignore
   addEventListener(type: "open" | "error", listener: (this: IWebSocketInstance, ev: Event) => unknown): void; // prettier-ignore
