@@ -1,5 +1,15 @@
 # @ember-link/react
 
+## 0.0.9
+
+### Patch Changes
+
+- Updated dependencies [1e84cee]
+- Updated dependencies [1e84cee]
+- Updated dependencies [1e84cee]
+  - @ember-link/core@0.1.0
+  - @ember-link/protocol@0.1.0
+
 ## 0.0.8
 
 ### Patch Changes
