@@ -1,8 +1,4 @@
-import { ObservableReadonly } from 'oby';
 import { MetaClientState, outdatedTimeout } from './presence';
-import { ReactiveMap } from './reactive-map';
-import $ from 'oby';
-import { computed } from 'alien-signals';
 import { Emitter } from '@ember-link/event-emitter';
 import { DefaultPresence } from './index';
 import { User } from './user';
@@ -31,12 +27,6 @@ export class ManagedOthers<P extends Record<string, unknown> = DefaultPresence> 
 
     this.emitter = emitter;
     this.signal = deepSignal<Shallow<User<P>>[]>([]);
-
-    // this.signal = computed(() => {
-    //   return Array.from(this.states.entries()).map(([clientId, state]) => {
-    //     return { ...state, clientId: clientId };
-    //   });
-    // });
 
     this.checkInterval = setInterval(() => {
       const now = new Date().getTime();

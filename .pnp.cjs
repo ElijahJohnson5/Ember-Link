@@ -1089,7 +1089,6 @@ const RAW_RUNTIME_STATE =
           ["esbuild", "npm:0.25.4"],\
           ["jose", "npm:5.9.6"],\
           ["msw", "virtual:2f1eec2dae17117cee46fef0035741023d0be6e99d218f0c1cf71b6fc5b38b10b9478f7c6b7f42e7a3393e21904277d4058109ffe8501dc298d1edb6102c2db4#npm:2.7.0"],\
-          ["oby", "npm:15.1.2"],\
           ["typescript", "patch:typescript@npm%3A5.7.3#optional!builtin<compat/typescript>::version=5.7.3&hash=5786d5"],\
           ["vitest", "virtual:2eb7a6a93efab38263effc3eb6944040e66a678890a4c92c49bc233d5c85fa952f4343f8b7e272cd518a50a3370f5a2c8a4f25454faa3e239939f28e54858001#npm:3.1.1"],\
           ["vitest-websocket-mock", "virtual:f0c088f5fee8e65e009319579a6a23fa4a66db4f8505868a3f503eb38e4b07bfda74459c2b17133a486436a2a1db55c00fe82ab76fa0d415788cff6722e3938e#npm:0.4.0"],\
@@ -1116,7 +1115,6 @@ const RAW_RUNTIME_STATE =
           ["esbuild", "npm:0.25.4"],\
           ["jose", "npm:5.9.6"],\
           ["msw", "virtual:f0c088f5fee8e65e009319579a6a23fa4a66db4f8505868a3f503eb38e4b07bfda74459c2b17133a486436a2a1db55c00fe82ab76fa0d415788cff6722e3938e#npm:2.7.0"],\
-          ["oby", "npm:15.1.2"],\
           ["typescript", "patch:typescript@npm%3A5.8.3#optional!builtin<compat/typescript>::version=5.8.3&hash=5786d5"],\
           ["vitest", "virtual:2eb7a6a93efab38263effc3eb6944040e66a678890a4c92c49bc233d5c85fa952f4343f8b7e272cd518a50a3370f5a2c8a4f25454faa3e239939f28e54858001#npm:3.1.1"],\
           ["vitest-websocket-mock", "virtual:f0c088f5fee8e65e009319579a6a23fa4a66db4f8505868a3f503eb38e4b07bfda74459c2b17133a486436a2a1db55c00fe82ab76fa0d415788cff6722e3938e#npm:0.4.0"],\
@@ -1141,7 +1139,6 @@ const RAW_RUNTIME_STATE =
           ["esbuild", "npm:0.25.4"],\
           ["jose", "npm:5.9.6"],\
           ["msw", "virtual:f0c088f5fee8e65e009319579a6a23fa4a66db4f8505868a3f503eb38e4b07bfda74459c2b17133a486436a2a1db55c00fe82ab76fa0d415788cff6722e3938e#npm:2.7.0"],\
-          ["oby", "npm:15.1.2"],\
           ["typescript", "patch:typescript@npm%3A5.8.3#optional!builtin<compat/typescript>::version=5.8.3&hash=5786d5"],\
           ["vitest", "virtual:2eb7a6a93efab38263effc3eb6944040e66a678890a4c92c49bc233d5c85fa952f4343f8b7e272cd518a50a3370f5a2c8a4f25454faa3e239939f28e54858001#npm:3.1.1"],\
           ["vitest-websocket-mock", "virtual:f0c088f5fee8e65e009319579a6a23fa4a66db4f8505868a3f503eb38e4b07bfda74459c2b17133a486436a2a1db55c00fe82ab76fa0d415788cff6722e3938e#npm:0.4.0"],\
@@ -12995,15 +12992,6 @@ const RAW_RUNTIME_STATE =
           ["call-bound", "npm:1.0.4"],\
           ["define-properties", "npm:1.2.1"],\
           ["es-object-atoms", "npm:1.1.1"]\
-        ],\
-        "linkType": "HARD"\
-      }]\
-    ]],\
-    ["oby", [\
-      ["npm:15.1.2", {\
-        "packageLocation": "./.yarn/cache/oby-npm-15.1.2-b372c6267b-1279cc169b.zip/node_modules/oby/",\
-        "packageDependencies": [\
-          ["oby", "npm:15.1.2"]\
         ],\
         "linkType": "HARD"\
       }]\

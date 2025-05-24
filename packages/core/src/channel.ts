@@ -11,13 +11,13 @@ import {
   type StorageSyncMessage,
   type StorageUpdateMessage
 } from '@ember-link/protocol';
-import $ from 'oby';
 import { ManagedOthers, OtherEvents } from './others';
 import { IStorage, IStorageProvider, MessageEvents } from '@ember-link/storage';
 import { DefaultCustomMessageData, DefaultPresence, type User } from './index';
 import { AuthValue } from './auth';
 import { IWebSocketInstance } from './types';
 import { watch } from 'alien-deepsignals';
+import { signal, effect } from 'alien-signals';
 
 export interface ChannelConfig<
   S extends IStorageProvider,
@@ -86,13 +86,13 @@ export function createChannel<
 
   const otherEventEmitter = createEventEmitter<OtherEvents<P>>();
   const managedOthers = new ManagedOthers<P>(otherEventEmitter);
-  const participantId = $<string | null>(null);
-  const status = $<Status>('initial');
+  const participantId = signal<string | null>(null);
+  const status = signal<Status>('initial');
 
   const eventEmitter = createBufferedEventEmitter<ChannelEvents<P, C>>();
   const presence = new ManagedPresence(options?.initialPresence);
 
-  $.effect(() => {
+  effect(() => {
     eventEmitter.emit('presence', presence.state());
 
     managedSocket.message(presence.getPresenceMessage());
@@ -219,12 +219,9 @@ export function createChannel<
   }
 
   function updatePresence(state: P) {
-    presence.state((oldState) => {
-      return {
-        ...oldState,
-        ...state
-      };
-    });
+    const oldState = presence.state();
+
+    presence.state({ ...oldState, ...state });
   }
 
   function sendCustomMessage(data: C) {
@@ -265,7 +262,7 @@ export function createChannel<
     getStorage,
     hasStorage,
     getStatus,
-    getOthers: () => [...managedOthers.signal],
+    getOthers: () => managedOthers.signal as User<P>[],
     getPresence: () => presence.state(),
     getName: () => config.channelName,
     updateYDoc,
