@@ -112,8 +112,8 @@ impl Actor for Participant {
                         for msg in msgs {
                             state
                                 .socket_write_sink
-                                .send(Message::text(
-                                    serde_json::to_string(
+                                .send(Message::binary(
+                                    serde_bare::to_vec(
                                         &ServerMessage::StorageSyncMessage(msg),
                                     )
                                     .unwrap(),
@@ -140,8 +140,8 @@ impl Actor for Participant {
                         for msg in msgs {
                             state
                                 .socket_write_sink
-                                .send(Message::text(
-                                    serde_json::to_string(
+                                .send(Message::binary(
+                                    serde_bare::to_vec(
                                         &ServerMessage::ProviderSyncMessage(msg),
                                     )
                                     .unwrap(),

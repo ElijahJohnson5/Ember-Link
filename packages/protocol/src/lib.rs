@@ -82,15 +82,6 @@ pub enum WebSocketCloseCode {
 #[derive(Clone, Deserialize, Debug, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "../src/bindings/index.ts")]
-// Add more once we have more implementations, this gets sent to the server for the server to be able to handle
-// sync messages correctly
-pub enum StorageType {
-    Yjs,
-}
-
-#[derive(Clone, Deserialize, Debug, Serialize, TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(export, export_to = "../src/bindings/index.ts")]
 pub struct StorageEndpointResponse {
     pub updates: Vec<Vec<u8>>,
 }

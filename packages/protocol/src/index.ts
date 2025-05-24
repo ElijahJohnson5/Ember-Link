@@ -1,4 +1,5 @@
 export * from './generated';
+export * from './bindings';
 
 export enum WebSocketCloseCode {
   TokenNotFound = 4000,

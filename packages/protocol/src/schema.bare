@@ -57,5 +57,3 @@ type ClientMessage union {
 type StorageType enum {
     YJS
 }
-
-type Test str

@@ -7,6 +7,7 @@ tasks:
     deps:
       - 'generate-ts'
       - 'generate-rs'
+      - 'test'
     outputs:
       - dist/**/*
   generate-rs:
@@ -25,5 +26,9 @@ tasks:
       - yarn bare compile ./src/schema.bare -o ./src/generated.ts
     outputs:
       - src/generated.ts
+    options:
+      cache: false
+  test:
+    command: 'cargo test'
     options:
       cache: false
