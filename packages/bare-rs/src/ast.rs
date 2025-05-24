@@ -301,7 +301,7 @@ impl AnyType {
                     hoisted_uses.append(&mut inner_hoisted_uses);
                 }
 
-                let union_def = if let Some(serde_string) = options.serde_string {
+                let union_def = if let Some(serde_string) = options.serde_string_union {
                     format!(
                         "\n#[derive({})]\n{}\npub enum {} {{\n{}\n}}",
                         derives,

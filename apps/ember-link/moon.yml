@@ -1,5 +1,9 @@
 language: 'rust'
 type: 'application'
+project:
+  description: The ember-link server using the tokio runtime
+  metadata:
+    version: 0.1.0
 
 dependsOn:
   - 'protocol'
@@ -7,7 +11,8 @@ dependsOn:
 
 tasks:
   flamegraph:
-    script: 'CARGO_PROFILE_RELEASE_DEBUG=true PERF=/usr/lib/linux-tools/6.8.0-60-generic/perf cargo flamegraph'
+    script: |
+      CARGO_PROFILE_RELEASE_DEBUG=true PERF=/usr/lib/linux-tools/6.8.0-60-generic/perf cargo flamegraph
     local: true
   run:
     command: 'cargo run'
@@ -22,3 +27,7 @@ tasks:
     command: 'docker build -f "apps/ember-link/Dockerfile" . -t emberlinkio/ember-link:latest'
     options:
       runFromWorkspaceRoot: true
+  tag-docker:
+    command: 'docker tag emberlinkio/ember-link:latest emberlinkio/ember-link:$META_VERSION'
+    env:
+      META_VERSION: '@meta(version)'
