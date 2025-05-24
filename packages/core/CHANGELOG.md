@@ -1,5 +1,18 @@
 # @ember-link/core
 
+## 0.1.0
+
+### Minor Changes
+
+- 1e84cee: Support bare encoding for messages
+
+### Patch Changes
+
+- 1e84cee: Remove Oby and use alien signals instead
+- Updated dependencies [1e84cee]
+  - @ember-link/protocol@0.1.0
+  - @ember-link/storage@0.0.12
+
 ## 0.0.15
 
 ### Patch Changes

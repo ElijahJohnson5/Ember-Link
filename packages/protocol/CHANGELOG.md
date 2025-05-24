@@ -1,5 +1,11 @@
 # @ember-link/protocol
 
+## 0.1.0
+
+### Minor Changes
+
+- 1e84cee: Create schema in bare format and generate the files needed for typescript and rust
+
 ## 0.0.10
 
 ### Patch Changes
