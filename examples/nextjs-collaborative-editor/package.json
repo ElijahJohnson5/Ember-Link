@@ -11,7 +11,7 @@
     "@blocknote/react": "^0.28.0",
     "@blocknote/shadcn": "^0.28.0",
     "@ember-link/react": "^0.0.9",
-    "@ember-link/yjs-provider": "^1.0.0",
+    "@ember-link/yjs-provider": "^0.1.0",
     "@ember-link/yjs-storage": "^0.0.12",
     "@radix-ui/react-dialog": "^1.1.7",
     "@radix-ui/react-separator": "^1.1.3",

@@ -1,8 +1,8 @@
 # @ember-link/yjs-provider
 
-## 1.0.0
+## 0.1.0
 
-### Patch Changes
+### Minor Changes
 
 - Updated dependencies [1e84cee]
 - Updated dependencies [1e84cee]
