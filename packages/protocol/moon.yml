@@ -12,7 +12,7 @@ tasks:
       - dist/**/*
   generate-rs:
     script: |
-      cargo run -p bare-rs -- compile ./src/schema.bare -o ./src/generated.rs -d=Serialize,Deserialize,Eq,Clone,PartialEq -u=rde::{Serialize, Deserialize};" --serde
+      cargo run -p bare-rs -- compile ./src/schema.bare -o ./src/generated.rs -d=Serialize,Deserialize,Eq,Clone,PartialEq -u="use serde::{Serialize, Deserialize};" --serde
     outputs:
       - src/generated.rs
     options:
