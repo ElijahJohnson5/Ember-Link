@@ -11,19 +11,15 @@ tasks:
     outputs:
       - dist/**/*
   generate-rs:
-    command:
-      - cargo run -p bare-rs -- compile ./src/schema.bare
-      - -o ./src/generated.rs
-      - -d=Serialize,Deserialize,Eq,Clone,PartialEq
-      - -u="use serde::{Serialize, Deserialize};"
-      - --serde
+    script: |
+      cargo run -p bare-rs -- compile ./src/schema.bare -o ./src/generated.rs -d=Serialize,Deserialize,Eq,Clone,PartialEq -u=rde::{Serialize, Deserialize};" --serde
     outputs:
       - src/generated.rs
     options:
       cache: false
   generate-ts:
-    command:
-      - yarn bare compile ./src/schema.bare -o ./src/generated.ts
+    script: |
+      yarn bare compile ./src/schema.bare -o ./src/generated.ts
     outputs:
       - src/generated.ts
     options:
