@@ -3,11 +3,10 @@ use std::collections::HashMap;
 use super::{cloudflare_websocket_upgrade::WebSocketUpgrade, get_config};
 use axum::response::IntoResponse;
 use protocol::{
-    client::ClientMessage,
-    server::{ServerMessage, ServerPresenceMessage},
+    ClientMessage,
+    ServerMessage, ServerPresenceMessage,
     StorageSyncMessage, StorageType, StorageUpdateMessage,
 };
-use serde_json::Value;
 use worker::{wasm_bindgen, WebSocketIncomingMessage};
 
 use crate::{
@@ -23,7 +22,7 @@ use crate::{
 #[worker::durable_object]
 pub struct CloudflareChannel {
     state: worker::State,
-    user_state: HashMap<String, (Value, i32)>,
+    user_state: HashMap<String, (String, i32)>,
     channel_name: Option<String>,
     tenant_id: Option<String>,
     #[cfg(feature = "webhook")]
@@ -201,7 +200,7 @@ impl worker::DurableObject for CloudflareChannel {
                     return Ok(());
                 }
 
-                let message: ClientMessage<Value, Value> = match serde_json::from_str(&message) {
+                let message: ClientMessage = match serde_json::from_str(&message) {
                     Ok(message) => message,
                     Err(e) => {
                         web_sys::console::log_1(&format!("Error parsing message: {}", e).into());
@@ -210,24 +209,24 @@ impl worker::DurableObject for CloudflareChannel {
                 };
 
                 match message {
-                    ClientMessage::Presence(msg) => {
+                    ClientMessage::ClientPresenceMessage(msg) => {
                         self.user_state
-                            .insert(participant_id.clone(), (msg.data.clone(), msg.clock));
+                            .insert(participant_id.clone(), (msg.presence.clone(), msg.clock));
 
                         self.broadcast(
-                            ServerMessage::Presence(ServerPresenceMessage {
+                            ServerMessage::ServerPresenceMessage(ServerPresenceMessage {
                                 id: participant_id.clone(),
                                 clock: msg.clock,
-                                data: Some(msg.data),
+                                presence: Some(msg.presence),
                             }),
                             Some(participant_id),
                         );
                     }
-                    ClientMessage::StorageSync(msg) => {
+                    ClientMessage::StorageSyncMessage(msg) => {
                         match self.handle_storage_sync_message(msg) {
                             Ok(Some(msgs)) => {
                                 for msg in msgs {
-                                    match ws.send(&ServerMessage::<Value, Value>::StorageSync(msg))
+                                    match ws.send(&ServerMessage::StorageSyncMessage(msg))
                                     {
                                         Err(e) => {
                                             web_sys::console::log_1(
@@ -246,7 +245,7 @@ impl worker::DurableObject for CloudflareChannel {
                             _ => {}
                         }
                     }
-                    ClientMessage::StorageUpdate(msg) => {
+                    ClientMessage::StorageUpdateMessage(msg) => {
                         match self.handle_storage_update_message(msg, participant_id) {
                             Err(e) => {
                                 web_sys::console::log_1(
@@ -256,11 +255,11 @@ impl worker::DurableObject for CloudflareChannel {
                             _ => {}
                         }
                     }
-                    ClientMessage::ProviderSync(msg) => {
+                    ClientMessage::ProviderSyncMessage(msg) => {
                         match self.handle_provider_sync_message(msg) {
                             Ok(Some(msgs)) => {
                                 for msg in msgs {
-                                    match ws.send(&ServerMessage::<Value, Value>::StorageSync(msg))
+                                    match ws.send(&ServerMessage::ProviderSyncMessage(msg))
                                     {
                                         Err(e) => {
                                             web_sys::console::log_1(
@@ -279,7 +278,7 @@ impl worker::DurableObject for CloudflareChannel {
                             _ => {}
                         }
                     }
-                    ClientMessage::ProviderUpdate(msg) => {
+                    ClientMessage::ProviderUpdateMessage(msg) => {
                         match self.handle_provider_update_message(msg, participant_id) {
                             Err(e) => {
                                 web_sys::console::log_1(
@@ -289,8 +288,8 @@ impl worker::DurableObject for CloudflareChannel {
                             _ => {}
                         }
                     }
-                    ClientMessage::Custom(msg) => {
-                        self.broadcast(ServerMessage::Custom(msg), Some(participant_id));
+                    ClientMessage::CustomMessage(msg) => {
+                        self.broadcast(ServerMessage::CustomMessage(msg), Some(participant_id));
                     }
                 }
             }
@@ -318,10 +317,10 @@ impl worker::DurableObject for CloudflareChannel {
         match user_state {
             Some((_, clock)) => {
                 self.broadcast(
-                    ServerMessage::Presence(ServerPresenceMessage {
+                    ServerMessage::ServerPresenceMessage(ServerPresenceMessage {
                         id: participant_id.clone(),
                         clock,
-                        data: None,
+                        presence: None,
                     }),
                     Some(participant_id),
                 );
@@ -337,7 +336,7 @@ impl worker::DurableObject for CloudflareChannel {
 }
 
 impl Channel for CloudflareChannel {
-    fn broadcast(&self, message: ServerMessage<Value, Value>, exclude_id: Option<&String>) {
+    fn broadcast(&self, message: ServerMessage, exclude_id: Option<&String>) {
         self.state.get_websockets().iter().for_each(|ws| {
             let tags = self.state.get_tags(&ws);
 
@@ -376,7 +375,7 @@ impl Channel for CloudflareChannel {
             storage.handle_update_message(&message)?;
         }
 
-        self.broadcast(ServerMessage::StorageUpdate(message), Some(participant_id));
+        self.broadcast(ServerMessage::StorageUpdateMessage(message), Some(participant_id));
 
         Ok(())
     }
@@ -395,7 +394,7 @@ impl Channel for CloudflareChannel {
     ) -> Result<(), StorageError> {
         self.provider.handle_update_message(&message)?;
 
-        self.broadcast(ServerMessage::StorageUpdate(message), Some(participant_id));
+        self.broadcast(ServerMessage::StorageUpdateMessage(message), Some(participant_id));
 
         Ok(())
     }

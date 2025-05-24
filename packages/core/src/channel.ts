@@ -6,6 +6,7 @@ import {
 import { ManagedPresence } from './presence';
 import { ManagedSocket, Status } from './socket-client';
 import {
+  decodeServerMessage,
   ServerMessage,
   type StorageSyncMessage,
   type StorageUpdateMessage
@@ -16,6 +17,7 @@ import { IStorage, IStorageProvider, MessageEvents } from '@ember-link/storage';
 import { DefaultCustomMessageData, DefaultPresence, type User } from './index';
 import { AuthValue } from './auth';
 import { IWebSocketInstance } from './types';
+import { watch } from 'alien-deepsignals';
 
 export interface ChannelConfig<
   S extends IStorageProvider,
@@ -67,7 +69,7 @@ type ChannelEvents<
   status: (status: Status) => void;
   others: (others: User<P>[]) => void;
   destroy: () => void;
-  customMessage: (message: Extract<ServerMessage<P, C>, { type: 'custom' }>['data']) => void;
+  customMessage: (message: C) => void;
 };
 
 type YjsProviderEvents = {
@@ -96,36 +98,57 @@ export function createChannel<
     managedSocket.message(presence.getPresenceMessage());
   });
 
-  $.effect(() => {
-    eventEmitter.emit('others', managedOthers.signal());
+  watch(managedOthers.signal, (state: User<P>[]) => {
+    eventEmitter.emit('others', state);
   });
 
   const storageEventEmitter = createEventEmitter<MessageEvents>();
   const yjsProviderEventEmitter = createEventEmitter<YjsProviderEvents>();
 
   managedSocket.events.subscribe('message', (e) => {
-    if (typeof e.data === 'string') {
-      // We know the data is a string if we get here
-      const message: ServerMessage<P, C> = JSON.parse(e.data as string);
+    let message: ServerMessage | null;
 
-      if (message.type === 'assignId') {
-        participantId(message.id);
-      } else if (message.type === 'presence') {
-        managedOthers.setOther(message.id, message.clock, message.data);
-      } else if (message.type === 'initialPresence') {
-        for (const presence of message.presences) {
-          managedOthers.setOther(presence.id, presence.clock, presence.data);
+    if (typeof e.data === 'string') {
+      try {
+        message = JSON.parse(e.data);
+      } catch {
+        return;
+      }
+    } else {
+      try {
+        message = decodeServerMessage(new Uint8Array(e.data));
+      } catch (e) {
+        return;
+      }
+    }
+
+    if (message) {
+      if (message.tag === 'AssignIdMessage') {
+        participantId(message.val.id);
+      } else if (message.tag === 'ServerPresenceMessage') {
+        managedOthers.setOther(
+          message.val.id,
+          message.val.clock,
+          message.val.presence ? (JSON.parse(message.val.presence) as P) : null
+        );
+      } else if (message.tag === 'InitialPresenceMessage') {
+        for (const presence of message.val.presences) {
+          managedOthers.setOther(
+            presence.id,
+            presence.clock,
+            presence.presence ? (JSON.parse(presence.presence) as P) : null
+          );
         }
-      } else if (message.type === 'storageUpdate') {
-        storage?.applyUpdate(Uint8Array.from(message.update));
-      } else if (message.type === 'storageSync') {
-        storageEventEmitter.emit('message', message);
-      } else if (message.type === 'providerSync') {
-        yjsProviderEventEmitter.emit('syncMessage', message);
-      } else if (message.type === 'providerUpdate') {
-        yjsProviderEventEmitter.emit('updateMessage', message);
-      } else if (message.type === 'custom') {
-        eventEmitter.emit('customMessage', message.data);
+      } else if (message.tag === 'StorageUpdateMessage') {
+        storage?.applyUpdate(new Uint8Array(message.val.update));
+      } else if (message.tag === 'StorageSyncMessage') {
+        storageEventEmitter.emit('message', message.val);
+      } else if (message.tag === 'ProviderSyncMessage') {
+        yjsProviderEventEmitter.emit('syncMessage', message.val);
+      } else if (message.tag === 'ProviderUpdateMessage') {
+        yjsProviderEventEmitter.emit('updateMessage', message.val);
+      } else if (message.tag === 'CustomMessage') {
+        eventEmitter.emit('customMessage', JSON.parse(message.val.message));
       }
     }
   });
@@ -144,8 +167,10 @@ export function createChannel<
     options?.storageProvider?.sync(storageEventEmitter.observable, {
       message: (data) => {
         managedSocket.message({
-          type: 'storageSync',
-          ...data
+          tag: 'StorageSyncMessage',
+          val: {
+            ...data
+          }
         });
       }
     });
@@ -158,8 +183,10 @@ export function createChannel<
   if (storage) {
     storage.events.subscribe('update', (event) => {
       managedSocket.message({
-        type: 'storageUpdate',
-        update: Array.from(event)
+        tag: 'StorageUpdateMessage',
+        val: {
+          update: event.buffer as ArrayBuffer
+        }
       });
     });
   }
@@ -201,7 +228,7 @@ export function createChannel<
   }
 
   function sendCustomMessage(data: C) {
-    managedSocket.message({ type: 'custom', data });
+    managedSocket.message({ tag: 'CustomMessage', val: { message: JSON.stringify(data) } });
   }
 
   function getStatus() {
@@ -210,15 +237,19 @@ export function createChannel<
 
   function syncYDoc(data: StorageSyncMessage) {
     managedSocket.message({
-      type: 'providerSync',
-      ...data
+      tag: 'ProviderSyncMessage',
+      val: {
+        ...data
+      }
     });
   }
 
   function updateYDoc(data: StorageUpdateMessage) {
     managedSocket.message({
-      type: 'providerUpdate',
-      ...data
+      tag: 'ProviderUpdateMessage',
+      val: {
+        ...data
+      }
     });
   }
 
@@ -234,7 +265,7 @@ export function createChannel<
     getStorage,
     hasStorage,
     getStatus,
-    getOthers: () => managedOthers.signal(),
+    getOthers: () => [...managedOthers.signal],
     getPresence: () => presence.state(),
     getName: () => config.channelName,
     updateYDoc,

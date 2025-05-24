@@ -11,7 +11,7 @@ import {
 } from 'xstate';
 import 'xstate/guards';
 import { createBufferedEventEmitter, Observable } from '@ember-link/event-emitter';
-import { ClientMessage, WebSocketCloseCode } from '@ember-link/protocol';
+import { ClientMessage, encodeClientMessage, WebSocketCloseCode } from '@ember-link/protocol';
 import { DefaultCustomMessageData, DefaultPresence } from '.';
 import { AuthFailedError, AuthValue } from './auth';
 import { IWebSocketInstance, WebSocketNotFoundError } from './types';
@@ -43,9 +43,11 @@ export class ManagedSocket<
     this.machine.send({ type: 'connect' });
   }
 
-  message(data: ClientMessage<P, C>) {
+  message(data: ClientMessage) {
     // TODO: Batch messages if the socket is not open
-    this.machine.send({ type: 'message', value: JSON.stringify(data) });
+    const message = encodeClientMessage(data);
+
+    this.machine.send({ type: 'message', value: message });
   }
 
   disconnect() {
@@ -76,7 +78,7 @@ interface Context {
 }
 
 export type SocketEventMap = {
-  message: (event: MessageEvent<string | Blob>) => void;
+  message: (event: MessageEvent<string | ArrayBuffer>) => void;
   open: () => void;
   disconnect: () => void;
   statusChange: (status: Status) => void;
@@ -132,6 +134,7 @@ function createWebSocketStateMachine({ authenticate, createWebSocket }: SocketOp
 
           try {
             websocket = input.createWebSocket(input.authValue);
+            websocket.binaryType = 'arraybuffer';
           } catch (e) {
             sendBack({ type: 'error', value: e });
             return () => {};

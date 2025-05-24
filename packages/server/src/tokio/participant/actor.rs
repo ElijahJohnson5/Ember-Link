@@ -5,19 +5,18 @@ use axum::{
 };
 use futures_util::{stream::SplitSink, SinkExt};
 use protocol::{
-    client::ClientPresenceMessage,
-    server::{ServerMessage, ServerPresenceMessage},
+    ClientPresenceMessage,
+    ServerMessage, ServerPresenceMessage,
     StorageSyncMessage, StorageUpdateMessage,
 };
 use ractor::{Actor, ActorProcessingErr, ActorRef};
-use serde_json::Value;
 
 pub struct Participant;
 
 pub struct ParticipantState {
     id: String,
     channel: TokioChannel,
-    presence: Option<Value>,
+    presence: Option<String>,
     socket_write_sink: SplitSink<WebSocket, Message>,
 }
 
@@ -25,12 +24,13 @@ pub struct ParticipantState {
 pub enum ParticipantMessage {
     PingMessage { data: Bytes },
     TextPingMessage { data: String },
-    MyPresence { data: ClientPresenceMessage<Value> },
+    MyPresence { data: ClientPresenceMessage },
     StorageUpdate { data: StorageUpdateMessage },
     StorageSync { data: StorageSyncMessage },
     ProviderSync { data: StorageSyncMessage },
     ProviderUpdate { data: StorageUpdateMessage },
-    ServerMessage { data: ServerMessage<Value, Value> },
+    ServerMessage { data: String },
+    ServerBinaryMessage { data: Vec<u8> }
 }
 
 pub struct ParticipantArguments {
@@ -71,31 +71,31 @@ impl Actor for Participant {
                     .socket_write_sink
                     .send(Message::Pong(data))
                     .await
-                    .unwrap();
+                    .ok();
             }
             ParticipantMessage::TextPingMessage { data } => {
                 state
                     .socket_write_sink
                     .send(Message::text(data))
                     .await
-                    .unwrap();
+                    .ok();
             }
             ParticipantMessage::MyPresence { data } => {
                 // TODO: Maybe keep an internal clock to make sure we should actually update the data
-                state.presence.replace(data.data.clone());
-
-                state.channel.broadcast(
-                    ServerMessage::Presence(ServerPresenceMessage {
-                        id: state.id.clone(),
-                        clock: data.clock,
-                        data: Some(data.data.clone()),
-                    }),
-                    Some(&state.id),
-                );
+                state.presence.replace(data.presence.clone());
 
                 state
                     .channel
-                    .add_presence(state.id.clone(), data.data, data.clock);
+                    .add_presence(state.id.clone(), data.presence.clone(), data.clock);
+
+                state.channel.broadcast(
+                    ServerMessage::ServerPresenceMessage(ServerPresenceMessage {
+                        id: state.id.clone(),
+                        clock: data.clock,
+                        presence: Some(data.presence),
+                    }),
+                    Some(&state.id),
+                );
             }
             ParticipantMessage::StorageUpdate { data } => {
                 state
@@ -114,7 +114,7 @@ impl Actor for Participant {
                                 .socket_write_sink
                                 .send(Message::text(
                                     serde_json::to_string(
-                                        &ServerMessage::<Value, Value>::StorageSync(msg),
+                                        &ServerMessage::StorageSyncMessage(msg),
                                     )
                                     .unwrap(),
                                 ))
@@ -142,7 +142,7 @@ impl Actor for Participant {
                                 .socket_write_sink
                                 .send(Message::text(
                                     serde_json::to_string(
-                                        &ServerMessage::<Value, Value>::ProviderSync(msg),
+                                        &ServerMessage::ProviderSyncMessage(msg),
                                     )
                                     .unwrap(),
                                 ))
@@ -156,16 +156,29 @@ impl Actor for Participant {
             ParticipantMessage::ServerMessage { data } => {
                 match state
                     .socket_write_sink
-                    .send(Message::text(serde_json::to_string(&data).unwrap()))
+                    .send(Message::text(data))
                     .await
                 {
                     Err(e) => {
-                        tracing::error!(
+                        tracing::warn!(
                             error = e.to_string(),
                             "Could not send message to participant removing them from the channel"
                         );
-
-                        state.channel.remove_participant(&state.id);
+                    }
+                    Ok(()) => {}
+                }
+            }
+            ParticipantMessage::ServerBinaryMessage { data } => {
+                match state
+                    .socket_write_sink
+                    .send(Message::binary(data))
+                    .await
+                {
+                    Err(e) => {
+                        tracing::warn!(
+                            error = e.to_string(),
+                            "Could not send message to participant removing them from the channel"
+                        );
                     }
                     Ok(()) => {}
                 }

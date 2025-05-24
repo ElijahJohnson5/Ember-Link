@@ -1,8 +1,9 @@
 import $, { Observable } from 'oby';
+import { signal } from 'alien-signals';
 
 export class ReactiveMap<K = unknown, V = unknown> implements Map<K, V> {
-  private collection = $<null>(null, { equals: false });
-  private storages = new Map<K, Observable<null>>();
+  private collection = signal<null>(null);
+  private storages = new Map<K, ReturnType<typeof signal<null>>>();
   private vals: Map<K, V>;
 
   constructor();
@@ -21,7 +22,7 @@ export class ReactiveMap<K = unknown, V = unknown> implements Map<K, V> {
     let storage = storages.get(key);
 
     if (storage === undefined) {
-      storage = $(null, { equals: false });
+      storage = signal(null);
       storages.set(key, storage);
     }
 

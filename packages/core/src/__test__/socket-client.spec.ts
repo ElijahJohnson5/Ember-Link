@@ -377,9 +377,11 @@ describe('ManagedSocket', () => {
           const managedSocket = await setupManagedSocket(url);
 
           managedSocket.message({
-            type: 'presence',
-            data: {},
-            clock: 0
+            tag: 'ClientPresenceMessage',
+            val: {
+              presence: JSON.stringify({}),
+              clock: 0
+            }
           });
 
           await vi.runOnlyPendingTimersAsync();

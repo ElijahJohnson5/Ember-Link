@@ -5,7 +5,7 @@ use axum::{
     routing::post,
     Json, Router,
 };
-use protocol::{server::ServerMessage, CustomMessage};
+use protocol::{ServerMessage, CustomMessage};
 
 use crate::{auth::AuthPayload, channel::Channel};
 
@@ -22,13 +22,13 @@ async fn broadcast(
     Path(channel_name): Path<String>,
     State(state): State<TokioAppState>,
     _jwt: AuthPayload,
-    Json(payload): Json<serde_json::Value>,
+    payload: String
 ) -> impl IntoResponse {
     // TODO: Probably should just put it in some redis pub sub queue so that every server is notified (once redis is used for multiple servers)
     if let Some(weak_channel) = state.channel_registry.get_channel(&channel_name).await {
         match weak_channel.upgrade() {
             Some(channel) => {
-                channel.broadcast(ServerMessage::Custom(CustomMessage { data: payload }), None);
+                channel.broadcast(ServerMessage::CustomMessage(CustomMessage { message: payload }), None);
             }
             None => {
                 tracing::info!("Channel has been dropped: {}", channel_name);

@@ -6,6 +6,9 @@ dependsOn:
   - 'server'
 
 tasks:
+  flamegraph:
+    script: 'CARGO_PROFILE_RELEASE_DEBUG=true PERF=/usr/lib/linux-tools/6.8.0-60-generic/perf cargo flamegraph'
+    local: true
   run:
     command: 'cargo run'
     local: true

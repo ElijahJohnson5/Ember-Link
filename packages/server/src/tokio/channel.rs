@@ -4,13 +4,12 @@ use std::{
     sync::{Arc, Weak},
 };
 
-use parking_lot::Mutex;
+use parking_lot::{Mutex, RwLock};
 use protocol::{
-    server::{InitialPresenceMessage, ServerMessage, ServerPresenceMessage},
+    InitialPresenceMessage, ServerMessage, ServerPresenceMessage,
     StorageSyncMessage, StorageUpdateMessage,
 };
 use ractor::ActorRef;
-use serde_json::Value;
 
 use crate::{
     channel::Channel,
@@ -33,8 +32,8 @@ struct Inner {
     id: String,
     storage: Option<Box<dyn Storage + Sync + Send + 'static>>,
     yjs_provider_storage: YjsStorage,
-    participant_refs: Mutex<HashMap<String, ActorRef<ParticipantMessage>>>,
-    participant_presence_state: Mutex<HashMap<String, (Value, i32)>>,
+    participant_refs: RwLock<HashMap<String, ActorRef<ParticipantMessage>>>,
+    participant_presence_state: Mutex<HashMap<String, (String, i32)>>,
     handlers: Handlers,
 }
 
@@ -58,31 +57,28 @@ pub struct TokioChannel {
 }
 
 impl Channel for TokioChannel {
-    fn broadcast(&self, message: ServerMessage<Value, Value>, exclude_id: Option<&String>) {
-        let mut participants_to_remove = vec![];
+    fn broadcast(&self, message: ServerMessage, exclude_id: Option<&String>) {
+        let participant_refs = self.inner.participant_refs.read();
 
-        for (key, value) in self.inner.participant_refs.lock().iter() {
+        let data = serde_bare::to_vec(&message).unwrap();
+
+        for (key, value) in participant_refs.iter() {
             if exclude_id.is_some_and(|id| *id == *key) {
                 continue;
             }
-
-            match value.cast(ParticipantMessage::ServerMessage {
-                data: message.clone(),
+            
+            match value.cast(ParticipantMessage::ServerBinaryMessage {
+                data: data.clone(),
             }) {
                 Err(e) => {
-                    tracing::error!(
+                    tracing::warn!(
                         error = e.to_string(),
                         participant_id = key,
                         "Could not send message to participant in channel",
                     );
-                    participants_to_remove.push(key.clone())
                 }
                 Ok(()) => {}
             }
-        }
-
-        for participant in participants_to_remove {
-            self.remove_participant(&participant);
         }
     }
 
@@ -111,7 +107,7 @@ impl Channel for TokioChannel {
             .storage_updated
             .call_simple(&message.update);
 
-        self.broadcast(ServerMessage::StorageUpdate(message), Some(&participant_id));
+        self.broadcast(ServerMessage::StorageUpdateMessage(message), Some(&participant_id));
 
         Ok(())
     }
@@ -141,7 +137,7 @@ impl Channel for TokioChannel {
             .call_simple(&message.update);
 
         self.broadcast(
-            ServerMessage::ProviderUpdate(message),
+            ServerMessage::ProviderUpdateMessage(message),
             Some(&participant_id),
         );
 
@@ -158,14 +154,14 @@ impl TokioChannel {
                 id,
                 storage,
                 yjs_provider_storage: YjsStorage::new(yrs::Doc::new()),
-                participant_refs: Mutex::default(),
+                participant_refs: RwLock::new(HashMap::new()),
                 participant_presence_state: Mutex::default(),
                 handlers: Handlers::default(),
             }),
         }
     }
 
-    pub fn add_presence(&self, participant_id: String, state: Value, clock: i32) {
+    pub fn add_presence(&self, participant_id: String, state: String, clock: i32) {
         self.inner
             .participant_presence_state
             .lock()
@@ -178,7 +174,7 @@ impl TokioChannel {
         participant: ActorRef<ParticipantMessage>,
     ) {
         let num_participants = {
-            let mut pariticpants = self.inner.participant_refs.lock();
+            let mut pariticpants = self.inner.participant_refs.write();
 
             pariticpants.insert(participant_id.clone(), participant.clone());
 
@@ -192,25 +188,26 @@ impl TokioChannel {
 
         participant
             .cast(ParticipantMessage::ServerMessage {
-                data: ServerMessage::InitialPresence(self.initial_presence_message()),
+                data: serde_json::to_string(&ServerMessage::InitialPresenceMessage(self.initial_presence_message())).unwrap(),
             })
             .expect("Could not send message to participant");
     }
 
     pub fn remove_participant(&self, participant_id: &str) {
         let num_participants = {
-            let mut pariticpants = self.inner.participant_refs.lock();
+            let mut pariticpants = self.inner.participant_refs.write();
 
             pariticpants.remove(participant_id);
 
             pariticpants.len()
         };
 
-        let state = self
+        let state = { self
             .inner
             .participant_presence_state
             .lock()
-            .remove(participant_id);
+            .remove(participant_id)
+        };
 
         self.inner
             .handlers
@@ -220,9 +217,9 @@ impl TokioChannel {
         match state {
             Some((_, clock)) => {
                 self.broadcast(
-                    ServerMessage::Presence(ServerPresenceMessage {
+                    ServerMessage::ServerPresenceMessage(ServerPresenceMessage {
                         clock: clock,
-                        data: None,
+                        presence: None,
                         id: participant_id.to_string(),
                     }),
                     Some(&participant_id.to_string()),
@@ -277,13 +274,18 @@ impl TokioChannel {
         Ok(())
     }
 
-    fn initial_presence_message(&self) -> InitialPresenceMessage<Value> {
-        let mut presences: Vec<ServerPresenceMessage<Value>> = Vec::default();
-        for (key, (state, clock)) in self.inner.participant_presence_state.lock().iter() {
+    fn initial_presence_message(&self) -> InitialPresenceMessage {
+        let mut presences: Vec<ServerPresenceMessage> = Vec::default();
+
+        let participant_presence_state = {
+            self.inner.participant_presence_state.lock().clone()
+        };
+
+        for (key, (state, clock)) in participant_presence_state.iter() {
             presences.push(ServerPresenceMessage {
                 id: key.clone(),
                 clock: clock.clone(),
-                data: Some(state.clone()),
+                presence: Some(state.clone()),
             });
         }
 
@@ -337,11 +339,11 @@ pub mod tests {
 
         channel.add_participant(participant_id.clone(), participant);
 
-        assert_eq!(channel.inner.participant_refs.lock().len(), 1);
+        assert_eq!(channel.inner.participant_refs.read().len(), 1);
         assert!(channel
             .inner
             .participant_refs
-            .lock()
+            .read()
             .get(&participant_id)
             .is_some());
 
@@ -352,8 +354,8 @@ pub mod tests {
         assert!(message.is_some());
 
         match message.unwrap() {
-            ParticipantMessage::ServerMessage { data } => match data {
-                ServerMessage::InitialPresence(data) => {
+            ParticipantMessage::ServerMessage { data } => match serde_json::from_str::<protocol::ServerMessage>(&data).unwrap() {
+                ServerMessage::InitialPresenceMessage(data) => {
                     assert_eq!(data.presences.len(), 0);
                 }
                 _ => {
@@ -452,7 +454,7 @@ pub mod tests {
         channel.add_participant(participant_id2.clone(), participant2);
 
         channel.broadcast(
-            ServerMessage::StorageUpdate(StorageUpdateMessage { update: vec![] }),
+            ServerMessage::StorageUpdateMessage(StorageUpdateMessage { update: vec![] }),
             None,
         );
 
@@ -463,8 +465,8 @@ pub mod tests {
         assert!(message.is_some());
 
         match message.unwrap() {
-            ParticipantMessage::ServerMessage { data } => match data {
-                ServerMessage::StorageUpdate(data) => {
+            ParticipantMessage::ServerMessage { data } => match serde_json::from_str::<protocol::ServerMessage>(&data).unwrap() {
+                ServerMessage::StorageUpdateMessage(data) => {
                     assert_eq!(data, StorageUpdateMessage { update: vec![] });
                 }
                 _ => {
@@ -481,8 +483,8 @@ pub mod tests {
         assert!(message.is_some());
 
         match message.unwrap() {
-            ParticipantMessage::ServerMessage { data } => match data {
-                ServerMessage::StorageUpdate(data) => {
+            ParticipantMessage::ServerMessage { data } => match serde_json::from_str::<protocol::ServerMessage>(&data).unwrap() {
+                ServerMessage::StorageUpdateMessage(data) => {
                     assert_eq!(data, StorageUpdateMessage { update: vec![] });
                 }
                 _ => {
@@ -510,7 +512,7 @@ pub mod tests {
         channel.add_participant(participant_id2.clone(), participant2);
 
         channel.broadcast(
-            ServerMessage::StorageUpdate(StorageUpdateMessage { update: vec![] }),
+            ServerMessage::StorageUpdateMessage(StorageUpdateMessage { update: vec![] }),
             Some(&participant_id2),
         );
 
@@ -521,8 +523,8 @@ pub mod tests {
         assert!(message.is_some());
 
         match message.unwrap() {
-            ParticipantMessage::ServerMessage { data } => match data {
-                ServerMessage::StorageUpdate(data) => {
+            ParticipantMessage::ServerMessage { data } => match serde_json::from_str::<protocol::ServerMessage>(&data).unwrap() {
+                ServerMessage::StorageUpdateMessage(data) => {
                     assert_eq!(data, StorageUpdateMessage { update: vec![] });
                 }
                 _ => {
@@ -550,11 +552,11 @@ pub mod tests {
 
         channel.remove_participant(&participant_id);
 
-        assert_eq!(channel.inner.participant_refs.lock().len(), 0);
+        assert_eq!(channel.inner.participant_refs.read().len(), 0);
         assert!(channel
             .inner
             .participant_refs
-            .lock()
+            .read()
             .get(&participant_id.clone())
             .is_none());
     }
@@ -572,15 +574,15 @@ pub mod tests {
 
         channel.add_participant(participant_id1.clone(), participant1);
         channel.add_participant(participant_id2.clone(), participant2);
-        channel.add_presence(participant_id1.clone(), Value::Null, 0);
+        channel.add_presence(participant_id1.clone(), "null".into(), 0);
 
         channel.remove_participant(&participant_id1);
 
-        assert_eq!(channel.inner.participant_refs.lock().len(), 1);
+        assert_eq!(channel.inner.participant_refs.read().len(), 1);
         assert!(channel
             .inner
             .participant_refs
-            .lock()
+            .read()
             .get(&participant_id1.clone())
             .is_none());
 
@@ -591,13 +593,13 @@ pub mod tests {
         assert!(message.is_some());
 
         match message.unwrap() {
-            ParticipantMessage::ServerMessage { data } => match data {
-                ServerMessage::Presence(data) => {
+            ParticipantMessage::ServerMessage { data } => match serde_json::from_str::<protocol::ServerMessage>(&data).unwrap() {
+                ServerMessage::ServerPresenceMessage(data) => {
                     assert_eq!(
                         data,
                         ServerPresenceMessage {
                             clock: 0,
-                            data: None,
+                            presence: None,
                             id: participant_id1.clone()
                         }
                     );
@@ -644,11 +646,11 @@ pub mod tests {
         let participant_id2: String = "participant2".into();
 
         channel.add_participant(participant_id1.clone(), participant1.clone());
-        channel.add_presence(participant_id2.clone(), Value::Null, 0);
+        channel.add_presence(participant_id2.clone(), "null".into(), 0);
 
         channel.add_participant(participant_id2.clone(), participant2.clone());
 
-        assert_eq!(channel.inner.participant_refs.lock().len(), 2);
+        assert_eq!(channel.inner.participant_refs.read().len(), 2);
 
         yield_now().await;
 
@@ -657,14 +659,14 @@ pub mod tests {
         assert!(message.is_some());
 
         match message.unwrap() {
-            ParticipantMessage::ServerMessage { data } => match data {
-                ServerMessage::InitialPresence(data) => {
+            ParticipantMessage::ServerMessage { data } => match serde_json::from_str::<protocol::ServerMessage>(&data).unwrap() {
+                ServerMessage::InitialPresenceMessage(data) => {
                     assert_eq!(
                         data,
                         InitialPresenceMessage {
                             presences: vec![ServerPresenceMessage {
                                 clock: 0,
-                                data: Some(Value::Null),
+                                presence: Some("null".into()),
                                 id: participant_id2.clone()
                             }]
                         }

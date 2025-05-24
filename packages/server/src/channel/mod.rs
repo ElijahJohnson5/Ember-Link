@@ -1,11 +1,10 @@
-use protocol::{server::ServerMessage, StorageSyncMessage, StorageUpdateMessage};
-use serde_json::Value;
+use protocol::{ServerMessage, StorageSyncMessage, StorageUpdateMessage};
 
 use crate::storage::StorageError;
 use crate::EmberLinkError;
 
 pub trait Channel {
-    fn broadcast(&self, message: ServerMessage<Value, Value>, exclude_id: Option<&String>);
+    fn broadcast(&self, message: ServerMessage, exclude_id: Option<&String>);
 
     fn handle_storage_sync_message(
         &self,

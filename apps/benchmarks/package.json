@@ -1,0 +1,19 @@
+{
+  "name": "benchmarks",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "node build.mjs",
+    "start": "yarn build --watch"
+  },
+  "devDependencies": {
+    "@deanc/esbuild-plugin-postcss": "^1.0.2",
+    "esbuild": "^0.25.0"
+  },
+  "dependencies": {
+    "@ember-link/core": "^0.0.15",
+    "@tailwindcss/postcss": "^4.1.7",
+    "postcss": "^8.5.3",
+    "tailwindcss": "^4.1.7"
+  }
+}

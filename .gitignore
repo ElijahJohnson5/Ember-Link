@@ -14,8 +14,8 @@ dist/
 
 default.etcd/
 
-yarn-error.log
-.yarn/install-state.gz
+**/yarn-error.log
+**/.yarn/install-state.gz
 
 .devcontainer/data.ms/
 .devcontainer/typesense-data/

@@ -1,5 +1,5 @@
 import { type Observable } from '@ember-link/event-emitter';
-import { type StorageSyncMessage, type StorageType } from '@ember-link/protocol';
+import { type StorageSyncMessage, StorageType } from '@ember-link/protocol';
 
 export type MessageEvents = {
   message: (message: StorageSyncMessage) => void;
@@ -8,6 +8,8 @@ export type MessageEvents = {
 export type NetworkSender = {
   message: (data: StorageSyncMessage) => void;
 };
+
+export { StorageType };
 
 export interface IStorageProvider {
   sync: (events: Observable<MessageEvents>, sender: NetworkSender) => Promise<boolean>;

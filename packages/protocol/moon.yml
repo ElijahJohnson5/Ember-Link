@@ -5,8 +5,25 @@ tasks:
   build:
     command: 'yarn build'
     deps:
-      - 'test'
-  test:
-    command: 'cargo test'
+      - 'generate-ts'
+      - 'generate-rs'
+    outputs:
+      - dist/**/*
+  generate-rs:
+    command:
+      - cargo run -p bare-rs -- compile ./src/schema.bare
+      - -o ./src/generated.rs
+      - -d=Serialize,Deserialize,Eq,Clone,PartialEq
+      - -u="use serde::{Serialize, Deserialize};"
+      - --serde
+    outputs:
+      - src/generated.rs
+    options:
+      cache: false
+  generate-ts:
+    command:
+      - yarn bare compile ./src/schema.bare -o ./src/generated.ts
+    outputs:
+      - src/generated.ts
     options:
       cache: false

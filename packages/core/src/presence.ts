@@ -47,11 +47,13 @@ export class ManagedPresence<P extends Record<string, unknown> = DefaultPresence
     }, outdatedTimeout / 10);
   }
 
-  getPresenceMessage(): Extract<ClientMessage<P, Record<string, unknown>>, { type: 'presence' }> {
+  getPresenceMessage(): Extract<ClientMessage, { tag: 'ClientPresenceMessage' }> {
     return {
-      clock: this.meta.clock,
-      data: this.state(),
-      type: 'presence'
+      val: {
+        clock: this.meta.clock,
+        presence: JSON.stringify(this.state())
+      },
+      tag: 'ClientPresenceMessage'
     };
   }
 

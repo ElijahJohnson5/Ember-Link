@@ -4,6 +4,7 @@ resolver="2"
 members = [
   "apps/ember-link",
   "apps/cloudflare-ember-link",
+  "packages/bare-rs",
   "packages/protocol",
   "packages/server",
 ]

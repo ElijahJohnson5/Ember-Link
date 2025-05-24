@@ -1,0 +1,6 @@
+type: 'library'
+
+tasks:
+  run:
+    command: cargo run --
+    local: true
