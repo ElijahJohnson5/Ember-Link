@@ -1,48 +1,53 @@
 <script lang="ts" module>
-	const name = 'EMBER_LINK_CHANNEL';
-
-	export function getChannelContext<
-		P extends Record<string, unknown> = DefaultPresence,
-		C extends Record<string, unknown> = DefaultCustomMessageData
-	>(): SvelteChannel<P, C> {
-		if (!hasContext(name)) {
-			throw new Error('Could not find context, only use this inside of a channel provider');
-		}
-
-		return getContext(name);
-	}
+	export { SvelteChannel, setChannelContext, getChannelContext } from './channel.svelte';
 </script>
 
 <script
 	lang="ts"
 	generics="S extends IStorageProvider, P extends Record<string, unknown> = DefaultPresence, C extends Record<string, unknown> = DefaultCustomMessageData"
 >
-	import { getContext, hasContext, onDestroy, setContext, type Snippet } from 'svelte';
+	import { onDestroy, untrack, type Snippet } from 'svelte';
 	import {
 		type ChannelOptions,
-		type IStorageProvider,
+		type DefaultCustomMessageData,
 		type DefaultPresence,
-		type DefaultCustomMessageData
+		type IStorageProvider
 	} from '@ember-link/core';
-	import { getClientContext } from './ember-link-provider.svelte';
-	import { SvelteChannel } from '$lib/channel.svelte';
+	import { setChannelContext } from './channel.svelte';
 
 	type Props = {
 		channelName: string;
-		children: Snippet<[]>;
+		children?: Snippet<[]>;
 	} & ChannelOptions<S, P>;
 
-	const { channelName, children, ...options }: Props = $props();
+	const props: Props = $props();
 
-	const client = getClientContext<P, C>();
+	const ctx = setChannelContext<P, C>();
 
-	const { channel, leave } = client.joinChannel(channelName, options);
+	// Seed the channel synchronously so SSR/prerender sees a populated
+	// context. `untrack` keeps Svelte from flagging this top-level prop
+	// read — the `$effect` below covers reactive updates on the client.
+	untrack(() => {
+		ctx.joinChannel<S>(props.channelName, extractOptions(props));
+	});
 
-	setContext(name, new SvelteChannel<P, C>(channel));
+	// React to channelName / options changes — joinChannel is idempotent
+	// when nothing has changed, and tears down the old channel before
+	// joining the new one when something has.
+	$effect(() => {
+		ctx.joinChannel<S>(props.channelName, extractOptions(props));
+	});
 
 	onDestroy(() => {
-		leave();
+		ctx.destroy();
 	});
+
+	function extractOptions(p: Props): ChannelOptions<S, P> {
+		const { channelName, children, ...rest } = p;
+		void channelName;
+		void children;
+		return rest as ChannelOptions<S, P>;
+	}
 </script>
 
-{@render children?.()}
+{@render props.children?.()}

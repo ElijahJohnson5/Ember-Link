@@ -1,38 +1,48 @@
 <script lang="ts" module>
-	const name = 'EMBER_LINK_PROVIDER';
-
-	export function getClientContext<
-		P extends Record<string, unknown> = DefaultPresence,
-		C extends Record<string, unknown> = DefaultCustomMessageData
-	>(): EmberClient<P, C> {
-		if (!hasContext(name)) {
-			throw new Error('Get client context must be called inside of a client provider');
-		}
-
-		return getContext(name);
-	}
+	export {
+		EmberLinkContext,
+		setEmberLinkContext,
+		getEmberLinkContext,
+		getClientContext
+	} from './ember-link-context.svelte';
 </script>
 
 <script
 	lang="ts"
 	generics="P extends Record<string, unknown> = DefaultPresence, C extends Record<string, unknown> = DefaultCustomMessageData"
 >
-	import { getContext, hasContext, setContext, type Snippet } from 'svelte';
+	import { onDestroy, untrack, type Snippet } from 'svelte';
 	import {
-		createClient,
 		type CreateClientOptions,
 		type DefaultCustomMessageData,
-		type DefaultPresence,
-		type EmberClient
+		type DefaultPresence
 	} from '@ember-link/core';
+	import { setEmberLinkContext } from './ember-link-context.svelte';
 
-	type Props = { children: Snippet<[]> } & CreateClientOptions;
+	type Props = { children?: Snippet<[]> } & CreateClientOptions;
 
-	const { children, ...clientOptions }: Props = $props();
+	const props: Props = $props();
 
-	const client = createClient<P, C>(clientOptions);
+	// Seed the context with the initial options (also covers SSR, where
+	// `$effect` does not run). `untrack` keeps Svelte from flagging this
+	// as a non-reactive capture — the `$effect` below picks up changes.
+	const ctx = setEmberLinkContext<P, C>(() => untrack(() => extractOptions(props)));
 
-	setContext(name, client);
+	// React to prop changes by re-running setOptions. Reading `props.x`
+	// inside the effect is what makes those fields reactive.
+	$effect(() => {
+		ctx.setOptions(extractOptions(props));
+	});
+
+	onDestroy(() => {
+		ctx.destroy();
+	});
+
+	function extractOptions(p: Props): CreateClientOptions {
+		// eslint-disable-next-line @typescript-eslint/no-unused-vars
+		const { children, ...rest } = p;
+		return rest;
+	}
 </script>
 
-{@render children?.()}
+{@render props.children?.()}
