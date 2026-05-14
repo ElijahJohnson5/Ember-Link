@@ -29,13 +29,13 @@ export class EmberLinkContext<
 
 	setOptions(options: CreateClientOptions) {
 		if (this.#currentOptions && shallowEqualOptions(options, this.#currentOptions)) return;
-		this.client?.destroy?.();
+		this.client?.destroy();
 		this.client = createClient<P, C>(options);
 		this.#currentOptions = options;
 	}
 
 	destroy() {
-		this.client?.destroy?.();
+		this.client?.destroy();
 	}
 }
 

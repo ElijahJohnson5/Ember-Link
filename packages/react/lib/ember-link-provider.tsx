@@ -61,5 +61,9 @@ export const EmberLinkProvider = <
     };
   }, [client]);
 
-  return <ClientContext.Provider value={client}>{children}</ClientContext.Provider>;
+  return (
+    <ClientContext.Provider value={client as unknown as EmberClient}>
+      {children}
+    </ClientContext.Provider>
+  );
 };

@@ -65,7 +65,7 @@ export function createClient<
   jwtSignerPublicKey,
   multiTenant,
   polyfills
-}: CreateClientOptions): EmberClient {
+}: CreateClientOptions): EmberClient<P, C> {
   const channels = new Map<string, { channel: Channel<P, C>; unsubs: Set<() => void> }>();
   const auth = createAuth({
     authEndpoint,
@@ -168,7 +168,7 @@ export function createClient<
   }
 
   return {
-    joinChannel: joinChannel as JoinChannel,
+    joinChannel: joinChannel as JoinChannel<P, C>,
     destroy
   };
 }
