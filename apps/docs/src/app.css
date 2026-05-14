@@ -1,0 +1,282 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@plugin '@tailwindcss/typography';
+
+/* Tell Tailwind which files to scan for class usage (replaces tailwind.config.ts content). */
+@source '../src/**/*.{html,js,svelte,ts,svx}';
+
+/* Keep the .dark variant working: v4 needs it declared explicitly when not using `darkMode: 'media'`. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Theme tokens — replaces the JS-based theme.extend block. `@theme inline` lets us reference
+   the runtime CSS vars in :root / .dark below without snapshotting their initial values. */
+@theme inline {
+	--color-background: hsl(var(--background));
+	--color-foreground: hsl(var(--foreground));
+	--color-shiki-background: var(--shiki-background);
+
+	--color-card: hsl(var(--card));
+	--color-card-foreground: hsl(var(--card-foreground));
+
+	--color-popover: hsl(var(--popover));
+	--color-popover-foreground: hsl(var(--popover-foreground));
+
+	--color-primary: hsl(var(--primary));
+	--color-primary-foreground: hsl(var(--primary-foreground));
+
+	--color-secondary: hsl(var(--secondary));
+	--color-secondary-foreground: hsl(var(--secondary-foreground));
+
+	--color-muted: hsl(var(--muted));
+	--color-muted-foreground: hsl(var(--muted-foreground));
+
+	--color-accent: hsl(var(--accent));
+	--color-accent-foreground: hsl(var(--accent-foreground));
+
+	--color-destructive: hsl(var(--destructive));
+	--color-destructive-foreground: hsl(var(--destructive-foreground));
+
+	--color-border: hsl(var(--border));
+	--color-input: hsl(var(--input));
+	--color-ring: hsl(var(--ring));
+
+	--color-sidebar: hsl(var(--sidebar-background));
+	--color-sidebar-foreground: hsl(var(--sidebar-foreground));
+	--color-sidebar-primary: hsl(var(--sidebar-primary));
+	--color-sidebar-primary-foreground: hsl(var(--sidebar-primary-foreground));
+	--color-sidebar-accent: hsl(var(--sidebar-accent));
+	--color-sidebar-accent-foreground: hsl(var(--sidebar-accent-foreground));
+	--color-sidebar-border: hsl(var(--sidebar-border));
+	--color-sidebar-ring: hsl(var(--sidebar-ring));
+
+	--radius-sm: calc(var(--radius) - 4px);
+	--radius-md: calc(var(--radius) - 2px);
+	--radius-lg: var(--radius);
+	--radius-xl: calc(var(--radius) + 4px);
+
+	--animate-accordion-down: accordion-down 0.2s ease-out;
+	--animate-accordion-up: accordion-up 0.2s ease-out;
+	--animate-caret-blink: caret-blink 1.25s ease-out infinite;
+}
+
+@keyframes accordion-down {
+	from {
+		height: 0;
+	}
+	to {
+		height: var(--bits-accordion-content-height);
+	}
+}
+@keyframes accordion-up {
+	from {
+		height: var(--bits-accordion-content-height);
+	}
+	to {
+		height: 0;
+	}
+}
+@keyframes caret-blink {
+	0%,
+	70%,
+	100% {
+		opacity: 1;
+	}
+	20%,
+	50% {
+		opacity: 0;
+	}
+}
+
+@layer base {
+	:root {
+		--background: 0 0% 96%;
+		--shiki-background: #fff;
+		--foreground: 20 14.3% 4.1%;
+		--muted: 60 4.8% 95.9%;
+		--muted-foreground: 25 5.3% 44.7%;
+		--popover: 0 0% 100%;
+		--popover-foreground: 20 14.3% 4.1%;
+		--card: 0 0% 100%;
+		--card-foreground: 20 14.3% 4.1%;
+		--border: 20 5.9% 90%;
+		--input: 20 5.9% 90%;
+		--primary: 24 9.8% 10%;
+		--primary-foreground: 60 9.1% 97.8%;
+		--secondary: 60 4.8% 95.9%;
+		--secondary-foreground: 24 9.8% 10%;
+		--accent: 60 4.8% 95.9%;
+		--accent-foreground: 24 9.8% 10%;
+		--destructive: 0 72.2% 50.6%;
+		--destructive-foreground: 60 9.1% 97.8%;
+		--ring: 20 14.3% 4.1%;
+		--radius: 0.5rem;
+		--sidebar-background: 0 0% 98%;
+		--sidebar-foreground: 240 5.3% 26.1%;
+		--sidebar-primary: 240 5.9% 10%;
+		--sidebar-primary-foreground: 0 0% 98%;
+		--sidebar-accent: 240 4.8% 95.9%;
+		--sidebar-accent-foreground: 240 5.9% 10%;
+		--sidebar-border: 220 13% 91%;
+		--sidebar-ring: 217.2 91.2% 59.8%;
+	}
+
+	.dark {
+		--background: 20 14.3% 4.1%;
+		--shiki-background: #24292e;
+		--foreground: 60 9.1% 97.8%;
+		--muted: 12 6.5% 15.1%;
+		--muted-foreground: 24 5.4% 63.9%;
+		--popover: 20 14.3% 4.1%;
+		--popover-foreground: 60 9.1% 97.8%;
+		--card: 20 14.3% 4.1%;
+		--card-foreground: 60 9.1% 97.8%;
+		--border: 12 6.5% 15.1%;
+		--input: 12 6.5% 15.1%;
+		--primary: 60 9.1% 97.8%;
+		--primary-foreground: 24 9.8% 10%;
+		--secondary: 12 6.5% 15.1%;
+		--secondary-foreground: 60 9.1% 97.8%;
+		--accent: 12 6.5% 15.1%;
+		--accent-foreground: 60 9.1% 97.8%;
+		--destructive: 0 62.8% 30.6%;
+		--destructive-foreground: 60 9.1% 97.8%;
+		--ring: 24 5.7% 82.9%;
+		--sidebar-background: 240 5.9% 10%;
+		--sidebar-foreground: 240 4.8% 95.9%;
+		--sidebar-primary: 224.3 76.3% 48%;
+		--sidebar-primary-foreground: 0 0% 100%;
+		--sidebar-accent: 240 3.7% 15.9%;
+		--sidebar-accent-foreground: 240 4.8% 95.9%;
+		--sidebar-border: 240 3.7% 15.9%;
+		--sidebar-ring: 217.2 91.2% 59.8%;
+	}
+}
+
+@layer base {
+	* {
+		@apply border-border;
+	}
+	body {
+		@apply bg-background text-foreground;
+	}
+}
+
+html.dark .shiki,
+html.dark .shiki span {
+	color: var(--shiki-dark) !important;
+	background-color: var(--shiki-dark-bg) !important;
+	/* Optional, if you also want font styles */
+	font-style: var(--shiki-dark-font-style) !important;
+	font-weight: var(--shiki-dark-font-weight) !important;
+	text-decoration: var(--shiki-dark-text-decoration) !important;
+}
+
+pre.shiki {
+	max-width: 100%;
+	counter-reset: codeblock-line;
+
+	.line {
+		counter-increment: codeblock-line;
+
+		&::before {
+			content: counter(codeblock-line);
+			display: inline-block;
+			width: 0.75rem;
+			margin-right: 2rem;
+			text-align: right;
+			color: gray;
+		}
+	}
+}
+
+pre:has(code) {
+	position: relative;
+}
+
+div.code-container {
+	display: flex;
+
+	@apply items-center;
+
+	& pre.shiki {
+		@apply flex-grow;
+	}
+}
+
+div.library-selector-tabs .shiki {
+	@apply mt-0 rounded-tl-none;
+}
+
+div.library-selector-tabs div.code-container button.copy-button {
+	position: absolute;
+	top: 0;
+	right: 0;
+}
+
+div.code-container button.copy-button {
+	height: 34px;
+	width: 34px;
+	padding: 0;
+	display: flex;
+	position: relative;
+	padding: 6px;
+	border-radius: 4px;
+
+	&:hover {
+		@apply bg-accent;
+	}
+
+	& span {
+		width: 100%;
+		aspect-ratio: 1 / 1;
+		background-repeat: no-repeat;
+		background-position: center;
+		background-size: cover;
+	}
+
+	& .ready {
+		background-color: currentcolor !important;
+		-webkit-mask-image: url(./clipboard-copy.svg);
+		mask-image: url(./clipboard-copy.svg);
+		mask-repeat: no-repeat;
+		mask-position: center;
+		transition: all 300ms ease-in-out;
+	}
+
+	& .success {
+		background-color: currentcolor !important;
+		opacity: 0;
+		-webkit-mask-image: url(./check.svg);
+		mask-image: url(./check.svg);
+		mask-repeat: no-repeat;
+		mask-position: center;
+		transition: all 300ms ease-in-out;
+		position: absolute;
+		right: 0px;
+		top: 0px;
+	}
+
+	&.copied {
+		& .success {
+			opacity: 100;
+		}
+
+		& .ready {
+			opacity: 0;
+		}
+	}
+}
+
+html.dark code button.copy-button {
+	&:hover {
+		background-color: hsl(var(--background));
+	}
+
+	& .ready {
+		background-color: var(--shiki-dark) !important;
+	}
+
+	& .success {
+		background-color: var(--shiki-dark) !important;
+	}
+}

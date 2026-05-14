@@ -3,7 +3,7 @@
 	import { Editor } from '@tiptap/core';
 	import StarterKit from '@tiptap/starter-kit';
 	import Collaboration from '@tiptap/extension-collaboration';
-	import CollaborationCursor from '@tiptap/extension-collaboration-cursor';
+	import CollaborationCaret from '@tiptap/extension-collaboration-caret';
 	import { EmberLinkYjsProvider, getYjsProviderForChannel } from '@ember-link/yjs-provider';
 	import { getChannelContext } from '@ember-link/svelte';
 	import { Badge } from '$lib/components/ui/badge';
@@ -100,7 +100,7 @@
 					document: provider.getYDoc()
 				}),
 
-				CollaborationCursor.extend().configure({
+				CollaborationCaret.extend().configure({
 					provider,
 					user: getInitialUser()
 				})

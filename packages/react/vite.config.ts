@@ -27,7 +27,7 @@ export default defineConfig({
     copyPublicDir: false
   },
   test: {
-    environment: 'jsdom',
+    environment: 'happy-dom',
     alias: {
       '~/': new URL('./lib/', import.meta.url).pathname, 
     }

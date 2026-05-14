@@ -20,11 +20,11 @@
     }
   },
   "dependencies": {
-    "@bare-ts/lib": "^0.4.0"
+    "@bare-ts/lib": "^0.7.0"
   },
   "devDependencies": {
     "@bare-ts/tools": "patch:@bare-ts/tools@npm%3A0.17.0#~/.yarn/patches/@bare-ts-tools-npm-0.17.0-15e40d02b5.patch",
-    "esbuild": "^0.25.4",
-    "typescript": "^5.2.2"
+    "esbuild": "^0.28.0",
+    "typescript": "^6.0.3"
   }
 }

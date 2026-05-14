@@ -12,7 +12,7 @@
     "./testing": "./src/__test__/mock-storage-provider.ts"
   },
   "devDependencies": {
-    "typescript": "^5.7.3"
+    "typescript": "^6.0.3"
   },
   "dependencies": {
     "@ember-link/event-emitter": "workspace:^",
