@@ -7,6 +7,8 @@ tasks:
     deps:
       - 'core:build'
       - 'yjs-storage:build'
+    outputs:
+      - 'static/app.js'
 
 
 toolchains:

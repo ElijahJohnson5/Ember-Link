@@ -4,3 +4,5 @@ layer: 'library'
 tasks:
   build:
     script: 'yarn build'
+    outputs:
+      - 'dist/**/*'

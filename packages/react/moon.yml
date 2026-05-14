@@ -9,6 +9,8 @@ tasks:
     script: 'yarn build'
     deps:
       - 'core:build'
+    outputs:
+      - 'dist/**/*'
   test:
     script: 'yarn test'
 

@@ -6,3 +6,5 @@ tasks:
     script: 'yarn build'
     deps:
       - 'storage:build'
+    outputs:
+      - 'dist/**/*'

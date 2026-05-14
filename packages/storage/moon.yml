@@ -7,3 +7,5 @@ tasks:
     deps:
       - target: 'event-emitter:build'
       - target: 'protocol:build'
+    outputs:
+      - 'dist/**/*'

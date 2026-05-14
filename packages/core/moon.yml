@@ -13,6 +13,8 @@ tasks:
       - 'event-emitter:build'
       - 'protocol:build'
       - 'storage:build'
+    outputs:
+      - 'dist/**/*'
   test:
     script: 'yarn test'
     deps:
