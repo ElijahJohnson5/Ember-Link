@@ -33,7 +33,6 @@
     "node": "22.12.0"
   },
   "resolutions": {
-    "@rushstack/node-core-library@npm:5.13.0": "patch:@rushstack/node-core-library@npm%3A5.13.0#~/.yarn/patches/@rushstack-node-core-library-npm-5.13.0-524f26757e.patch",
-    "@exodus/bytes": "1.14.1"
+    "@rushstack/node-core-library@npm:5.13.0": "patch:@rushstack/node-core-library@npm%3A5.13.0#~/.yarn/patches/@rushstack-node-core-library-npm-5.13.0-524f26757e.patch"
   }
 }
