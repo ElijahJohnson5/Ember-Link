@@ -12,7 +12,7 @@ export default defineConfig({
 				plugins: [svelteTesting()],
 				test: {
 					name: 'client',
-					environment: 'jsdom',
+					environment: 'happy-dom',
 					clearMocks: true,
 					include: ['src/**/*.svelte.{test,spec}.{js,ts}'],
 					exclude: ['src/lib/server/**'],

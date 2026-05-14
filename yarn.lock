@@ -6241,7 +6241,7 @@ __metadata:
     eslint-config-prettier: "npm:^10.1.8"
     eslint-plugin-svelte: "npm:^3.17.1"
     globals: "npm:^17.6.0"
-    jsdom: "npm:^29.1.1"
+    happy-dom: "npm:^20.9.0"
     mdsvex: "npm:^0.12.7"
     mode-watcher: "npm:^1.1.0"
     postcss: "npm:^8.5.14"
