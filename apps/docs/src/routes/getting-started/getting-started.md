@@ -1,49 +1,49 @@
 <script lang="ts">
-  import { selectedLibrary } from '$lib/library.svelte';
 	import LibrarySelectorTabs from '$lib/components/library-selector-tabs.svelte';
 </script>
 
 # **Getting Started**
 
-Ember Link makes adding real-time collaboration to your app effortless. This guide will help you set up Ember Link and start using its core features.
+Ember Link is a real-time collaboration SDK. This guide walks you through installing the SDK, running an Ember Link server, creating a client, joining a channel, broadcasting presence, and wiring up authentication. Pick the library you are using at the top right of the page so every code sample below shows the variant for your stack.
 
 ## **Installation**
 
-You can install Ember Link via **npm** or **yarn** or any other package manager you use:
+Install the SDK for the library you are using. The React and Svelte packages re-export everything the core package exports, so you do not need to depend on both.
 
-{#if selectedLibrary.current.value === 'js' || selectedLibrary.current.value === 'ts'}
+<LibrarySelectorTabs>
+{#snippet js()}
 
-```sh
-npm install @ember-link/core
-# or
+```sh copyButton
 yarn add @ember-link/core
 ```
 
-{/if}
+{/snippet}
+{#snippet ts()}
 
-{#if selectedLibrary.current.value === 'react'}
+```sh copyButton
+yarn add @ember-link/core
+```
 
-```sh
-npm install @ember-link/react
-# or
+{/snippet}
+{#snippet react()}
+
+```sh copyButton
 yarn add @ember-link/react
 ```
 
-{/if}
+{/snippet}
+{#snippet svelte()}
 
-{#if selectedLibrary.current.value === 'svelte'}
-
-```sh
-npm install @ember-link/svelte
-# or
+```sh copyButton
 yarn add @ember-link/svelte
 ```
 
-{/if}
+{/snippet}
+</LibrarySelectorTabs>
 
 ## **Running the Ember Link Server**
 
-The easiest way to get started is by running the latest Ember Link Docker image locally.
+The SDK needs to talk to a running Ember Link server. The fastest way to get one running locally is the Docker image.
 
 1. **Download the Docker image:**
 
@@ -52,29 +52,23 @@ The easiest way to get started is by running the latest Ember Link Docker image 
    ```
 
 2. **Run the Docker container:**
-   This will run the server on port `9000` and expose it for your application to connect. The `ALLOW_UNAUTHORIZED` flag is enabled for easier testing.
+   The container exposes port `9000`. The `ALLOW_UNAUTHORIZED` flag disables the JWT check so that you can prototype without setting up authentication first. See the [Self-hosting](/self-hosting/docker) section for the production setup, and [Self-hosting → Cloudflare Workers](/self-hosting/cloudflare-workers) if you would prefer to run Ember Link on the edge.
 
    ```sh copyButton
-   docker run -d -p 9000:9000 --env PORT=9000 --env HOST=0.0.0.0 --env ALLOW_UNAUTHORIZED=true emberlinkio/ember-link:latest
+   docker run -d -p 9000:9000 \
+     --env PORT=9000 \
+     --env HOST=0.0.0.0 \
+     --env ALLOW_UNAUTHORIZED=true \
+     emberlinkio/ember-link:latest
    ```
 
 ### **Server Configuration**
 
-View all server configuration environment variables <a href="https://github.com/ElijahJohnson5/Ember-Link?tab=readme-ov-file#server-config" target="_blank">here</a>
+The full list of server environment variables is documented in [Self-hosting → Server config](/self-hosting/config). You can also view the same list on the [project README](https://github.com/ElijahJohnson5/Ember-Link?tab=readme-ov-file#server-config).
 
-## **Connecting to Ember Link**
+## **Creating a Client**
 
-{#if selectedLibrary.current.value === 'js' || selectedLibrary.current.value === 'ts'}
-
-After installing, import and create a client instance with the host and port you are running the server on:
-
-{/if}
-
-{#if selectedLibrary.current.value === 'react' || selectedLibrary.current.value === 'svelte'}
-
-After installing, wrap your root component with an **EmberLinkProvider**
-
-{/if}
+The `Client` owns the WebSocket connection. You create one per application, not per channel. In the React and Svelte SDKs the client is created for you by `EmberLinkProvider` from the `baseUrl` and other options you pass to the provider.
 
 <LibrarySelectorTabs>
 {#snippet js()}
@@ -99,19 +93,21 @@ const client = createClient({
 ```
 
 {/snippet}
-
 {#snippet react()}
 
 ```tsx copyButton
-import { ChannelProvider, EmberLinkProvider } from '@ember-link/react';
+import { EmberLinkProvider } from '@ember-link/react';
 
-function App() {
-	return <EmberLinkProvider baseUrl="http://localhost:9000">{children}</EmberLinkProvider>;
+export default function App({ children }: { children: React.ReactNode }) {
+	return (
+		<EmberLinkProvider baseUrl="http://localhost:9000">
+			{children}
+		</EmberLinkProvider>
+	);
 }
 ```
 
 {/snippet}
-
 {#snippet svelte()}
 
 ```svelte copyButton
@@ -129,227 +125,222 @@ function App() {
 {/snippet}
 </LibrarySelectorTabs>
 
-{#if selectedLibrary.current.value === 'js' || selectedLibrary.current.value === 'ts'}
+## **Joining a Channel**
 
-Once you have a client instance you can then connect to a **Channel**
-
-{/if}
-
-{#if selectedLibrary.current.value === 'react' || selectedLibrary.current.value === 'svelte'}
-
-Then where you plan on using Ember Link you can wrap that component with a **ChannelProvider** to connect to a **Channel**
-
-{/if}
+A channel is a named room on the server. Any client that joins the same channel name on the same server can see the other clients in that channel and share its storage with them.
 
 <LibrarySelectorTabs>
 {#snippet js()}
 
-```typescript copyBytton
-// Returns the channel and a function that should be called
-// once a user leaves the channel
-const { channel, leave } = client.joinChannel('test');
+```typescript copyButton
+// `leave` returns the borrowed channel to the client's internal
+// ref-counted pool. Call it once when you are done with the channel.
+const { channel, leave } = client.joinChannel('demo', {
+	presenceThrottle: 33
+});
+
+leave();
 ```
 
 {/snippet}
 {#snippet ts()}
 
-```typescript copyBytton
-// Returns the channel and a function that should be called
-// once a user leaves the channel
-const { channel, leave } = client.joinChannel('test');
+```typescript copyButton
+const { channel, leave } = client.joinChannel('demo', {
+	presenceThrottle: 33
+});
+
+leave();
 ```
 
 {/snippet}
-
 {#snippet react()}
 
 ```tsx copyButton
-function Channel() {
+import { ChannelProvider } from '@ember-link/react';
+
+export function Room({ children }: { children: React.ReactNode }) {
 	return (
-		<ChannelProvider channelName="test" options={{}}>
-			<Page />
+		<ChannelProvider channelName="demo" options={{ presenceThrottle: 33 }}>
+			{children}
 		</ChannelProvider>
 	);
 }
 ```
 
 {/snippet}
-
 {#snippet svelte()}
 
 ```svelte copyButton
 <script lang="ts">
-	import { ClientProvider } from '@ember-link/svelte';
+	import { ChannelProvider } from '@ember-link/svelte';
 
 	let { children } = $props();
 </script>
 
-<ChannelProvider channelName="test">
-	<Page />
+<ChannelProvider channelName="demo" presenceThrottle={33}>
+	{@render children()}
 </ChannelProvider>
 ```
 
 {/snippet}
 </LibrarySelectorTabs>
 
-## **Listening to User Presence**
+The `presenceThrottle` option coalesces presence sends so that a 120Hz `pointermove` becomes roughly 30 messages per second on the wire. See [Concepts → Presence](/concepts/presence) for the full list of channel options.
 
-Track when users join or leave the collaboration session and update your own presence:
+## **Sending and Reading Presence**
 
-{#if selectedLibrary.current.value === 'js' || selectedLibrary.current.value === 'ts'}
+Presence is per-user, ephemeral state, such as a cursor position, a typing indicator, or a selected color. It is removed when the user disconnects from the channel.
+
+<LibrarySelectorTabs>
+{#snippet js()}
 
 ```typescript copyButton
-channel.events.others.subscribe('join', (user) => {
-	console.log('User join: ', user);
-});
+// Broadcast your own state to the channel.
+channel.updatePresence({ cursor: { x: 0, y: 0 } });
 
+// Subscribe to updates from other clients in the channel.
+// `user` has the shape `EmberLink['Presence'] & { clientId: string }`,
+// so the presence fields appear directly on the user object.
 channel.events.others.subscribe('update', (user) => {
-	console.log('User update: ', user);
-});
-
-channel.events.others.subscribe('leave', (user) => {
-	console.log('User leave: ', user);
-});
-
-// Sent when we disconnect for some reason so that there
-// aren't ghost users hanging around
-channel.events.others.subscribe('reset', () => {
-	console.log('Users reset');
-});
-
-// Update your own presence
-channel.updatePresence({ status: 'online' });
-
-// Listen to events with your own presence
-channel.events.subscribe('presence', (presence) => {
-	console.log('My Presence was updated:', presence);
+	console.log(user.clientId, 'moved to', user.cursor);
 });
 ```
 
-{/if}
+{/snippet}
+{#snippet ts()}
 
-{#if selectedLibrary.current.value === 'svelte'}
+```typescript copyButton
+declare global {
+	interface EmberLink {
+		Presence: { cursor: { x: number; y: number } | null };
+	}
+}
+
+channel.updatePresence({ cursor: { x: 0, y: 0 } });
+
+channel.events.others.subscribe('update', (user) => {
+	// `user` is `{ clientId: string } & EmberLink['Presence']`.
+	// `user.cursor` is typed `{ x: number; y: number } | null`.
+});
+```
+
+{/snippet}
+{#snippet react()}
+
+```tsx copyButton
+import { useMyPresence, useOthers } from '@ember-link/react';
+
+export function CursorLayer() {
+	const others = useOthers();
+	const [, setPresence] = useMyPresence();
+
+	return (
+		<div
+			onPointerMove={(e) =>
+				setPresence({ cursor: { x: e.clientX, y: e.clientY } })
+			}
+		>
+			{others.length} other peer(s) online
+		</div>
+	);
+}
+```
+
+{/snippet}
+{#snippet svelte()}
 
 ```svelte copyButton
 <script lang="ts">
 	import { getChannelContext } from '@ember-link/svelte';
 
 	const channel = getChannelContext();
-
-	// Update your own presence
-	channel.updatePresence({ status: 'online' });
 </script>
 
-<div>
-	{channel.myPresence}
-	{#each channel.others as other (other.clientId)}
-		{other.clientId}
-	{/each}
+<div
+	onpointermove={(e) =>
+		channel.updatePresence({ cursor: { x: e.clientX, y: e.clientY } })}
+>
+	{channel.others.length} other peer(s) online
 </div>
 ```
 
-{/if}
+{/snippet}
+</LibrarySelectorTabs>
 
-{#if selectedLibrary.current.value === 'react'}
+That snippet is a complete live-cursor app. Open the page in two browser tabs and the count of other peers will update as the second tab joins.
+
+## **Authenticating Users**
+
+`ALLOW_UNAUTHORIZED=true` is meant for prototyping. In production the server requires every client to present a signed JWT. The client requests this token from your own backend by way of the `authEndpoint` option, and verifies the response signature against the `jwtSignerPublicKey` option.
+
+<LibrarySelectorTabs>
+{#snippet js()}
+
+```typescript copyButton
+const client = createClient({
+	baseUrl: 'https://collab.example.com',
+	authEndpoint: '/api/emberlink-token',
+	jwtSignerPublicKey: process.env.PUBLIC_JWT_SIGNER_KEY
+});
+```
+
+{/snippet}
+{#snippet ts()}
+
+```typescript copyButton
+const client = createClient({
+	baseUrl: 'https://collab.example.com',
+	// `authEndpoint` accepts either a URL the SDK POSTs to with the
+	// payload `{ channelName }`, or an async callback returning
+	// `{ token }`.
+	authEndpoint: '/api/emberlink-token',
+	jwtSignerPublicKey: process.env.PUBLIC_JWT_SIGNER_KEY!
+});
+```
+
+{/snippet}
+{#snippet react()}
 
 ```tsx copyButton
-import { useMyPresence, useOthers } from '@ember-link/react';
-import { useEffect } from 'react';
-
-export const Page = () => {
-	const others = useOthers();
-	const [myPresence, setMyPresence] = useMyPresence();
-
-	useEffect(() => {
-		setMyPresence({ status: 'online' });
-	}, [setMyPresence]);
-
-	return (
-		<div>
-			{myPresence}
-			{others.map((other) => {
-				return <div>{other.clientId}</div>;
-			})}
-		</div>
-	);
-};
+<EmberLinkProvider
+	baseUrl="https://collab.example.com"
+	authEndpoint="/api/emberlink-token"
+	jwtSignerPublicKey={process.env.NEXT_PUBLIC_JWT_SIGNER_KEY}
+>
+	{children}
+</EmberLinkProvider>
 ```
 
-{/if}
-
-<!-- ## **Using Shared Storage (CRDTs)**
-
-Ember Link provides **conflict-free replicated data types (CRDTs)** to sync state across users:
-
-```typescript copyButton
-const doc = client.getDocument('shared-data');
-
-doc.update((state) => {
-	state.text = 'Hello, collaborative world!';
-});
-
-doc.subscribe((state) => {
-	console.log('Updated state:', state.text);
-});
-``` -->
-
-## **Listening to Websocket status**
-
-{#if selectedLibrary.current.value === 'js' || selectedLibrary.current.value === 'ts'}
-
-```typescript copyButton
-channel.events.subscribe('status', (status) => {
-	console.log('Current websocket status: ', status);
-});
-```
-
-{/if}
-
-{#if selectedLibrary.current.value === 'svelte'}
+{/snippet}
+{#snippet svelte()}
 
 ```svelte copyButton
 <script lang="ts">
-	const channel = getChannelContext();
+	import { EmberLinkProvider } from '@ember-link/svelte';
+	import { env } from '$env/dynamic/public';
+
+	let { children } = $props();
 </script>
 
-<div>
-	{channel.status}
-</div>
+<EmberLinkProvider
+	baseUrl="https://collab.example.com"
+	authEndpoint="/api/emberlink-token"
+	jwtSignerPublicKey={env.PUBLIC_JWT_SIGNER_KEY}
+>
+	{@render children()}
+</EmberLinkProvider>
 ```
 
-{/if}
+{/snippet}
+</LibrarySelectorTabs>
 
-{#if selectedLibrary.current.value === 'react'}
-
-```tsx copyButton
-import { useChannel } from '@ember-link/react';
-import { useEffect } from 'react';
-
-export const Page = () => {
-	const channel = useChannel();
-
-	useEffect(() => {
-		const unsub = channel.events.subscribe('status', (status) => {
-			console.log('Current websocket status: ', status);
-		});
-
-		return () => {
-			unsub();
-		};
-	}, [channel]);
-
-	return (
-		/*
-			Display the status as a badge
-		*/
-	);
-};
-```
-
-{/if}
+The token returned by your backend must be signed with the private half of `jwtSignerPublicKey` and include the channels the user is allowed to join. The full token shape is documented in [Self-hosting → Server config](/self-hosting/config).
 
 ## **Next Steps**
 
-- Check out the [full API documentation for each package](/packages)
-- Check out examples on the [github repo](https://github.com/ElijahJohnson5/Ember-Link/tree/main/examples)
-- Join the Ember Link community on [Discord](https://discord.gg/YU2wGQtgE7) for support & updates
+- Read [Concepts → Channels](/concepts/channels) to see the channel lifecycle in detail, including the ref-counting behavior of `leave()`.
+- Read [Concepts → Storage](/concepts/storage) to add a shared CRDT document to your channel for data that should outlive the session.
+- Browse the [Live cursors example](/cursors) to see the homepage cursor demo with its source code.
+- View the full API for each package under [SDKs](/packages).
+- Join the Ember Link community on [Discord](https://discord.gg/YU2wGQtgE7) for support and updates.

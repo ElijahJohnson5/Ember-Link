@@ -1,0 +1,7 @@
+<script lang="ts">
+	import Channel from './channels.md';
+</script>
+
+<div class="prose mx-auto w-full max-w-4xl p-6 dark:prose-invert">
+	<Channel />
+</div>

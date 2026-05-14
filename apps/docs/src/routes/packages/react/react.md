@@ -1,30 +1,30 @@
-# @ember-link/react
+# **@ember-link/react**
 
-## What is @ember-link/react?
+`@ember-link/react` is the official React integration for Ember Link. The package re-exports every type and runtime export from `@ember-link/core` and adds two context providers and a set of React hooks. The hooks handle subscription, cleanup, and reactivity so application code does not need to call `channel.events.subscribe` manually.
 
-> **@ember-link/react** @ember-link/react is the official React integration for the Ember Link SDK. It provides context providers and React hooks that make it easy to connect to real-time channels, manage presence, and send custom messages using idiomatic React patterns.
+## **Installation**
 
-## Installation
-
-```bash copyButton
-yarn install @ember-link/react
+```sh copyButton
+yarn add @ember-link/react
 ```
 
-## Basic Usage
+## **Basic Usage**
 
 ```tsx copyButton
 import {
 	EmberLinkProvider,
 	ChannelProvider,
+	useChannel,
 	useOthers,
 	useMyPresence,
 	useCustomMessage
 } from '@ember-link/react';
+import { useEffect } from 'react';
 
 function App() {
 	return (
 		<EmberLinkProvider baseUrl="http://localhost:9000">
-			<ChannelProvider channelName="test">
+			<ChannelProvider channelName="test" options={{ presenceThrottle: 33 }}>
 				<Page />
 			</ChannelProvider>
 		</EmberLinkProvider>
@@ -32,102 +32,161 @@ function App() {
 }
 
 function Page() {
-	// Get the base channel if you need to
+	// `useChannel` returns the raw Channel<P, C> as an escape hatch for
+	// any case where no hook exposes what the component needs.
 	const channel = useChannel();
 	const others = useOthers();
-	// myPresence is this users presence, and setMyPresence updates their presence on the server
 	const [myPresence, setMyPresence] = useMyPresence();
-	// sendCustomMessage is the function you can call to send a message
 	const sendCustomMessage = useCustomMessage((message) => {
-		console.log('Got custom message: ', message);
+		console.log('Got custom message:', message);
 	});
 
 	useEffect(() => {
-		setMyPresence({
-			online: true
-		});
+		setMyPresence({ online: true });
 	}, [setMyPresence]);
 
 	return (
 		<>
-			{others.map(() => {
-				return <div>{others.clientId}</div>;
-			})}
+			{others.map((other) => (
+				<div key={other.clientId}>{other.clientId}</div>
+			))}
 		</>
 	);
 }
 ```
 
-## API
+## **Providers**
 
-### Hooks
+### **EmberLinkProvider**
 
-#### **useChannel()**
-
-Returns the current channel instance provided by the closest ChannelProvider.
-
-Useful for advanced use-cases where you want direct access to low-level channel methods.
-
-#### **useOthers()**
-
-Returns an array of presence objects for other users currently connected to the same channel.
-
-```ts
-type useOthers = <P extends DefaultPresence, C extends DefaultCustomMessageData>() => User<P>[];
+```typescript
+<EmberLinkProvider {...CreateClientOptions}>
+	{children}
+</EmberLinkProvider>
 ```
 
-#### **useMyPresence()**
+Creates an Ember Link `Client` from the props passed to the provider and exposes it on React context. The props are the same as `CreateClientOptions` from `@ember-link/core` (see [@ember-link/core → Client Options](/packages/core)). The provider memoises the options so a parent that passes a shallow-equal literal on each render does not re-create the client. The client is destroyed on unmount.
 
-Returns a tuple of:
+### **ChannelProvider**
 
-The current user's presence object
-
-A setter function to update presence
-
-Updates are automatically propagated to other users.
-
-#### **useCustomMessage**
-
-Registers a handler for custom messages and returns a function to send messages:
-
-```ts
-const sendMessage = useCustomMessage((message) => {
-	console.log('Got a message!', message);
-});
-
-sendMessage({ type: 'ping' });
+```typescript
+<ChannelProvider channelName={string} options={ChannelOptions}>
+	{children}
+</ChannelProvider>
 ```
 
-#### **useStatus**
+Joins the named channel through the Client supplied by `EmberLinkProvider` and exposes it on React context. The `options` prop is the same options object accepted by `client.joinChannel`. The channel is left (and ref-counted-down) on unmount and when `channelName` or `options` change.
 
-Returns the current status of the underlying websocket connection
+## **Hooks**
 
-#### **useArrayStorage(name: string)**
+### **useClient**
 
-Returns a CRDT-backed array that is synced across all users in the channel.
-
-```ts
-const items = useArrayStorage('test');
+```typescript
+function useClient<P, C>(): EmberClient<P, C>;
+function useClientOrNull<P, C>(): EmberClient<P, C> | null;
 ```
 
-This is a wrapper over [@ember-link/storage - ArrayStorage](/packages/storage#array-storage).
+Returns the `EmberClient` from the nearest `EmberLinkProvider`. The non-`OrNull` form throws when called outside a provider.
 
-To access the current up to date array use `items.current`.
+### **useChannel**
 
-#### **useMapStorage(name: string)**
-
-Returns a CRDT-backed Map that is synced across all users in the channel.
-
-```ts
-const items = useMapStorage('test');
+```typescript
+function useChannel<P, C>(): Channel<P, C>;
+function useChannelOrNull<P, C>(): Channel<P, C> | null;
 ```
 
-This is a wrapper over [@ember-link/storage - MapStorage](/packages/storage#map-storage).
+Returns the raw `Channel<P, C>` from the nearest `ChannelProvider`. Useful for accessing methods not exposed by a dedicated hook, such as `channel.events.others.subscribe('join', ...)`.
 
-To access the current up to date map use `items.current`.
+### **useOthers**
 
-## Related
+```typescript
+function useOthers<P, C>(): User<P>[];
+```
 
-- [@ember-link/core](/packages/core) – Core WebSocket + channel logic
+Returns the array of other peers currently connected to the channel. The returned array updates when peers join, leave, or update their presence. Each entry has the shape `P & { clientId: string }`, so presence fields appear directly on the user object.
 
-- [@ember-link/svelte](/packages/svelte) – Svelte integration
+### **useMyPresence**
+
+```typescript
+function useMyPresence<P, C>(): readonly [P | null, (next: P) => void];
+```
+
+Returns a tuple of the local client's presence and a setter that broadcasts the new presence to the channel. The setter is stable across renders, so it is safe to pass to a child component or to use in a `useEffect` dependency array. `updatePresence` replaces the previous presence value in its entirety.
+
+### **useStatus**
+
+```typescript
+function useStatus<P, C>(): Status;
+```
+
+Returns the current WebSocket status of the channel. See `Status` in [@ember-link/core](/packages/core) for the full set of values.
+
+### **useCustomMessage**
+
+```typescript
+function useCustomMessage<P, C>(
+	callback: (message: C) => void
+): (data: C) => void;
+```
+
+`useCustomMessage` handles both directions of the custom message channel. The `callback` argument runs on every incoming custom message. The returned function sends an outgoing custom message. Both directions can be used independently. To consume only, pass a callback and ignore the return value. To send only, pass a callback that does nothing.
+
+### **useArrayStorage**
+
+```typescript
+function useArrayStorage<T>(name: string): ArrayStorageHookResult<T>;
+```
+
+Returns a CRDT-backed array synced across all peers in the channel. The returned object includes every method of `ArrayStorage<T>` (`push`, `insertAt`, `delete`, `replace`, `toArray`, `forEach`, `subscribe`) plus a `current` field that holds the latest snapshot as a plain `Array<T>` for use in render output. The channel must have been joined with a `storageProvider` configured. See [@ember-link/storage](/packages/storage) for the underlying type.
+
+```tsx copyButton
+const items = useArrayStorage<{ id: string }>('items');
+items.push({ id: crypto.randomUUID() });
+// In render output:
+items.current.map((item) => <li key={item.id}>{item.id}</li>);
+```
+
+### **useMapStorage**
+
+```typescript
+function useMapStorage<K extends string, V>(name: string): MapStorageHookResult<K, V>;
+```
+
+Returns a CRDT-backed map synced across all peers in the channel. The returned object includes every method of `MapStorage<K, V>` (`get`, `set`, `has`, `delete`, `clear`, `entries`) plus a `current` field that holds the latest snapshot as a plain `Map<K, V>` for use in render output.
+
+```tsx copyButton
+const meta = useMapStorage<string, string>('meta');
+meta.set('title', 'My document');
+const title = meta.current.get('title');
+```
+
+## **Per-Library Type Scoping**
+
+If you are writing a library on top of Ember Link and you do not want to require your consumers to augment the global `EmberLink` interface, use `createEmberLinkContext<P, C>()`. The factory returns a typed bundle with the same `EmberLinkProvider`, `ChannelProvider`, and hook set, scoped to the `P` and `C` you pass in.
+
+```typescript copyButton
+import { createEmberLinkContext } from '@ember-link/react';
+
+const {
+	EmberLinkProvider,
+	ChannelProvider,
+	useOthers,
+	useMyPresence,
+	useCustomMessage,
+	useArrayStorage,
+	useMapStorage,
+	useStatus,
+	useChannel
+} = createEmberLinkContext<
+	{ cursor: { x: number; y: number } | null },
+	{ kind: 'ping' }
+>();
+```
+
+The runtime functions returned by `createEmberLinkContext` are the same functions as the top-level exports. Only the types differ.
+
+## **Related**
+
+- [@ember-link/core](/packages/core) for the underlying `Channel`, `Client`, and event types.
+- [@ember-link/svelte](/packages/svelte) for the Svelte integration.
+- [Concepts → Type augmentation](/concepts/type-augmentation) for the global augmentation pattern.

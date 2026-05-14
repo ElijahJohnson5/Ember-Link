@@ -1,24 +1,24 @@
-# @ember-link/svelte
+# **@ember-link/svelte**
 
-## What is @ember-link/svelte?
+`@ember-link/svelte` is the official Svelte integration for Ember Link. The package re-exports every type and runtime export from `@ember-link/core` and adds two component providers plus a `SvelteChannel` wrapper that exposes the channel's state through `$state`-backed reactive properties. Templates can interpolate `channel.others`, `channel.status`, and `channel.myPresence` directly and the SDK takes care of re-renders.
 
-> **@ember-link/svelte** @ember-link/svelte is the official Svelte integration for the Ember Link SDK. It provides context providers and wrappers that make it easy to connect to real-time channels, manage presence, and send custom messages using idiomatic Svelte patterns.
+## **Installation**
 
-## Installation
-
-```bash copyButton
-yarn install @ember-link/svelte
+```sh copyButton
+yarn add @ember-link/svelte
 ```
 
-## Basic Usage
+## **Basic Usage**
 
 ```svelte copyButton
+<!-- App.svelte -->
 <script lang="ts">
 	import { EmberLinkProvider, ChannelProvider } from '@ember-link/svelte';
+	import Page from './Page.svelte';
 </script>
 
 <EmberLinkProvider baseUrl="http://localhost:9000">
-	<ChannelProvider channelName="test">
+	<ChannelProvider channelName="test" presenceThrottle={33}>
 		<Page />
 	</ChannelProvider>
 </EmberLinkProvider>
@@ -26,17 +26,15 @@ yarn install @ember-link/svelte
 
 ```svelte copyButton
 <!-- Page.svelte -->
-
 <script lang="ts">
 	import { getChannelContext } from '@ember-link/svelte';
 
-	// Gets a channel wrapped in a SvelteChannel which has direct accessors for many of the things you need to access
+	// `getChannelContext` returns a `SvelteChannel` wrapper, which
+	// exposes reactive accessors backed by `$state`. The raw core
+	// `Channel` object is still accessible through `getRawChannel()`.
 	const channel = getChannelContext();
 
 	channel.updatePresence({ data: 'test' });
-
-	// Get the base channel if you need to
-	const rawChannel = channel.getRawChannel();
 </script>
 
 {#each channel.others as other (other.clientId)}
@@ -46,95 +44,121 @@ yarn install @ember-link/svelte
 <div>Current status: {channel.status}</div>
 ```
 
-## API
+## **Providers**
 
-### EmberLinkProvider
-
-Simple provider that takes the same parameters as the **createClient** method does.
-
-### ChannelProvider
-
-Simple provider that connects to the channel name that is given, can only be used within an **EmberLinkProvider**
-
-### SvelteChannel
-
-A wrapper around the base Channel, enhanced with reactive $state bindings for Svelte.
-
-#### Reactive State
-
-| Property     | Description                                        |
-| ------------ | -------------------------------------------------- |
-| `others`     | Array of other connected clients + their presence  |
-| `myPresence` | Your own presence state                            |
-| `status`     | WebSocket status: "connected", "disconnected" etc. |
-
-#### Methods
-
-| Method             | Description                                 |
-| ------------------ | ------------------------------------------- |
-| `updatePresence()` | Update your presence on the server          |
-| `getRawChannel()`  | Access the underlying core `Channel` object |
-| `getStorage()`     | Access CRDT storage bound to this channel   |
-
-### SvelteStorage
-
-A reactive wrapper over collaborative CRDT-backed storage.
-
-`SvelteArrayStorage<T>`
-
-```ts copyButton
-const items = storage.getArray<T>('key');
-```
-
-- .current – Reactive array state (for $state updates)
-
-- Methods: push(), remove(), etc. All methods can be found [here](/packages/storage)
-
-`SvelteMapStorage<K, V>`
-
-```ts copyButton
-const map = storage.getMap<K, V>('key');
-```
-
-- .current – Reactive array state (for $state updates)
-
-- Methods: set(), delete(), clear(), etc. All methods can be found [here](/packages/storage)
-
-#### Example Usage
+### **EmberLinkProvider**
 
 ```svelte
+<EmberLinkProvider {...CreateClientOptions}>
+	{@render children()}
+</EmberLinkProvider>
+```
+
+Creates an Ember Link `Client` from the props passed to the provider and stores it in the Svelte context. The props are the same as `CreateClientOptions` from `@ember-link/core`. The component re-runs `setOptions` reactively when props change, and tears the client down on destroy.
+
+### **ChannelProvider**
+
+```svelte
+<ChannelProvider channelName={string} {...ChannelOptions}>
+	{@render children()}
+</ChannelProvider>
+```
+
+Joins the named channel and exposes a `SvelteChannel` wrapper in the Svelte context. Channel options are spread directly as component props rather than nested under an `options` prop. The component re-joins the channel reactively when `channelName` or any option changes, and destroys the wrapper on unmount.
+
+## **SvelteChannel**
+
+The object returned by `getChannelContext()`. The class wraps the core `Channel` with `$state`-backed reactive properties.
+
+### **Reactive Properties**
+
+| **Property**  | **Type**            | **Description**                                                                                                |
+| ------------- | ------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `others`      | `User<P>[]`         | List of other peers connected to the channel. Updates when peers join, leave, or update presence.              |
+| `myPresence`  | `P \| null`         | The local client's last-sent presence.                                                                          |
+| `status`      | `Status`            | Current WebSocket status. See `Status` in [@ember-link/core](/packages/core).                                  |
+| `storage`     | `SvelteStorage \| null` | The reactive storage wrapper for the channel, or `null` when no `storageProvider` is configured.            |
+
+### **Methods**
+
+| **Method**           | **Description**                                                                                                                                |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `updatePresence()`   | Replaces the local client's presence and broadcasts the new value.                                                                              |
+| `getRawChannel()`    | Returns the underlying core `Channel<P, C>` for advanced use cases, such as subscribing directly to `channel.events`.                          |
+| `getStorage()`       | Returns the `SvelteStorage` wrapper. Throws when no `storageProvider` is configured on the channel.                                            |
+
+## **SvelteStorage**
+
+A reactive wrapper around the core `IStorage` returned by `channel.storage`. The wrapper exposes `getArray` and `getMap` methods that produce `SvelteArrayStorage<T>` and `SvelteMapStorage<K, V>` instances.
+
+### **SvelteArrayStorage&lt;T&gt;**
+
+```typescript
+const items = channel.storage.getArray<T>('items');
+```
+
+| **Member**            | **Description**                                                                                                                            |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `current`             | `$state`-backed `Array<T>` for interpolation in templates. Re-renders automatically.                                                       |
+| `length`              | Length of the underlying array.                                                                                                            |
+| `push(value)`         | Appends a value.                                                                                                                           |
+| `insertAt(index, value)` | Inserts a value at the given index.                                                                                                     |
+| `delete(index, length)` | Removes a range of values starting at the index.                                                                                          |
+| `replace(index, value)` | Replaces the value at the index.                                                                                                          |
+| `toArray()`           | Returns the underlying array as a plain `Array<T>`.                                                                                        |
+| `forEach(callback)`   | Iterates over each value.                                                                                                                  |
+| `subscribe(callback)` | Subscribes to raw `StorageEvent` updates. Most callers do not need this because `current` is already reactive.                              |
+
+### **SvelteMapStorage&lt;K, V&gt;**
+
+```typescript
+const map = channel.storage.getMap<K, V>('key');
+```
+
+| **Member**            | **Description**                                                                                                                            |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `current`             | A `SvelteMap<K, V>` (reactive map from `svelte/reactivity`) holding the current state.                                                      |
+| `size`                | Number of entries in the underlying map.                                                                                                   |
+| `get(key)`            | Reads the value at `key`.                                                                                                                  |
+| `set(key, value)`     | Adds or replaces the entry.                                                                                                                |
+| `delete(key)`         | Removes the entry.                                                                                                                         |
+| `has(key)`            | Returns `true` when the entry exists.                                                                                                      |
+| `clear()`             | Removes every entry.                                                                                                                       |
+| `entries()`           | Returns an iterator over `[key, value]` pairs.                                                                                             |
+| `subscribe(callback)` | Subscribes to raw `StorageEvent` updates.                                                                                                  |
+
+## **Example: Storage in a Template**
+
+```svelte copyButton
 <script lang="ts">
 	import { getChannelContext } from '@ember-link/svelte';
 
 	const channel = getChannelContext();
-	const storage = channel.getStorage();
-
-	const items = storage.getArray<{ name: string }>('items');
-	const flags = storage.getMap<string, boolean>('flags');
-
-	$effect(() => {
-		items.push({ name: 'Svelte collab ❤️' });
-		flags.set('debug', true);
-	});
+	const items = $derived(channel.storage?.getArray<{ name: string }>('items'));
+	const flags = $derived(channel.storage?.getMap<string, boolean>('flags'));
 </script>
 
-<ul>
-	{#each items.current as item (item.name)}
-		<li>{item.name}</li>
-	{/each}
-</ul>
+{#if items}
+	<button onclick={() => items.push({ name: 'Svelte collab' })}>Add</button>
+	<ul>
+		{#each items.current as item (item.name)}
+			<li>{item.name}</li>
+		{/each}
+	</ul>
+{/if}
 
-{#each Object.entries(flags.current) as [key, val] (key)}
-	{#if val}
-		<p>{key} is active</p>
-	{/if}
-{/each}
+{#if flags}
+	{#each flags.current.entries() as [key, val] (key)}
+		{#if val}
+			<p>{key} is active</p>
+		{/if}
+	{/each}
+{/if}
 ```
 
-## 📚 Related
+## **Related**
 
-- [@ember-link/core](/packages/core) – Core WebSocket + channel logic
-
-- [@ember-link/storage](/packages/storage) - Low-level CRDT API
-
-- [@ember-link/react](/packages/react) – React integration
+- [@ember-link/core](/packages/core) for the underlying `Channel`, `Client`, and event types.
+- [@ember-link/storage](/packages/storage) for the underlying storage interfaces.
+- [@ember-link/react](/packages/react) for the React integration.
+- [Concepts → Storage](/concepts/storage) for a higher-level overview of storage.

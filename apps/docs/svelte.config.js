@@ -13,7 +13,7 @@ export function parseMetaCopyButton(meta) {
 
 const highlighter = await createHighlighter({
 	themes: ['github-dark', 'github-light'],
-	langs: ['javascript', 'typescript', 'sh', 'tsx', 'jsx', 'svelte']
+	langs: ['javascript', 'typescript', 'sh', 'tsx', 'jsx', 'svelte', 'toml', 'yaml']
 });
 
 const config = {

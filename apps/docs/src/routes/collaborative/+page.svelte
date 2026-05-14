@@ -4,6 +4,24 @@
 </script>
 
 <div class="flex h-full w-full flex-col">
+	<div class="prose mx-auto w-full max-w-4xl px-6 pt-6 dark:prose-invert">
+		<h1><strong>Collaborative Editor</strong></h1>
+		<p>
+			The two Tiptap editors below sync against the same underlying <code>Y.Doc</code> through <a
+				href="/packages/yjs-provider">@ember-link/yjs-provider</a
+			>. Type into either editor and the other editor receives the changes through Tiptap's
+			<code>Collaboration</code> extension. The <code>CollaborationCaret</code> extension renders
+			the remote cursor and selection of the other editor on top of the local text.
+		</p>
+		<p>
+			The Yjs provider is the right tool when the application's text data is already managed by an
+			editor that speaks Yjs, because the editor synchronizes against the document directly without
+			going through the higher-level <code>ArrayStorage</code> and <code>MapStorage</code> APIs.
+			For non-editor application state, use <a href="/concepts/storage">Concepts → Storage</a> and
+			the storage hooks instead.
+		</p>
+	</div>
+
 	<div>
 		<Button
 			variant="link"

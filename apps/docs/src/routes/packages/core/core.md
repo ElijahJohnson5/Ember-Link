@@ -1,73 +1,59 @@
-# @ember-link/core
+# **@ember-link/core**
 
-## What is @ember-link/core?
+`@ember-link/core` is the foundational package of the Ember Link SDK. The package implements the WebSocket connection, the authentication flow, the channel lifecycle, the presence and storage syncing protocol, and the event subscription API. The React and Svelte integrations build on top of `@ember-link/core` and re-export every type and runtime export it provides, so most applications using a framework integration do not need to depend on `@ember-link/core` directly.
 
-> **@ember-link/core** is the foundational package for all Ember Link clients. It provides the low-level primitives and protocols that power real-time communication across all supported frameworks (React, Svelte, etc).
+## **When to Use This Package**
 
-### Key Responsibilities
+- Plain JavaScript or TypeScript applications without a UI framework.
+- Custom framework integrations (for example, Vue, Solid, Qwik).
+- Test harnesses and tooling that need a real client without UI bindings.
 
-- WebSocket Management
-  Establishes and maintains a persistent connection to the Ember Link server with automatic reconnection and backoff strategies.
+## **Installation**
 
-- Channel Layer
-  A lightweight publish/subscribe interface that lets you join, leave, and communicate over named channels.
-
-- Authentication
-  Token-based client authentication for secure access to collaborative resources.
-
-### When to Use @ember-link/core
-
-- Building a custom framework integration
-
-- Extending or debugging low-level behavior
-
-- Using plain Javascript
-
-## Installation
-
-```bash copyButton
-yarn install @ember-link/core
+```sh copyButton
+yarn add @ember-link/core
 ```
 
-## Basic Usage
+## **Basic Usage**
 
-```ts copyButton
+```typescript copyButton
 import { createClient } from '@ember-link/core';
 
 const client = createClient({
 	baseUrl: 'http://localhost:9000'
 });
 
-// 3. Join a channel (e.g., a collaborative document or room)
-const { channel, leave } = client.joinChannel('test');
-
-// 4. Listen to other user events
-channel.events.subscribe('others', (others) => {
-	console.log('Current users in channel: ', others);
+const { channel, leave } = client.joinChannel('test', {
+	presenceThrottle: 33
 });
 
-// 5. Update your own presence
+channel.events.subscribe('others', (others) => {
+	console.log('Current users in channel:', others);
+});
+
+channel.events.subscribe('presence', (presence) => {
+	console.log('My presence was updated:', presence);
+});
+
 channel.updatePresence({ status: 'online' });
 
-// 6. Listen to your own presence
-channel.events.subscribe('presence', (presence) => {
-	console.log('My Presence was updated:', presence);
-});
+channel.sendCustomMessage({ data: 'can be any JSON-serializable data' });
 
-// 7. Send any message you want
-channel.sendCustomMessage({ data: 'can be any JSON serializable data' });
-
-// 8. Listen to custom messages
 channel.events.subscribe('customMessage', (message) => {
-	console.log('Recieved message from peers: ', message);
+	console.log('Received message from peers:', message);
 });
+
+// Call `leave` once when this part of the application is done with
+// the channel. The underlying channel is destroyed only when the last
+// ref-counted reference has been returned.
+leave();
 ```
 
-### <a id="typescript" href="#typescript">Typescript</a>
+## **TypeScript**
 
-Defining custom presence types and custom message types
+The recommended way to type presence and custom messages is the global `EmberLink` augmentation, which propagates the types to every API in every SDK without explicit generic parameters. See [Concepts → Type augmentation](/concepts/type-augmentation) for the full pattern.
 
-```ts copyButton
+```typescript copyButton
 declare global {
 	interface EmberLink {
 		Presence: {
@@ -78,110 +64,87 @@ declare global {
 		};
 	}
 }
+export {};
 ```
 
-## API
+## **API**
 
-### Client
+### **createClient**
 
-To create a new instance of `Client`, you must pass a configuration object of type `CreateClientOptions`.
+```typescript
+function createClient<
+	P extends Record<string, unknown> = DefaultPresence,
+	C extends Record<string, unknown> = DefaultCustomMessageData
+>(options: CreateClientOptions): EmberClient<P, C>;
+```
 
-#### CreateClientOptions
+Creates a new `Client` configured with the provided options. The returned object exposes `joinChannel` and `destroy`. See [Concepts → Client](/concepts/client) for the full description of the lifecycle.
+
+### **CreateClientOptions**
 
 ```typescript
 interface CreateClientOptions {
 	baseUrl: string;
 	authEndpoint?: AuthEndpoint;
-	multiTenant?: {
-		tenantId: string;
-	};
+	multiTenant?: { tenantId: string };
+	polyfills?: { websocket?: IWebSocket };
 	jwtSignerPublicKey?: string;
 }
 ```
 
-| Name               | Type         | Required | Description                                              |
-| ------------------ | ------------ | -------- | -------------------------------------------------------- |
-| baseUrl            | string       | ✅       | The base URL of your Ember Link backend.                 |
-| authEndpoint       | AuthEndpoint | ❌       | Configuration for authentication.                        |
-| └ URL              | string       | ❌       | A URL for the authentication endpoint.                   |
-| └ function         | function     | ❌       | A function that returns a signed JWT for authentication. |
-| multiTenant        | Object       | ❌       | Configuration for multi-tenant setup.                    |
-| └ tenantId         | string       | ❌       | The tenant ID used in a multi-tenant setup.              |
-| jwtSignerPublicKey | string       | ❌       | Public key used to verify JWTs from your auth provider.  |
+| **Option**             | **Type**                       | **Required** | **Description**                                                                                                                                              |
+| ---------------------- | ------------------------------ | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `baseUrl`              | `string`                       | yes          | Base URL of the Ember Link server. Used for both authentication requests and the WebSocket URL.                                                              |
+| `authEndpoint`         | `string \| AuthCallback`       | no           | A URL the SDK `POST`s to with `{ channelName }`, or an async callback that returns `{ token }` directly.                                                     |
+| `jwtSignerPublicKey`   | `string`                       | no           | PEM-formatted RSA public key the SDK uses to verify the signature of returned tokens. Required whenever `authEndpoint` is set.                               |
+| `multiTenant`          | `{ tenantId: string }`         | no           | Sends `tenant_id` on every request. Pair with a server running in multi-tenant mode.                                                                         |
+| `polyfills`            | `{ websocket?: IWebSocket }`   | no           | Drop-in replacement for the global `WebSocket` constructor, for environments that do not expose one.                                                         |
 
-#### Methods
+### **EmberClient**
 
 ```typescript
-type JoinChannel<
-	P extends Record<string, unknown> = DefaultPresence,
-	C extends Record<string, unknown> = DefaultCustomMessageData
-> = <S extends IStorageProvider>(
+interface EmberClient<P, C> {
+	joinChannel: JoinChannel<P, C>;
+	destroy: () => void;
+}
+
+type JoinChannel<P, C> = <S extends IStorageProvider>(
 	channelName: string,
 	options?: ChannelConfig<S, P>['options']
 ) => { channel: Channel<P, C>; leave: () => void };
 ```
 
-channelName: The name of the channel to join.
+| **Method**     | **Description**                                                                                                                                              |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `joinChannel`  | Joins the named channel and returns a `{ channel, leave }` pair. Repeated calls with the same name return the same underlying channel, ref-counted internally. |
+| `destroy`      | Tears down every channel the Client has created and closes their WebSocket connections.                                                                       |
 
-options: An optional configuration for joining the channel.
+### **ChannelConfig['options']**
 
-Returns a Channel object and a leave function to leave the channel
-
-Type Arguments: In most cases you shouldn't have to manually pass the type arguments and you should be able to define them like in the [typescript example above](#typescript)
-
-### Connecting to a Channel
-
-To create a new instance of a `Channel`, you need to call the `joinChannel` function on a Client
-
-### ChannelConfig
+The second argument of `joinChannel`.
 
 ```typescript
-interface ChannelConfig<
-	S extends IStorageProvider,
-	P extends Record<string, unknown> = DefaultPresence
-> {
-	channelName: string;
-	baseUrl: string;
-	authenticate: () => Promise<AuthValue>;
-	createWebSocket: (authValue: AuthValue) => WebSocket;
-	options?: {
-		initialPresence?: P;
-		storageProvider?: S;
-		autoConnect?: boolean;
-	};
+{
+	initialPresence?: P;
+	storageProvider?: IStorageProvider;
+	autoConnect?: boolean;
+	presenceThrottle?: number;
 }
 ```
 
-| **Name**          | **Type**         | **Required** | **Description**                                                    |
-| ----------------- | ---------------- | ------------ | ------------------------------------------------------------------ |
-| options           | Object           | ❌           | Optional configuration for the channel.                            |
-| └ initialPresence | Type of Presence | ❌           | Optional initial presence state for the channel.                   |
-| └ storageProvider | S                | ❌           | Optional storage provider for syncing data.                        |
-| └ autoConnect     | boolean          | ❌           | Whether to automatically connect to the channel (default: `true`). |
+| **Option**          | **Type**             | **Default** | **Description**                                                                                                       |
+| ------------------- | -------------------- | ----------- | --------------------------------------------------------------------------------------------------------------------- |
+| `initialPresence`   | `P`                  | none        | Presence value sent on join, before any explicit `updatePresence` call.                                              |
+| `storageProvider`   | `IStorageProvider`   | none        | Enables shared CRDT storage on the channel.                                                                           |
+| `autoConnect`       | `boolean`            | `true`      | When `false`, no WebSocket connection is opened until you call `channel.connect()`.                                   |
+| `presenceThrottle`  | `number` (ms)        | `0`         | Coalesces presence sends. See [Concepts → Presence](/concepts/presence) for the throttling details and recommended values. |
 
-#### Interface
+### **Channel**
+
+The handle returned inside `joinChannel`'s `{ channel }`.
 
 ```typescript
-type ChannelEvents<
-	P extends Record<string, unknown> = DefaultPresence,
-	C extends Record<string, unknown> = DefaultCustomMessageData
-> = {
-	presence: (self: P) => void;
-	status: (status: Status) => void;
-	others: (others: User<P>[]) => void;
-	destroy: () => void;
-	customMessage: (message: Extract<ServerMessage<P, C>, { type: 'custom' }>['data']) => void;
-};
-
-type YjsProviderEvents = {
-	syncMessage: (message: StorageSyncMessage) => void;
-	updateMessage: (message: StorageUpdateMessage) => void;
-};
-
-type Channel<
-	P extends Record<string, unknown> = DefaultPresence,
-	C extends Record<string, unknown> = DefaultCustomMessageData
-> = {
+type Channel<P, C> = {
 	updatePresence: (state: P) => void;
 	sendCustomMessage: (data: C) => void;
 	hasStorage: () => boolean;
@@ -191,6 +154,7 @@ type Channel<
 	getName: () => string;
 	getPresence: () => P | null;
 	destroy: () => void;
+	connect: () => void;
 	updateYDoc: (data: StorageUpdateMessage) => void;
 	syncYDoc: (data: StorageSyncMessage) => void;
 	events: Observable<ChannelEvents<P, C>> & {
@@ -200,17 +164,63 @@ type Channel<
 };
 ```
 
-| **Name**            | **Type**                               | **Description**                                                                 |
-| ------------------- | -------------------------------------- | ------------------------------------------------------------------------------- |
-| `updatePresence`    | `(state: P) => void`                   | Updates the local users presence in the channel.                                |
-| `sendCustomMessage` | `(data: C) => void`                    | Sends a message to all other users in the channel.                              |
-| `hasStorage`        | `() => boolean`                        | Returns true if the channel has a storage provider, false otherwise.            |
-| `getStorage`        | `() => IStorage`                       | Retrieves the channel's storage provider.                                       |
-| `getStatus`         | `() => Status`                         | Returns the current connection status of the channel.                           |
-| `getOthers`         | `() => User<P>[]`                      | Retrieves the list of other users in the channel.                               |
-| `getName`           | `() => string`                         | Returns the name of the channel.                                                |
-| `getPresence`       | `() => P`                              | Returns the presence state of the channel or null if unavailable.               |
-| `destroy`           | `() => void`                           | Destroys the channel, cleaning up resources and connections.                    |
-| `updateYDoc`        | `(data: StorageUpdateMessage) => void` | Sends an update to the Yjs document in the channel.                             |
-| `syncYDoc`          | `(data: StorageSyncMessage) => void`   | Synchronizes the Yjs document in the channel.                                   |
-| `events`            | `Observable<ChannelEvents<P, C>>`      | Event emitter for channel-specific events. Includes `others` and `yjsProvider`. |
+| **Member**            | **Type**                                  | **Description**                                                                                                       |
+| --------------------- | ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `updatePresence`      | `(state: P) => void`                      | Replaces the local client's presence with `state` and broadcasts the new value.                                       |
+| `sendCustomMessage`   | `(data: C) => void`                       | Sends a fire-and-forget message to every other peer connected to the channel.                                         |
+| `hasStorage`          | `() => boolean`                           | Returns `true` when a `storageProvider` is configured on the channel.                                                 |
+| `getStorage`          | `() => IStorage`                          | Returns the channel's `IStorage`. Throws when `hasStorage()` is `false`.                                              |
+| `getStatus`           | `() => Status`                            | Returns the current WebSocket status.                                                                                  |
+| `getOthers`           | `() => User<P>[]`                         | Returns the current list of other peers in the channel.                                                                |
+| `getName`             | `() => string`                            | Returns the channel name.                                                                                              |
+| `getPresence`         | `() => P \| null`                         | Returns the local client's last-sent presence, or `null` when none has been sent yet.                                  |
+| `destroy`             | `() => void`                              | Tears down the channel, bypassing ref-counting. Prefer `leave()` from `joinChannel`'s return.                          |
+| `connect`             | `() => void`                              | Opens the WebSocket. Only required when `autoConnect: false` was passed.                                              |
+| `events`              | `Observable<ChannelEvents<P, C>>`         | Observable for channel events. The `.others` sub-observable fires per peer.                                            |
+
+### **Status**
+
+```typescript
+type Status = 'initial' | 'connecting' | 'connected' | 'reconnecting' | 'closed' | 'disconnected';
+```
+
+### **ChannelEvents**
+
+The shape of the `channel.events` observable.
+
+```typescript
+type ChannelEvents<P, C> = {
+	presence: (self: P) => void;
+	status: (status: Status) => void;
+	others: (others: User<P>[]) => void;
+	destroy: () => void;
+	customMessage: (message: C) => void;
+};
+```
+
+### **OtherEvents**
+
+The shape of the `channel.events.others` sub-observable.
+
+```typescript
+type OtherEvents<P> = {
+	join: (user: User<P>) => void;
+	leave: (user: User<P>) => void;
+	update: (user: User<P>) => void;
+	reset: () => void;
+};
+```
+
+### **User**
+
+```typescript
+type User<P> = P & { clientId: string };
+```
+
+`User<P>` is the presence object with a `clientId` field added. The presence fields appear directly on the user object (for example `user.cursor`), rather than being nested under a `user.presence` key.
+
+## **Related**
+
+- [Concepts → Client](/concepts/client) for the lifecycle and authentication flow.
+- [Concepts → Channels](/concepts/channels) for ref-counting and the full event model.
+- [@ember-link/react](/packages/react) and [@ember-link/svelte](/packages/svelte) for framework bindings.

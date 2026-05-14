@@ -21,64 +21,53 @@
 		navMain: [
 			{
 				title: 'Getting Started',
-				url: '/getting-started',
+				url: '/getting-started'
+			},
+			{
+				title: 'Concepts',
+				url: '/concepts',
 				items: [
-					{
-						title: 'Support',
-						url: '/support'
-					}
+					{ title: 'Client', url: '/concepts/client' },
+					{ title: 'Channels', url: '/concepts/channels' },
+					{ title: 'Presence', url: '/concepts/presence' },
+					{ title: 'Storage', url: '/concepts/storage' },
+					{ title: 'Custom Messages', url: '/concepts/custom-messages' },
+					{ title: 'Type Augmentation', url: '/concepts/type-augmentation' }
+				]
+			},
+			{
+				title: 'SDKs',
+				url: '/packages',
+				items: [
+					{ title: '@ember-link/core', url: '/packages/core' },
+					{ title: '@ember-link/react', url: '/packages/react' },
+					{ title: '@ember-link/svelte', url: '/packages/svelte' },
+					{ title: '@ember-link/storage', url: '/packages/storage' },
+					{ title: '@ember-link/yjs-storage', url: '/packages/yjs-storage' },
+					{ title: '@ember-link/yjs-provider', url: '/packages/yjs-provider' },
+					{ title: '@ember-link/protocol', url: '/packages/protocol' }
 				]
 			},
 			{
 				title: 'Examples',
 				items: [
-					{
-						title: 'Cursors',
-						url: '/cursors'
-					},
-					{
-						title: 'Todos',
-						url: '/todos'
-					},
-					{
-						title: 'Collaborative Editing',
-						url: '/collaborative'
-					}
+					{ title: 'Live cursors', url: '/cursors' },
+					{ title: 'Shared todos', url: '/todos' },
+					{ title: 'Collaborative editor', url: '/collaborative' }
 				]
 			},
 			{
-				title: 'Packages',
-				url: '/packages',
+				title: 'Self-hosting',
+				url: '/self-hosting',
 				items: [
-					{
-						title: '@ember-link/core',
-						url: '/packages/core'
-					},
-					{
-						title: '@ember-link/react',
-						url: '/packages/react'
-					},
-					{
-						title: '@ember-link/svelte',
-						url: '/packages/svelte'
-					},
-					{
-						title: '@ember-link/storage',
-						url: '/packages/storage'
-					},
-					{
-						title: '@ember-link/yjs-storage',
-						url: '/packages/yjs-storage'
-					},
-					{
-						title: '@ember-link/yjs-provider',
-						url: '/packages/yjs-provider'
-					},
-					{
-						title: '@ember-link/protocol',
-						url: '/packages/protocol'
-					}
+					{ title: 'Docker', url: '/self-hosting/docker' },
+					{ title: 'Cloudflare Workers', url: '/self-hosting/cloudflare-workers' },
+					{ title: 'Server config', url: '/self-hosting/config' }
 				]
+			},
+			{
+				title: 'Support',
+				url: '/support'
 			}
 		]
 	}) satisfies NavData;

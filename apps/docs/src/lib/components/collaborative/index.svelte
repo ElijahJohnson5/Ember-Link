@@ -4,7 +4,12 @@
 </script>
 
 <EmberLinkProvider baseUrl="https://ember-link-sandbox.onrender.com">
-	<ChannelProvider channelName="collab-docs">
+	<!--
+		Fresh channel name so we start from an empty Y.Doc on the
+		sandbox. The previous `collab-docs` channel had accumulated
+		junk content from earlier test sessions.
+	-->
+	<ChannelProvider channelName="collab-docs-v2">
 		<Editor />
 	</ChannelProvider>
 </EmberLinkProvider>

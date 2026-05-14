@@ -97,15 +97,20 @@
 			extensions: [
 				// In Tiptap v3 the History extension was renamed to UndoRedo.
 				StarterKit.configure({ undoRedo: false }),
-				Collaboration.extend().configure({
+				Collaboration.configure({
 					document: provider.getYDoc()
 				}),
-
-				CollaborationCaret.extend().configure({
+				CollaborationCaret.configure({
 					provider,
 					user: getInitialUser()
 				})
 			],
+			// Do not pass `content` to the Editor at construction. The Yjs
+			// document syncs from the server through the Collaboration
+			// extension, and any local content set before sync ends up as
+			// a duplicate write that broadcasts to every peer. The default
+			// content is set below in `onCreate`, but only after sync
+			// completes and only if the document is genuinely empty.
 			onCreate: ({ editor: currentEditor }) => {
 				provider.on('synced', () => {
 					if (currentEditor.isEmpty) {
@@ -113,7 +118,6 @@
 					}
 				});
 			},
-			content: defaultContent,
 			onTransaction: () => {
 				// force re-render so `editor.isActive` works as expected
 				editor = editor;
@@ -138,7 +142,15 @@
 </div>
 
 <style>
-	:global(.collaboration-cursor__caret) {
+	/*
+		Tiptap v3 renamed the CollaborationCursor extension to
+		CollaborationCaret and re-prefixed every emitted CSS class.
+		The new class names are `.collaboration-carets__caret`,
+		`.collaboration-carets__label`, and `.collaboration-carets__selection`
+		(note the plural "carets").
+	*/
+
+	:global(.collaboration-carets__caret) {
 		border-left: 1px solid #0d0d0d;
 		border-right: 1px solid #0d0d0d;
 		margin-left: -1px;
@@ -149,7 +161,7 @@
 	}
 
 	/* Render the username above the caret */
-	:global(.collaboration-cursor__label) {
+	:global(.collaboration-carets__label) {
 		border-radius: 3px 3px 3px 0;
 		color: #0d0d0d;
 		font-size: 12px;
@@ -162,5 +174,11 @@
 		top: -1.4em;
 		user-select: none;
 		white-space: nowrap;
+	}
+
+	/* Tint the remote user's selected range with their assigned color. */
+	:global(.collaboration-carets__selection) {
+		pointer-events: none;
+		word-break: normal;
 	}
 </style>
