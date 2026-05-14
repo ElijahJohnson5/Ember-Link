@@ -17,6 +17,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # Full history so moon's vcs (defaultBranch: main) can resolve refs.
+          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@v4
