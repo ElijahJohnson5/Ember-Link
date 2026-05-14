@@ -1,5 +1,5 @@
 language: 'rust'
-type: 'application'
+layer: 'application'
 
 dependsOn:
   - 'protocol'
@@ -7,14 +7,14 @@ dependsOn:
 
 tasks:
   run:
-    command: 'npx wrangler dev'
-    local: true
+    script: 'npx wrangler dev'
+    preset: 'server'
   test:
-    command: 'cargo test'
+    script: 'cargo test'
   test-cov:
-    command: 'llvm-cov --html'
+    script: 'llvm-cov --html'
   build-release:
-    command: 'cargo build --release'
+    script: 'cargo build --release'
   # build-docker:
   #   command: 'docker build -f "apps/ember-link/Dockerfile" . -t emberlinkio/ember-link:latest'
   #   options:

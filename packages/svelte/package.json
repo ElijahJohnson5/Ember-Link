@@ -4,7 +4,7 @@
 	"license": "MIT",
 	"scripts": {
 		"dev": "vite dev",
-		"build": "vite build && yarn prepack && publint",
+		"build": "svelte-kit sync && vite build && yarn prepack && publint",
 		"preview": "vite preview",
 		"prepare": "svelte-kit sync || echo ''",
 		"prepack": "svelte-kit sync && svelte-package",

@@ -115,7 +115,7 @@ impl<'a> Lexer<'a> {
 
         match num.parse() {
             Ok(num) => Ok(Token::Number(num)),
-            Err(e) => Err(e.to_string())
+            Err(e) => Err(e.to_string()),
         }
     }
 
@@ -151,9 +151,8 @@ impl<'a> Lexer<'a> {
             "map" => Ok(Token::Map),
             "union" => Ok(Token::Union),
             "struct" => Ok(Token::Struct),
-            "uint" | "u8" | "u16" | "u32" | "u64" |
-            "int" | "i8" | "i16" | "i32" | "i64" |
-            "f32" | "f64" | "bool" | "str" | "void" | "data" => Ok(Token::Primitive(ident)),
+            "uint" | "u8" | "u16" | "u32" | "u64" | "int" | "i8" | "i16" | "i32" | "i64"
+            | "f32" | "f64" | "bool" | "str" | "void" | "data" => Ok(Token::Primitive(ident)),
             _ => Ok(Token::Identifier(ident)),
         }
     }
@@ -161,12 +160,12 @@ impl<'a> Lexer<'a> {
     fn skip_comment(&mut self) {
         while let Some(&c) = self.input.peek() {
             self.input.next();
-            if c == '\n' { break; }
+            if c == '\n' {
+                break;
+            }
         }
     }
 }
-
-
 
 #[cfg(test)]
 mod tests {

@@ -1,5 +1,5 @@
 language: 'typescript'
-type: 'library'
+layer: 'library'
 
 dependsOn:
   - 'event-emitter'
@@ -8,13 +8,13 @@ dependsOn:
 
 tasks:
   build:
-    command: 'yarn build'
+    script: 'yarn build'
     deps:
       - 'event-emitter:build'
       - 'protocol:build'
       - 'storage:build'
   test:
-    command: 'yarn test'
+    script: 'yarn test'
     deps:
       - 'event-emitter:build'
       - 'protocol:build'

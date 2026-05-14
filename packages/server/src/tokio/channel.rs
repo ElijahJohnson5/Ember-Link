@@ -6,8 +6,8 @@ use std::{
 
 use parking_lot::{Mutex, RwLock};
 use protocol::{
-    InitialPresenceMessage, ServerMessage, ServerPresenceMessage,
-    StorageSyncMessage, StorageUpdateMessage,
+    InitialPresenceMessage, ServerMessage, ServerPresenceMessage, StorageSyncMessage,
+    StorageUpdateMessage,
 };
 use ractor::ActorRef;
 
@@ -66,10 +66,8 @@ impl Channel for TokioChannel {
             if exclude_id.is_some_and(|id| *id == *key) {
                 continue;
             }
-            
-            match value.cast(ParticipantMessage::ServerBinaryMessage {
-                data: data.clone(),
-            }) {
+
+            match value.cast(ParticipantMessage::ServerBinaryMessage { data: data.clone() }) {
                 Err(e) => {
                     tracing::warn!(
                         error = e.to_string(),
@@ -107,7 +105,10 @@ impl Channel for TokioChannel {
             .storage_updated
             .call_simple(&message.update);
 
-        self.broadcast(ServerMessage::StorageUpdateMessage(message), Some(&participant_id));
+        self.broadcast(
+            ServerMessage::StorageUpdateMessage(message),
+            Some(&participant_id),
+        );
 
         Ok(())
     }
@@ -188,7 +189,10 @@ impl TokioChannel {
 
         participant
             .cast(ParticipantMessage::ServerMessage {
-                data: serde_json::to_string(&ServerMessage::InitialPresenceMessage(self.initial_presence_message())).unwrap(),
+                data: serde_json::to_string(&ServerMessage::InitialPresenceMessage(
+                    self.initial_presence_message(),
+                ))
+                .unwrap(),
             })
             .expect("Could not send message to participant");
     }
@@ -202,11 +206,11 @@ impl TokioChannel {
             pariticpants.len()
         };
 
-        let state = { self
-            .inner
-            .participant_presence_state
-            .lock()
-            .remove(participant_id)
+        let state = {
+            self.inner
+                .participant_presence_state
+                .lock()
+                .remove(participant_id)
         };
 
         self.inner
@@ -277,9 +281,7 @@ impl TokioChannel {
     fn initial_presence_message(&self) -> InitialPresenceMessage {
         let mut presences: Vec<ServerPresenceMessage> = Vec::default();
 
-        let participant_presence_state = {
-            self.inner.participant_presence_state.lock().clone()
-        };
+        let participant_presence_state = { self.inner.participant_presence_state.lock().clone() };
 
         for (key, (state, clock)) in participant_presence_state.iter() {
             presences.push(ServerPresenceMessage {
@@ -354,14 +356,16 @@ pub mod tests {
         assert!(message.is_some());
 
         match message.unwrap() {
-            ParticipantMessage::ServerMessage { data } => match serde_json::from_str::<protocol::ServerMessage>(&data).unwrap() {
-                ServerMessage::InitialPresenceMessage(data) => {
-                    assert_eq!(data.presences.len(), 0);
+            ParticipantMessage::ServerMessage { data } => {
+                match serde_json::from_str::<protocol::ServerMessage>(&data).unwrap() {
+                    ServerMessage::InitialPresenceMessage(data) => {
+                        assert_eq!(data.presences.len(), 0);
+                    }
+                    _ => {
+                        panic!("Message was not an initial presence message")
+                    }
                 }
-                _ => {
-                    panic!("Message was not an initial presence message")
-                }
-            },
+            }
             _ => {
                 panic!("Message was not a server message")
             }
@@ -465,14 +469,16 @@ pub mod tests {
         assert!(message.is_some());
 
         match message.unwrap() {
-            ParticipantMessage::ServerMessage { data } => match serde_json::from_str::<protocol::ServerMessage>(&data).unwrap() {
-                ServerMessage::StorageUpdateMessage(data) => {
-                    assert_eq!(data, StorageUpdateMessage { update: vec![] });
+            ParticipantMessage::ServerMessage { data } => {
+                match serde_json::from_str::<protocol::ServerMessage>(&data).unwrap() {
+                    ServerMessage::StorageUpdateMessage(data) => {
+                        assert_eq!(data, StorageUpdateMessage { update: vec![] });
+                    }
+                    _ => {
+                        panic!("Message is not ServerMessage::StorageUpdate")
+                    }
                 }
-                _ => {
-                    panic!("Message is not ServerMessage::StorageUpdate")
-                }
-            },
+            }
             _ => {
                 panic!("Message is not a ParticipantMessage::ServerMessage")
             }
@@ -483,14 +489,16 @@ pub mod tests {
         assert!(message.is_some());
 
         match message.unwrap() {
-            ParticipantMessage::ServerMessage { data } => match serde_json::from_str::<protocol::ServerMessage>(&data).unwrap() {
-                ServerMessage::StorageUpdateMessage(data) => {
-                    assert_eq!(data, StorageUpdateMessage { update: vec![] });
+            ParticipantMessage::ServerMessage { data } => {
+                match serde_json::from_str::<protocol::ServerMessage>(&data).unwrap() {
+                    ServerMessage::StorageUpdateMessage(data) => {
+                        assert_eq!(data, StorageUpdateMessage { update: vec![] });
+                    }
+                    _ => {
+                        panic!("Message is not ServerMessage::StorageUpdate")
+                    }
                 }
-                _ => {
-                    panic!("Message is not ServerMessage::StorageUpdate")
-                }
-            },
+            }
             _ => {
                 panic!("Message is not a ParticipantMessage::ServerMessage")
             }
@@ -523,14 +531,16 @@ pub mod tests {
         assert!(message.is_some());
 
         match message.unwrap() {
-            ParticipantMessage::ServerMessage { data } => match serde_json::from_str::<protocol::ServerMessage>(&data).unwrap() {
-                ServerMessage::StorageUpdateMessage(data) => {
-                    assert_eq!(data, StorageUpdateMessage { update: vec![] });
+            ParticipantMessage::ServerMessage { data } => {
+                match serde_json::from_str::<protocol::ServerMessage>(&data).unwrap() {
+                    ServerMessage::StorageUpdateMessage(data) => {
+                        assert_eq!(data, StorageUpdateMessage { update: vec![] });
+                    }
+                    _ => {
+                        panic!("Message is not ServerMessage::StorageUpdate")
+                    }
                 }
-                _ => {
-                    panic!("Message is not ServerMessage::StorageUpdate")
-                }
-            },
+            }
             _ => {
                 panic!("Message is not a ParticipantMessage::ServerMessage")
             }
@@ -593,21 +603,23 @@ pub mod tests {
         assert!(message.is_some());
 
         match message.unwrap() {
-            ParticipantMessage::ServerMessage { data } => match serde_json::from_str::<protocol::ServerMessage>(&data).unwrap() {
-                ServerMessage::ServerPresenceMessage(data) => {
-                    assert_eq!(
-                        data,
-                        ServerPresenceMessage {
-                            clock: 0,
-                            presence: None,
-                            id: participant_id1.clone()
-                        }
-                    );
+            ParticipantMessage::ServerMessage { data } => {
+                match serde_json::from_str::<protocol::ServerMessage>(&data).unwrap() {
+                    ServerMessage::ServerPresenceMessage(data) => {
+                        assert_eq!(
+                            data,
+                            ServerPresenceMessage {
+                                clock: 0,
+                                presence: None,
+                                id: participant_id1.clone()
+                            }
+                        );
+                    }
+                    _ => {
+                        panic!("Message is not ServerMessage::Presence")
+                    }
                 }
-                _ => {
-                    panic!("Message is not ServerMessage::Presence")
-                }
-            },
+            }
             _ => {
                 panic!("Message is not a ParticipantMessage::ServerMessage")
             }
@@ -659,23 +671,25 @@ pub mod tests {
         assert!(message.is_some());
 
         match message.unwrap() {
-            ParticipantMessage::ServerMessage { data } => match serde_json::from_str::<protocol::ServerMessage>(&data).unwrap() {
-                ServerMessage::InitialPresenceMessage(data) => {
-                    assert_eq!(
-                        data,
-                        InitialPresenceMessage {
-                            presences: vec![ServerPresenceMessage {
-                                clock: 0,
-                                presence: Some("null".into()),
-                                id: participant_id2.clone()
-                            }]
-                        }
-                    );
+            ParticipantMessage::ServerMessage { data } => {
+                match serde_json::from_str::<protocol::ServerMessage>(&data).unwrap() {
+                    ServerMessage::InitialPresenceMessage(data) => {
+                        assert_eq!(
+                            data,
+                            InitialPresenceMessage {
+                                presences: vec![ServerPresenceMessage {
+                                    clock: 0,
+                                    presence: Some("null".into()),
+                                    id: participant_id2.clone()
+                                }]
+                            }
+                        );
+                    }
+                    _ => {
+                        panic!("Message is not ServerMessage::InitialPresence")
+                    }
                 }
-                _ => {
-                    panic!("Message is not ServerMessage::InitialPresence")
-                }
-            },
+            }
             _ => {
                 panic!("Message is not a ParticipantMessage::ServerMessage")
             }

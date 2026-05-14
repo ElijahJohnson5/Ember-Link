@@ -1,6 +1,6 @@
-type: 'library'
+layer: 'library'
 
 tasks:
   run:
     command: cargo run --
-    local: true
+    preset: 'server'

@@ -28,9 +28,9 @@ use futures_util::StreamExt;
 use participant::actor::ParticipantMessage;
 use participant::start_participant;
 use protocol::ClientMessage;
-use protocol::{AssignIdMessage, ServerMessage};
 use protocol::StorageType;
 use protocol::WebSocketCloseCode;
+use protocol::{AssignIdMessage, ServerMessage};
 use ractor::ActorRef;
 use std::error::Error as StdError;
 use tokio::signal;
@@ -290,10 +290,7 @@ async fn handle_socket(
         token_payload.replace(payload);
     }
 
-    tracing::debug!(
-        "New WebSocket connection: {}",
-        who,
-    );
+    tracing::debug!("New WebSocket connection: {}", who,);
 
     let channel_name = query_params["channel_name"].to_string();
 
@@ -345,14 +342,13 @@ async fn handle_socket(
             .unwrap(),
         ))
         .await
-         {
-            Ok(_) => {}
-            Err(e) => {
-                tracing::warn!("Error sending assign id: {}", e);
-                return;
-            }
+    {
+        Ok(_) => {}
+        Err(e) => {
+            tracing::warn!("Error sending assign id: {}", e);
+            return;
         }
-         
+    }
 
     match write.send(ws::Message::Ping("".into())).await {
         Ok(_) => {}

@@ -1,16 +1,16 @@
 language: 'typescript'
-type: 'library'
+layer: 'library'
 
 dependsOn:
   - 'core'
 
 tasks:
   build:
-    command: 'yarn build'
+    script: 'yarn build'
     deps:
       - 'core:build'
 
-toolchain:
+toolchains:
   typescript:
     # Update a project's `tsconfig.json` to route the `outDir` compiler option
     # to moon's `.moon/cache` directory.
