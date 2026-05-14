@@ -43,7 +43,9 @@ const Tiptap = ({
       },
       extensions: [
         StarterKit.configure({
-          history: false
+          // In Tiptap v3 the History extension was renamed to UndoRedo
+          // to avoid collision with collaborative-history terminology.
+          undoRedo: false
         }),
 
         Collaboration.extend().configure({

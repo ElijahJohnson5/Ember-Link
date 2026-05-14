@@ -1,9 +1,11 @@
 {
   "extends": "./tsconfig.app.json",
   "include": ["lib"],
+  "exclude": ["lib/__test__/**", "lib/**/*.spec.*", "lib/**/*.test.*"],
   "compilerOptions": {
+    "rootDir": "./lib",
     "paths": {
-      "~/*": ["./lib/*"],
+      "~/*": ["./lib/*"]
     }
   }
 }

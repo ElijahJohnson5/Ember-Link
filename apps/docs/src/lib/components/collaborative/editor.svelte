@@ -95,7 +95,8 @@
 				}
 			},
 			extensions: [
-				StarterKit.configure({ history: false }),
+				// In Tiptap v3 the History extension was renamed to UndoRedo.
+				StarterKit.configure({ undoRedo: false }),
 				Collaboration.extend().configure({
 					document: provider.getYDoc()
 				}),
