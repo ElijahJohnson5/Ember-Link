@@ -1,3 +1,5 @@
+#![recursion_limit = "256"]
+
 use tracing_subscriber::FmtSubscriber;
 
 #[tokio::main]

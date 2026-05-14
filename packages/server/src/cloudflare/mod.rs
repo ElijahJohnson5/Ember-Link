@@ -5,7 +5,7 @@ use axum::{extract::Query, response::IntoResponse, routing::any};
 use axum_extra::headers;
 use envconfig::Envconfig;
 #[cfg(feature = "webhook")]
-use hmac::{Hmac, Mac};
+use hmac::{Hmac, KeyInit, Mac};
 use http::StatusCode;
 use protocol::WebhookMessage;
 use serde::{Deserialize, Serialize};

@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use std::collections::HashMap;
 
 use super::{cloudflare_websocket_upgrade::WebSocketUpgrade, get_config};
@@ -21,28 +22,41 @@ use crate::{
 #[worker::durable_object]
 pub struct CloudflareChannel {
     state: worker::State,
+    env: worker::Env,
+    config: Config,
+    inner: RefCell<CloudflareChannelInner>,
+}
+
+struct CloudflareChannelInner {
     user_state: HashMap<String, (String, i32)>,
     channel_name: Option<String>,
     tenant_id: Option<String>,
     #[cfg(feature = "webhook")]
     queue_name: Option<String>,
     storage_initialized: bool,
-    config: Config,
     storage: Option<Box<dyn storage::Storage + Send + Sync>>,
     provider: YjsStorage,
-    env: worker::Env,
 }
 
 impl CloudflareChannel {
     #[cfg(feature = "webhook")]
     async fn participant_removed(&self, participant_id: &String) -> Result<(), worker::Error> {
-        let queue = self.env.queue(self.queue_name.as_ref().unwrap().as_str())?;
+        let (queue_name, channel_name, tenant_id) = {
+            let inner = self.inner.borrow();
+            (
+                inner.queue_name.clone().unwrap(),
+                inner.channel_name.clone().unwrap(),
+                inner.tenant_id.clone(),
+            )
+        };
+
+        let queue = self.env.queue(queue_name.as_str())?;
 
         let participant_count = self.state.get_websockets().len() - 1;
 
         participant_removed(
-            &self.channel_name.clone().unwrap(),
-            &self.tenant_id,
+            &channel_name,
+            &tenant_id,
             participant_id,
             &participant_count,
             queue,
@@ -54,7 +68,7 @@ impl CloudflareChannel {
     }
 
     async fn create_storage(
-        &mut self,
+        &self,
         storage_type: Option<StorageType>,
         channel_name: &String,
     ) -> Result<(), StorageError> {
@@ -64,20 +78,26 @@ impl CloudflareChannel {
                     let yjs_storage: Box<dyn storage::Storage + Send + Sync> =
                         Box::new(init_storage());
 
-                    self.storage = Some(yjs_storage);
+                    // Extract values needed for the async call without holding the borrow.
+                    let (already_initialized, tenant_id) = {
+                        let inner = self.inner.borrow();
+                        (inner.storage_initialized, inner.tenant_id.clone())
+                    };
 
-                    if !self.storage_initialized {
-                        self.storage
-                            .as_ref()
-                            .unwrap()
+                    if !already_initialized {
+                        yjs_storage
                             .init_storage_from_endpoint(
                                 channel_name,
                                 &self.config.storage_endpoint,
-                                &self.tenant_id,
+                                &tenant_id,
                             )
                             .await?;
+                    }
 
-                        self.storage_initialized = true;
+                    let mut inner = self.inner.borrow_mut();
+                    inner.storage = Some(yjs_storage);
+                    if !already_initialized {
+                        inner.storage_initialized = true;
                     }
                 }
             }
@@ -87,34 +107,36 @@ impl CloudflareChannel {
     }
 }
 
-#[worker::durable_object]
 impl worker::DurableObject for CloudflareChannel {
-    fn new(state: State, env: worker::Env) -> Self {
+    fn new(state: worker::State, env: worker::Env) -> Self {
         // If we are here that means the other fetch request was able to parse the config
         let config = get_config(&env).unwrap();
 
         Self {
             state,
             env,
-            channel_name: None,
             config,
-            storage: None,
-            storage_initialized: false,
-            user_state: HashMap::new(),
-            provider: YjsStorage::new(yrs::Doc::new()),
-            tenant_id: None,
-            #[cfg(feature = "webhook")]
-            queue_name: None,
+            inner: RefCell::new(CloudflareChannelInner {
+                channel_name: None,
+                storage: None,
+                storage_initialized: false,
+                user_state: HashMap::new(),
+                provider: YjsStorage::new(yrs::Doc::new()),
+                tenant_id: None,
+                #[cfg(feature = "webhook")]
+                queue_name: None,
+            }),
         }
     }
 
-    #[must_use]
-    async fn fetch(&mut self, req: worker::Request) -> worker::Result<worker::Response> {
+    async fn fetch(&self, req: worker::Request) -> worker::Result<worker::Response> {
         let query_params: HashMap<String, String> = req.query()?;
 
         #[cfg(feature = "webhook")]
-        self.queue_name
-            .replace(req.headers().get("x-queue-name").unwrap().unwrap());
+        {
+            let queue_name = req.headers().get("x-queue-name").unwrap().unwrap();
+            self.inner.borrow_mut().queue_name.replace(queue_name);
+        }
 
         let channel_name = query_params.get("channel_name").unwrap();
 
@@ -130,7 +152,7 @@ impl worker::DurableObject for CloudflareChannel {
             }
         };
 
-        self.tenant_id = tenant_id.clone();
+        self.inner.borrow_mut().tenant_id = tenant_id.clone();
 
         let storage_type: Option<StorageType> = query_params
             .get("storage_type")
@@ -145,9 +167,13 @@ impl worker::DurableObject for CloudflareChannel {
             Err(e) => return worker::Response::try_from(e.into_response()),
         };
 
-        self.channel_name.replace(channel_name.clone());
+        self.inner
+            .borrow_mut()
+            .channel_name
+            .replace(channel_name.clone());
 
-        if self.storage.is_none() {
+        let storage_is_none = self.inner.borrow().storage.is_none();
+        if storage_is_none {
             match self.create_storage(storage_type, channel_name).await {
                 Err(_e) => {
                     // TODO notify the client we weren't able to sync the data from the endpoint
@@ -159,7 +185,10 @@ impl worker::DurableObject for CloudflareChannel {
         let participant_id = uuid::Uuid::new_v4().to_string();
 
         #[cfg(feature = "webhook")]
-        let queue = self.env.queue(self.queue_name.as_ref().unwrap().as_str())?;
+        let queue = {
+            let queue_name = self.inner.borrow().queue_name.clone().unwrap();
+            self.env.queue(queue_name.as_str())?
+        };
         #[cfg(feature = "webhook")]
         let websocket_count = self.state.get_websockets().len() + 1;
         #[cfg(feature = "webhook")]
@@ -184,7 +213,7 @@ impl worker::DurableObject for CloudflareChannel {
     }
 
     async fn websocket_message(
-        &mut self,
+        &self,
         ws: worker::WebSocket,
         message: WebSocketIncomingMessage,
     ) -> worker::Result<()> {
@@ -209,7 +238,9 @@ impl worker::DurableObject for CloudflareChannel {
 
                 match message {
                     ClientMessage::ClientPresenceMessage(msg) => {
-                        self.user_state
+                        self.inner
+                            .borrow_mut()
+                            .user_state
                             .insert(participant_id.clone(), (msg.presence.clone(), msg.clock));
 
                         self.broadcast(
@@ -299,7 +330,7 @@ impl worker::DurableObject for CloudflareChannel {
     }
 
     async fn websocket_close(
-        &mut self,
+        &self,
         ws: worker::WebSocket,
         _code: usize,
         _reason: String,
@@ -309,7 +340,7 @@ impl worker::DurableObject for CloudflareChannel {
 
         let participant_id = &tags[0];
 
-        let user_state = self.user_state.remove(participant_id);
+        let user_state = self.inner.borrow_mut().user_state.remove(participant_id);
 
         match user_state {
             Some((_, clock)) => {
@@ -356,7 +387,7 @@ impl Channel for CloudflareChannel {
         &self,
         message: StorageSyncMessage,
     ) -> Result<Option<Vec<StorageSyncMessage>>, StorageError> {
-        if let Some(storage) = &self.storage {
+        if let Some(storage) = &self.inner.borrow().storage {
             return storage.handle_sync_message(&message);
         }
 
@@ -368,7 +399,7 @@ impl Channel for CloudflareChannel {
         message: StorageUpdateMessage,
         participant_id: &String,
     ) -> Result<(), StorageError> {
-        if let Some(storage) = &self.storage {
+        if let Some(storage) = &self.inner.borrow().storage {
             storage.handle_update_message(&message)?;
         }
 
@@ -384,7 +415,7 @@ impl Channel for CloudflareChannel {
         &self,
         message: StorageSyncMessage,
     ) -> Result<Option<Vec<StorageSyncMessage>>, StorageError> {
-        self.provider.handle_sync_message(&message)
+        self.inner.borrow().provider.handle_sync_message(&message)
     }
 
     fn handle_provider_update_message(
@@ -392,7 +423,10 @@ impl Channel for CloudflareChannel {
         message: StorageUpdateMessage,
         participant_id: &String,
     ) -> Result<(), StorageError> {
-        self.provider.handle_update_message(&message)?;
+        self.inner
+            .borrow()
+            .provider
+            .handle_update_message(&message)?;
 
         self.broadcast(
             ServerMessage::StorageUpdateMessage(message),

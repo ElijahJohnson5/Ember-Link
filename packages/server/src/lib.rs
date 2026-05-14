@@ -1,3 +1,5 @@
+#![recursion_limit = "256"]
+
 use axum::response::IntoResponse;
 use protocol::WebSocketCloseCode;
 

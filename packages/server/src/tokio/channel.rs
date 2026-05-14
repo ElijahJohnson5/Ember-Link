@@ -469,8 +469,8 @@ pub mod tests {
         assert!(message.is_some());
 
         match message.unwrap() {
-            ParticipantMessage::ServerMessage { data } => {
-                match serde_json::from_str::<protocol::ServerMessage>(&data).unwrap() {
+            ParticipantMessage::ServerBinaryMessage { data } => {
+                match serde_bare::from_slice::<protocol::ServerMessage>(&data).unwrap() {
                     ServerMessage::StorageUpdateMessage(data) => {
                         assert_eq!(data, StorageUpdateMessage { update: vec![] });
                     }
@@ -480,7 +480,7 @@ pub mod tests {
                 }
             }
             _ => {
-                panic!("Message is not a ParticipantMessage::ServerMessage")
+                panic!("Message is not a ParticipantMessage::ServerBinaryMessage")
             }
         }
 
@@ -489,8 +489,8 @@ pub mod tests {
         assert!(message.is_some());
 
         match message.unwrap() {
-            ParticipantMessage::ServerMessage { data } => {
-                match serde_json::from_str::<protocol::ServerMessage>(&data).unwrap() {
+            ParticipantMessage::ServerBinaryMessage { data } => {
+                match serde_bare::from_slice::<protocol::ServerMessage>(&data).unwrap() {
                     ServerMessage::StorageUpdateMessage(data) => {
                         assert_eq!(data, StorageUpdateMessage { update: vec![] });
                     }
@@ -500,7 +500,7 @@ pub mod tests {
                 }
             }
             _ => {
-                panic!("Message is not a ParticipantMessage::ServerMessage")
+                panic!("Message is not a ParticipantMessage::ServerBinaryMessage")
             }
         }
     }
@@ -531,8 +531,8 @@ pub mod tests {
         assert!(message.is_some());
 
         match message.unwrap() {
-            ParticipantMessage::ServerMessage { data } => {
-                match serde_json::from_str::<protocol::ServerMessage>(&data).unwrap() {
+            ParticipantMessage::ServerBinaryMessage { data } => {
+                match serde_bare::from_slice::<protocol::ServerMessage>(&data).unwrap() {
                     ServerMessage::StorageUpdateMessage(data) => {
                         assert_eq!(data, StorageUpdateMessage { update: vec![] });
                     }
@@ -542,7 +542,7 @@ pub mod tests {
                 }
             }
             _ => {
-                panic!("Message is not a ParticipantMessage::ServerMessage")
+                panic!("Message is not a ParticipantMessage::ServerBinaryMessage")
             }
         }
 
@@ -603,8 +603,8 @@ pub mod tests {
         assert!(message.is_some());
 
         match message.unwrap() {
-            ParticipantMessage::ServerMessage { data } => {
-                match serde_json::from_str::<protocol::ServerMessage>(&data).unwrap() {
+            ParticipantMessage::ServerBinaryMessage { data } => {
+                match serde_bare::from_slice::<protocol::ServerMessage>(&data).unwrap() {
                     ServerMessage::ServerPresenceMessage(data) => {
                         assert_eq!(
                             data,
@@ -621,7 +621,7 @@ pub mod tests {
                 }
             }
             _ => {
-                panic!("Message is not a ParticipantMessage::ServerMessage")
+                panic!("Message is not a ParticipantMessage::ServerBinaryMessage")
             }
         }
     }
