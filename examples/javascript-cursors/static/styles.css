@@ -29,11 +29,12 @@ body {
   position: absolute;
   top: 0;
   left: 0;
-  /* Smooth the cursor's motion between throttled presence updates so it
-     tracks fluidly even at lower send rates. Match the value roughly to
-     the channel's presenceThrottle to hide the discretization. */
-  transition: transform 80ms linear;
+  /* JS drives a rAF lerp loop in app.ts that smooths motion between
+     throttled presence updates — no CSS transition here so the two
+     don't fight. `will-change` keeps the cursor on its own GPU layer. */
   will-change: transform;
+  /* opacity fades when a peer goes idle (cursor: null). */
+  transition: opacity 120ms linear;
 }
 
 #text {
