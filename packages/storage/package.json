@@ -5,6 +5,11 @@
     "build": "tsc -b"
   },
   "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "src/__test__/mock-storage-provider.ts",
+    "!dist/.tsbuildinfo"
+  ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts"

@@ -11,7 +11,14 @@
     }
   },
   "include": ["./src/**/*", "../core/**/*"],
-  "exclude": ["dist/", "../core/vitest.config.ts"],
+  "exclude": [
+    "dist/",
+    "../core/vitest.config.ts",
+    "src/__test__/**",
+    "../core/src/__test__/**",
+    "**/*.spec.*",
+    "**/*.test.*"
+  ],
   "references": [
     {
       "path": "../core"

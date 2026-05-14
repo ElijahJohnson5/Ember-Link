@@ -17,7 +17,13 @@
 		"types": ["@testing-library/jest-dom"]
 	},
 	"include": ["../core/**/*", "./src/**/*"],
-	"exclude": ["../core/dist"],
+	"exclude": [
+		"../core/dist",
+		"src/__test__/**",
+		"../core/src/__test__/**",
+		"**/*.spec.*",
+		"**/*.test.*"
+	],
 	"references": [
 		{
 			"path": "../core"

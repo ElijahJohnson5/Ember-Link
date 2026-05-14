@@ -12,7 +12,14 @@
     },
     "types": []
   },
-  "exclude": ["dist/"],
+  "exclude": [
+    "dist/",
+    "src/__test__/**",
+    "../storage/src/__test__/**",
+    "../event-emitter/src/__test__/**",
+    "**/*.spec.*",
+    "**/*.test.*"
+  ],
   "include": ["../storage/**/*", "../event-emitter/**/*", "./src/**/*"],
   "references": [
     {

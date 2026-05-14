@@ -2,8 +2,17 @@
   "compilerOptions": {
     "composite": true,
     "declaration": true,
-    "declarationMap": true,
+    // Off by default — emitted .d.ts.map files would otherwise ship to npm.
+    // Re-enable per-package or via the local tsconfig if you need go-to-def
+    // jumps into source for cross-package navigation while developing.
+    "declarationMap": false,
     "emitDeclarationOnly": true,
+    // Keep the incremental build cache inside each package's `dist/`
+    // so that when a package's dist is cleaned (or moon restores its
+    // cached outputs), the buildinfo lives and dies with the rest of
+    // the output. `${configDir}` resolves to the directory of the
+    // consuming tsconfig (TS 5.5+), not this root file.
+    "tsBuildInfoFile": "${configDir}/dist/.tsbuildinfo",
     "incremental": true,
     "noEmitOnError": true,
     "skipLibCheck": true,

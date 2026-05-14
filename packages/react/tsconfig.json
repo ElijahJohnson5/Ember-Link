@@ -27,7 +27,9 @@
     "**/*"
   ],
   "exclude": [
-    "**/__test__/*"
+    "**/__test__/**",
+    "**/*.spec.*",
+    "**/*.test.*"
   ],
   "compilerOptions": {
     "paths": {
