@@ -1,4 +1,6 @@
-# react-cursors
+# react-tiptap
+
+Collaborative rich-text editor example using [Tiptap](https://tiptap.dev/) with Ember Link as the realtime backend.
 
 ## Getting Started
 

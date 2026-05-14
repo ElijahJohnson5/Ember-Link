@@ -579,7 +579,7 @@ mod tests {
                 uses: &Some(vec!["use std::collections::HashMap".into()]),
             }),
             r#"
-                use serde::{Deserialize, Serialize}
+                use std::collections::HashMap
                 #[derive(Debug)]
                 pub struct Customer {
                     pub name: String,

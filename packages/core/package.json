@@ -29,18 +29,18 @@
     "@ember-link/event-emitter": "workspace:^",
     "@ember-link/protocol": "workspace:^",
     "@ember-link/storage": "workspace:^",
-    "alien-deepsignals": "^0.1.0",
-    "alien-signals": "^2.0.5",
-    "jose": "^5.9.6",
-    "xstate": "^5.19.0"
+    "alien-deepsignals": "^0.3.1",
+    "alien-signals": "^3.2.0",
+    "jose": "^6.2.3",
+    "xstate": "^5.31.1"
   },
   "devDependencies": {
-    "@vitest/coverage-v8": "^3.1.1",
+    "@vitest/coverage-v8": "^4.1.6",
     "dts-bundle-generator": "^9.5.1",
-    "esbuild": "^0.25.1",
-    "msw": "^2.7.0",
-    "typescript": "^5.7.2",
-    "vitest": "^3.0.9",
-    "vitest-websocket-mock": "^0.4.0"
+    "esbuild": "^0.28.0",
+    "msw": "^2.14.6",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6",
+    "vitest-websocket-mock": "^0.5.0"
   }
 }

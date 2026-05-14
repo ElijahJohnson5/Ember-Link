@@ -5,13 +5,13 @@ use std::{
     time::{Duration, Instant},
 };
 
-use hmac::{Hmac, Mac};
+use hmac::{Hmac, KeyInit, Mac};
 use protocol::WebhookMessage;
 use ractor::{
     factory::{FactoryMessage, Job, JobOptions},
     Actor, ActorProcessingErr, ActorRef, MessagingErr,
 };
-use rand::Rng;
+use rand::RngExt;
 use sha2::Sha256;
 use tokio::sync::{Mutex, MutexGuard};
 use tracing::instrument;

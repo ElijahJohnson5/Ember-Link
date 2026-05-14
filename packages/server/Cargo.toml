@@ -7,52 +7,52 @@ edition = "2021"
 
 [dependencies]
 # Shared dependencies
-async-trait = "0.1.86"
-axum = { version = "0.8.3", default-features = false, features = ["macros", "query"] }
-axum-core = { version = "0.5.2" }
-axum-extra = { version = "0.10.0", features = ["typed-header"] }
+async-trait = "0.1.89"
+axum = { version = "0.8.9", default-features = false, features = ["macros", "query"] }
+axum-core = { version = "0.5.6" }
+axum-extra = { version = "0.12.6", features = ["typed-header"] }
 base64 = { version = "0.22.1" }
-envconfig = { version = "0.11.0" }
+envconfig = { version = "0.11.1" }
 futures-util = { version = "0.3", default-features = false, features = ["alloc"] }
-getrandom = { version = "0.3", features = ["wasm_js"] }
+getrandom = { version = "0.4", features = ["wasm_js"] }
 hex = { version = "0.4.3" }
-hmac = { version = "0.12.1" }
-http = "1.0.0"
-hyper = { version = "1.1.0" }
-jsonwebtoken = "9"
+hmac = { version = "0.13.0" }
+http = "1.4.0"
+hyper = { version = "1.9.0" }
+jsonwebtoken = "10"
 protocol = { path = "../protocol" }
-reqwest = { version = "0.12", features = ["json"] }
+reqwest = { version = "0.13", features = ["json"] }
 ring = { version = "0.17.14" }
-serde = { version = "1.0.217", features = ["derive"] }
+serde = { version = "1.0.228", features = ["derive"] }
 serde_bare = "0.5.0"
-serde_json = "1.0.134"
-sha1 = { version = "0.10" }
-sha2 = { version = "0.10.8" }
-thiserror = "2.0.11"
-tower-http = { version = "0.6.2", features = ["cors"] }
-tower-service = "0.3.2"
-tungstenite = { version = "0.26.2" }
-url = "2.5.4"
-uuid = { version = "1.16.0", features = ["v4", "rng-getrandom"] }
-web-sys = { version = "0.3.77", features = ["console"] }
+serde_json = "1.0.149"
+sha1 = { version = "0.11" }
+sha2 = { version = "0.11.0" }
+thiserror = "2.0.18"
+tower-http = { version = "0.6.10", features = ["cors"] }
+tower-service = "0.3.3"
+tungstenite = { version = "0.29.0" }
+url = "2.5.8"
+uuid = { version = "1.23.1", features = ["v4", "rng-getrandom"] }
+web-sys = { version = "0.3.98", features = ["console"] }
 web-time = "1.1.0"
-yrs = { version = "0.22.0" }
+yrs = { version = "0.26.0" }
 
 # Cloudflare dependencies
-worker = { version = "0.5.0", optional = true, features=['http', 'axum', 'queue'] }
+worker = { version = "0.8.3", optional = true, features=['http', 'axum', 'queue'] }
 wasm-bindgen-futures = { version = "0.4", optional = true }
 
 # Tokio dependencies
 dotenvy = { version = "0.15.7", optional = true }
-hyper-util = { version = "0.1.3", features = ["tokio", "server", "service"], optional = true }
+hyper-util = { version = "0.1.20", features = ["tokio", "server", "service"], optional = true }
 nohash-hasher = { version = "0.2.0", optional = true }
-ractor = { version = "0.15.6", optional = true }
-rand = { version = "0.9.0", optional = true }
-parking_lot = { version = "0.12.3", optional = true }
+ractor = { version = "0.15.13", optional = true }
+rand = { version = "0.10.1", optional = true }
+parking_lot = { version = "0.12.5", optional = true }
 tokio = { version = "1", optional = true, features = ["full"] }
-tokio-tungstenite = { version = "0.26.2", optional = true }
-tracing = { version = "0.1.41", optional = true }
-tracing-subscriber = { version = "0.3.19", optional = true }
+tokio-tungstenite = { version = "0.29.0", optional = true }
+tracing = { version = "0.1.44", optional = true }
+tracing-subscriber = { version = "0.3.23", optional = true }
 
 
 [features]

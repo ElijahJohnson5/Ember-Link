@@ -1,9 +1,10 @@
 import { svelteTesting } from '@testing-library/svelte/vite';
 import { sveltekit } from '@sveltejs/kit/vite';
+import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
-	plugins: [sveltekit()],
+	plugins: [tailwindcss(), sveltekit()],
 	test: {
 		workspace: [
 			{
@@ -11,7 +12,7 @@ export default defineConfig({
 				plugins: [svelteTesting()],
 				test: {
 					name: 'client',
-					environment: 'jsdom',
+					environment: 'happy-dom',
 					clearMocks: true,
 					include: ['src/**/*.svelte.{test,spec}.{js,ts}'],
 					exclude: ['src/lib/server/**'],

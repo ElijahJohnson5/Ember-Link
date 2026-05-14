@@ -1,7 +1,7 @@
 // src/Tiptap.tsx
 import type { EmberLinkYjsProvider } from '@ember-link/yjs-provider';
 import Collaboration from '@tiptap/extension-collaboration';
-import CollaborationCursor from '@tiptap/extension-collaboration-cursor';
+import CollaborationCaret from '@tiptap/extension-collaboration-caret';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import type { Doc } from 'yjs';
@@ -50,7 +50,7 @@ const Tiptap = ({
           document: doc
         }),
 
-        CollaborationCursor.extend().configure({
+        CollaborationCaret.extend().configure({
           provider
         })
       ]

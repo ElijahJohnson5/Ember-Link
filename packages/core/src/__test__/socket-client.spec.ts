@@ -336,7 +336,7 @@ describe('ManagedSocket', () => {
         managedSocket.destroy();
       });
 
-      webSocketTest.concurrent.for([1000, 1001, 1011, 1012, 1013, WebSocketCloseCode.InvalidToken])(
+      webSocketTest.for([1000, 1001, 1011, 1012, 1013, WebSocketCloseCode.InvalidToken])(
         'goes to Reconnecting on certain close codes',
         async (code, { serverData: { server, url } }) => {
           const managedSocket = await setupManagedSocket(url);
@@ -353,7 +353,7 @@ describe('ManagedSocket', () => {
         }
       );
 
-      webSocketTest.concurrent.for([
+      webSocketTest.for([
         1015,
         WebSocketCloseCode.InvalidSignerKey,
         WebSocketCloseCode.TokenNotFound

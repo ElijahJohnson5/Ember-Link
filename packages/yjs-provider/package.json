@@ -21,12 +21,12 @@
   },
   "devDependencies": {
     "dts-bundle-generator": "^9.5.1",
-    "esbuild": "^0.25.1",
-    "typescript": "^5.7.3"
+    "esbuild": "^0.28.0",
+    "typescript": "^6.0.3"
   },
   "dependencies": {
-    "lib0": "^0.2.102",
-    "yjs": "^13.6.24"
+    "lib0": "^0.2.117",
+    "yjs": "^13.6.30"
   },
   "peerDependencies": {
     "@ember-link/core": "workspace:^"

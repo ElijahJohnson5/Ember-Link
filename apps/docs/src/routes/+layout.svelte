@@ -1,5 +1,5 @@
 <script lang="ts">
-	import '../app.postcss';
+	import '../app.css';
 	import AppSidebar from '$lib/components/app-sidebar.svelte';
 	import { Separator } from '$lib/components/ui/separator';
 	import * as Sidebar from '$lib/components/ui/sidebar';
