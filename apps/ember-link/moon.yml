@@ -1,5 +1,5 @@
 language: 'rust'
-type: 'application'
+layer: 'application'
 
 dependsOn:
   - 'protocol'
@@ -8,17 +8,17 @@ dependsOn:
 tasks:
   flamegraph:
     script: 'CARGO_PROFILE_RELEASE_DEBUG=true PERF=/usr/lib/linux-tools/6.8.0-60-generic/perf cargo flamegraph'
-    local: true
+    preset: 'server'
   run:
-    command: 'cargo run'
-    local: true
+    script: 'cargo run'
+    preset: 'server'
   test:
-    command: 'cargo test'
+    script: 'cargo test'
   test-cov:
-    command: 'llvm-cov --html'
+    script: 'llvm-cov --html'
   build-release:
-    command: 'cargo build --release'
+    script: 'cargo build --release'
   build-docker:
-    command: 'docker build -f "apps/ember-link/Dockerfile" . -t emberlinkio/ember-link:latest'
+    script: 'docker build -f "apps/ember-link/Dockerfile" . -t emberlinkio/ember-link:latest'
     options:
       runFromWorkspaceRoot: true

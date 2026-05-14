@@ -36,7 +36,7 @@ jobs:
 
       # cargo-llvm-cov is only used for local coverage; skip the slow install in CI.
       - name: Remove cargo-llvm-cov from moon toolchain
-        run: sed -i '/cargo-llvm-cov/d' .moon/toolchain.yml
+        run: sed -i '/cargo-llvm-cov/d' .moon/toolchains.yml
 
       - name: Install JS dependencies
         run: yarn install --immutable

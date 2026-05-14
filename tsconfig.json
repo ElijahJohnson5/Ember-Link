@@ -14,31 +14,47 @@
     "moduleDetection": "force",
     "allowImportingTsExtensions": true
   },
-  "exclude": ["node_modules", "packages/**/dist/", "packages/svelte/.svelte-kit/"],
+  "exclude": [
+    "node_modules",
+    "packages/**/dist/",
+    "packages/svelte/.svelte-kit/"
+  ],
   "references": [
     {
-      "path": "packages/core"
+      "path": "./examples/nextjs-collaborative-editor"
     },
     {
-      "path": "packages/event-emitter"
+      "path": "./examples/nextjs-data-grids"
     },
     {
-      "path": "packages/protocol"
+      "path": "./examples/react-cursors"
     },
     {
-      "path": "packages/react"
+      "path": "./examples/react-tiptap"
     },
     {
-      "path": "packages/storage"
+      "path": "./packages/core"
+    },
+    {
+      "path": "./packages/event-emitter"
+    },
+    {
+      "path": "./packages/protocol"
+    },
+    {
+      "path": "./packages/react"
+    },
+    {
+      "path": "./packages/storage"
+    },
+    {
+      "path": "./packages/yjs-provider"
+    },
+    {
+      "path": "./packages/yjs-storage"
     },
     {
       "path": "packages/svelte"
-    },
-    {
-      "path": "packages/yjs-provider"
-    },
-    {
-      "path": "packages/yjs-storage"
     }
   ]
 }

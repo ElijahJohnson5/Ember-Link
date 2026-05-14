@@ -1,9 +1,9 @@
 language: 'typescript'
-type: 'library'
+layer: 'library'
 
 tasks:
   build:
-    command: 'yarn build'
+    script: 'yarn build'
     deps:
       - 'generate-ts'
       - 'generate-rs'
@@ -25,7 +25,7 @@ tasks:
     options:
       cache: false
   test:
-    command: 'cargo test'
+    script: 'cargo test'
     deps:
       - generate-rs
     options:
