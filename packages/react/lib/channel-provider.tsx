@@ -10,11 +10,13 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useState,
   useSyncExternalStore,
   type PropsWithChildren
 } from 'react';
 import { useClient } from './ember-link-provider';
+import { useShallowMemo } from './utils';
 
 const ChannelContext = createContext<Channel | null>(null);
 
@@ -43,84 +45,52 @@ interface ChannelProviderProps<S extends IStorageProvider, P extends DefaultPres
   options?: ChannelConfig<S, P>['options'];
 }
 
-interface ChannelAndLeave<P extends DefaultPresence, C extends DefaultCustomMessageData> {
-  channel: Channel<P, C>;
-  leave: () => void;
-}
-
 export const ChannelProvider = <
-  S extends IStorageProvider,
-  P extends DefaultPresence,
-  C extends DefaultCustomMessageData
->(
-  props: PropsWithChildren<ChannelProviderProps<S, P>>
-) => {
-  const client = useClient<P, C>();
-
-  const [cache] = useState(() => new Map<string, ChannelAndLeave<P, C>>());
-
-  const joinChannel = useCallback(
-    (channelName: string, options: ChannelConfig<S, P>['options']) => {
-      const cached = cache.get(channelName);
-
-      if (cached) {
-        if (options?.autoConnect ?? true) {
-          cached.channel.connect();
-        }
-        return cached;
-      }
-
-      const channelAndLeave = client.joinChannel<S>(channelName, options);
-
-      const oldLeave = channelAndLeave.leave;
-
-      channelAndLeave.leave = () => {
-        oldLeave();
-        cache.delete(channelName);
-      };
-
-      cache.set(channelName, channelAndLeave);
-
-      return channelAndLeave;
-    },
-    [client, cache]
-  );
-
-  return <ChannelProviderInner<S, P, C> {...props} joinChannel={joinChannel} />;
-};
-
-const ChannelProviderInner = <
   S extends IStorageProvider,
   P extends DefaultPresence,
   C extends DefaultCustomMessageData
 >({
   channelName,
   options,
-  joinChannel,
   children
-}: PropsWithChildren<
-  ChannelProviderProps<S, P> & {
-    joinChannel: (
-      channelName: string,
-      options: ChannelConfig<S, P>['options']
-    ) => ChannelAndLeave<P, C>;
-  }
->) => {
-  const [{ channel }, setChannelLeavePair] = useState(() => {
-    return joinChannel(channelName, { ...options, autoConnect: false });
-  });
+}: PropsWithChildren<ChannelProviderProps<S, P>>) => {
+  const client = useClient<P, C>();
+  const stableOptions = useShallowMemo(options);
 
+  // Lazy-initialize a borrow of the channel with autoConnect:false so
+  // the first render has a Channel to put on context (no null window).
+  // The underlying channel is ref-counted inside the client — multiple
+  // borrows of the same name share one connection.
+  const [pair, setPair] = useState(() =>
+    client.joinChannel<S>(channelName, { ...(stableOptions ?? {}), autoConnect: false })
+  );
+
+  // Re-borrow when deps change. Each useEffect run adds a borrow with
+  // the latest options and releases it on cleanup, so it's freed when
+  // deps next change or on unmount.
   useEffect(() => {
-    const channelLeavePair = joinChannel(channelName, options);
-
-    setChannelLeavePair(channelLeavePair);
-
+    const newPair = client.joinChannel<S>(channelName, stableOptions);
+    setPair(newPair);
     return () => {
-      channelLeavePair.leave();
+      newPair.leave();
     };
-  }, [channelName, joinChannel, options]);
+  }, [client, channelName, stableOptions]);
 
-  return <ChannelContext.Provider value={channel as Channel}>{children}</ChannelContext.Provider>;
+  // Release the initial useState-held borrow on unmount. The captured
+  // closure here is the FIRST-render pair (useEffect with empty deps
+  // runs once on mount), so we always free the original even if `pair`
+  // has been swapped via setPair in the effect above.
+  useEffect(() => {
+    const initial = pair;
+    return () => {
+      initial.leave();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <ChannelContext.Provider value={pair.channel as Channel}>{children}</ChannelContext.Provider>
+  );
 };
 
 export const useMyPresence = <P extends DefaultPresence, C extends DefaultCustomMessageData>() => {
@@ -142,7 +112,9 @@ export const useMyPresence = <P extends DefaultPresence, C extends DefaultCustom
     [channel]
   );
 
-  return [myPresence, setMyPresence] as const;
+  // Stable tuple so consumers `const [p, setP] = useMyPresence()` don't
+  // see fresh array identity on every render of the parent.
+  return useMemo(() => [myPresence, setMyPresence] as const, [myPresence, setMyPresence]);
 };
 
 export const useCustomMessage = <P extends DefaultPresence, C extends DefaultCustomMessageData>(

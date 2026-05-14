@@ -47,6 +47,13 @@ export interface EmberClient<
   C extends Record<string, unknown> = DefaultCustomMessageData
 > {
   joinChannel: JoinChannel<P, C>;
+  /**
+   * Tear down every channel this client created and close their
+   * WebSocket connections. After `destroy()`, calling `joinChannel`
+   * on the same client instance has undefined behavior — create a new
+   * client instead.
+   */
+  destroy: () => void;
 }
 
 export function createClient<
@@ -153,7 +160,15 @@ export function createClient<
     return borrowChannel(channelWithUnsubs);
   }
 
+  function destroy() {
+    for (const { channel } of channels.values()) {
+      channel.destroy();
+    }
+    channels.clear();
+  }
+
   return {
-    joinChannel: joinChannel as JoinChannel
+    joinChannel: joinChannel as JoinChannel,
+    destroy
   };
 }

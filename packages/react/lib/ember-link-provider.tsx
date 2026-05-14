@@ -5,7 +5,8 @@ import {
   type DefaultPresence,
   type EmberClient
 } from '@ember-link/core';
-import { createContext, useContext, useMemo, type PropsWithChildren } from 'react';
+import { createContext, useContext, useEffect, useMemo, type PropsWithChildren } from 'react';
+import { useShallowMemo } from './utils';
 
 const ClientContext = createContext<EmberClient | null>(null);
 
@@ -46,8 +47,19 @@ export const EmberLinkProvider = <
 }: PropsWithChildren<CreateClientOptions>) => {
   useEnsureNoEmberLinkProvider();
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const client = useMemo(() => createClient<P, C>(options), []);
+  // Stabilize the options object across renders so a parent passing a
+  // shallow-equal literal each render doesn't re-create the client.
+  const stableOptions = useShallowMemo(options);
+
+  const client = useMemo(() => createClient<P, C>(stableOptions), [stableOptions]);
+
+  // Destroy the client on unmount or when options change and the
+  // memoized client is replaced. Cleans up channels + WebSockets.
+  useEffect(() => {
+    return () => {
+      client.destroy();
+    };
+  }, [client]);
 
   return <ClientContext.Provider value={client}>{children}</ClientContext.Provider>;
 };
