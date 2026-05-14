@@ -11,6 +11,7 @@ tasks:
     script: 'yarn build'
     deps:
       - 'core:build'
+      - 'svelte:build'
 
 toolchains:
   typescript:
