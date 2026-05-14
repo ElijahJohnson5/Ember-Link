@@ -36,6 +36,16 @@ export interface ChannelConfig<
     storageProvider?: S;
 
     autoConnect?: boolean;
+
+    /**
+     * Minimum interval (ms) between presence sends. The latest state is
+     * coalesced into a single message per interval — first update sends
+     * immediately, subsequent updates within the window are deferred and
+     * the most recent one fires on a trailing timer. 0 or omitted means
+     * no throttling (every updatePresence call is sent). Pass 16 for
+     * ~60Hz, 33 for ~30Hz.
+     */
+    presenceThrottle?: number;
   };
 }
 
@@ -77,6 +87,52 @@ type YjsProviderEvents = {
   updateMessage: (message: StorageUpdateMessage) => void;
 };
 
+interface ThrottledSender {
+  (): void;
+  cancel: () => void;
+}
+
+function createThrottledSender(send: () => void, intervalMs?: number): ThrottledSender {
+  if (!intervalMs || intervalMs <= 0) {
+    const fn = (() => send()) as ThrottledSender;
+    fn.cancel = () => {};
+    return fn;
+  }
+
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  let lastFire = 0;
+
+  const fn = (() => {
+    const now = Date.now();
+    const elapsed = now - lastFire;
+
+    if (elapsed >= intervalMs) {
+      // Leading edge — fire right away
+      lastFire = now;
+      send();
+      return;
+    }
+
+    // Trailing edge — schedule the latest state to fire when the window expires
+    if (timer === null) {
+      timer = setTimeout(() => {
+        timer = null;
+        lastFire = Date.now();
+        send();
+      }, intervalMs - elapsed);
+    }
+  }) as ThrottledSender;
+
+  fn.cancel = () => {
+    if (timer !== null) {
+      clearTimeout(timer);
+      timer = null;
+    }
+  };
+
+  return fn;
+}
+
 export function createChannel<
   S extends IStorageProvider,
   P extends Record<string, unknown> = DefaultPresence,
@@ -92,10 +148,13 @@ export function createChannel<
   const eventEmitter = createBufferedEventEmitter<ChannelEvents<P, C>>();
   const presence = new ManagedPresence(options?.initialPresence);
 
+  const sendPresenceNow = () => managedSocket.message(presence.getPresenceMessage());
+  const sendPresence = createThrottledSender(sendPresenceNow, options?.presenceThrottle);
+
   effect(() => {
     eventEmitter.emit('presence', presence.state());
 
-    managedSocket.message(presence.getPresenceMessage());
+    sendPresence();
   });
 
   watch(managedOthers.signal, (state: User<P>[]) => {
@@ -212,6 +271,7 @@ export function createChannel<
 
   function destroy() {
     clearTimeout(timeout);
+    sendPresence.cancel();
     eventEmitter.emit('destroy');
     managedOthers.destroy();
     presence.destroy();

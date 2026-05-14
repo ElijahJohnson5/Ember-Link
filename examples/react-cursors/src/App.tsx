@@ -16,7 +16,7 @@ declare global {
 function App() {
   return (
     <EmberLinkProvider baseUrl="http://localhost:8787">
-      <ChannelProvider channelName="test" options={{}}>
+      <ChannelProvider channelName="test" options={{ presenceThrottle: 33 }}>
         <Page />
       </ChannelProvider>
     </EmberLinkProvider>

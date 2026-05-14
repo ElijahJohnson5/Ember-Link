@@ -15,7 +15,12 @@ const client = createClient({
   baseUrl: 'http://localhost:8787'
 });
 
-const { channel } = client.joinChannel('test');
+const { channel } = client.joinChannel('test', {
+  // Coalesce pointermove-driven presence updates to ~30Hz so we don't
+  // spam the WebSocket with every browser-fired move event. The CSS
+  // transition on .cursor smooths the rendering between updates.
+  presenceThrottle: 33
+});
 
 const cursorsContainer = document.getElementById('cursors-container')!;
 const text = document.getElementById('text')!;
