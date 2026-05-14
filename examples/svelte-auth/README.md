@@ -1,38 +1,36 @@
-# sv
+# svelte-auth
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+SvelteKit example that demonstrates how to authenticate users against an Ember Link server using JWTs signed with RS256. The app exposes a `/api/auth` endpoint that signs a short-lived token for each connecting client and returns the matching public key when the server requests one.
 
-## Creating a project
+## Getting Started
 
-If you're seeing this, you've probably already done this step. Congrats!
+1. Make sure you have the Ember Link server running locally. Instructions are in the [root README](../../README.md). Run it **without** `ALLOW_UNAUTHORIZED=true` so it requires JWTs.
 
-```bash
-# create a new project in the current directory
-npx sv create
+2. Install dependencies:
 
-# create a new project in my-app
-npx sv create my-app
-```
+   ```sh
+   yarn install
+   ```
 
-## Developing
+3. Generate an RSA key pair (used for signing and verifying JWTs):
 
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+   ```sh
+   openssl genpkey -algorithm RSA -out private.pem -pkeyopt rsa_keygen_bits:2048
+   openssl rsa -in private.pem -pubout -out public.pem
+   ```
 
-```bash
-npm run dev
+4. Copy `.env.example` to `.env` and paste the contents of `private.pem` into `JWT_SECRET_KEY` and `public.pem` into `PUBLIC_JWT_SIGNER_KEY`. Both should be the full PEM, newlines included. Then make sure the Ember Link server has the same public key set as `JWT_SIGNER_KEY`.
 
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
-```
+5. Run the dev server:
 
-## Building
+   ```sh
+   yarn dev
+   ```
 
-To create a production version of your app:
+6. Open the URL Vite prints. The page connects to the channel `test`; open it in two windows to see presence sync over an authenticated connection.
 
-```bash
-npm run build
-```
+## How it works
 
-You can preview the production build with `npm run preview`.
-
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+- `POST /api/auth` — called by the Ember Link client SDK to obtain a JWT for the channel it's about to join. Signs the token with `JWT_SECRET_KEY`.
+- `GET /api/auth` — returns the public signer key so the SDK can hand it to the server for verification. Reads `PUBLIC_JWT_SIGNER_KEY` at build time via `$env/static/public`.
+- `src/routes/+page.svelte` — minimal client that wraps the page in `ChannelProvider` from `@ember-link/svelte`.
