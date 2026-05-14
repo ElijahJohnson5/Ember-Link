@@ -11,15 +11,15 @@ import { useShallowMemo } from './utils';
 const ClientContext = createContext<EmberClient | null>(null);
 
 export const useClientOrNull = <
-  P extends DefaultPresence,
-  C extends DefaultCustomMessageData
+  P extends Record<string, unknown> = DefaultPresence,
+  C extends Record<string, unknown> = DefaultCustomMessageData
 >(): EmberClient<P, C> | null => {
   return useContext(ClientContext) as EmberClient<P, C> | null;
 };
 
 export const useClient = <
-  P extends DefaultPresence,
-  C extends DefaultCustomMessageData
+  P extends Record<string, unknown> = DefaultPresence,
+  C extends Record<string, unknown> = DefaultCustomMessageData
 >(): EmberClient<P, C> => {
   const client = useClientOrNull<P, C>();
 

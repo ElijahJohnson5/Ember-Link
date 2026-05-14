@@ -18,7 +18,11 @@ const getEmptyMap = <K extends string, V>() => {
   return emptyMap as Map<K, V>;
 };
 
-export const useArrayStorage = <T, P extends DefaultPresence, C extends DefaultCustomMessageData>(
+export const useArrayStorage = <
+  T,
+  P extends Record<string, unknown> = DefaultPresence,
+  C extends Record<string, unknown> = DefaultCustomMessageData
+>(
   name: string
 ): ArrayStorageHookResult<T> => {
   const channel = useChannel<P, C>();
@@ -61,8 +65,8 @@ export const useArrayStorage = <T, P extends DefaultPresence, C extends DefaultC
 export const useMapStorage = <
   K extends string,
   V,
-  P extends DefaultPresence,
-  C extends DefaultCustomMessageData
+  P extends Record<string, unknown> = DefaultPresence,
+  C extends Record<string, unknown> = DefaultCustomMessageData
 >(
   name: string
 ): MapStorageHookResult<K, V> => {

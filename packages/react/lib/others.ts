@@ -3,7 +3,10 @@ import { useChannel } from './channel-provider';
 import { useCallback, useSyncExternalStore } from 'react';
 import { getEmptyArray } from './utils';
 
-export const useOthers = <P extends DefaultPresence, C extends DefaultCustomMessageData>() => {
+export const useOthers = <
+  P extends Record<string, unknown> = DefaultPresence,
+  C extends Record<string, unknown> = DefaultCustomMessageData
+>() => {
   const channel = useChannel<P, C>();
 
   const subscribeFunction = useCallback(

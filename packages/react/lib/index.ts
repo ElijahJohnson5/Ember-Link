@@ -14,4 +14,8 @@ export {
   type MapStorageHookResult
 } from './storage';
 export { useStatus } from './status';
+export {
+  createEmberLinkContext,
+  type EmberLinkContextApi
+} from './create-ember-link-context';
 export * from '@ember-link/core';

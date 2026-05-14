@@ -2,7 +2,10 @@ import type { DefaultCustomMessageData, DefaultPresence, Status } from '@ember-l
 import { useChannel } from './channel-provider';
 import { useCallback, useSyncExternalStore } from 'react';
 
-export const useStatus = <P extends DefaultPresence, C extends DefaultCustomMessageData>() => {
+export const useStatus = <
+  P extends Record<string, unknown> = DefaultPresence,
+  C extends Record<string, unknown> = DefaultCustomMessageData
+>() => {
   const channel = useChannel<P, C>();
 
   const subscribeFunction = useCallback(

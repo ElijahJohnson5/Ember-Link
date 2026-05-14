@@ -21,15 +21,15 @@ import { useShallowMemo } from './utils';
 const ChannelContext = createContext<Channel | null>(null);
 
 export const useChannelOrNull = <
-  P extends DefaultPresence,
-  C extends DefaultCustomMessageData
+  P extends Record<string, unknown> = DefaultPresence,
+  C extends Record<string, unknown> = DefaultCustomMessageData
 >(): Channel<P, C> | null => {
   return useContext(ChannelContext) as Channel<P, C> | null;
 };
 
 export const useChannel = <
-  P extends DefaultPresence,
-  C extends DefaultCustomMessageData
+  P extends Record<string, unknown> = DefaultPresence,
+  C extends Record<string, unknown> = DefaultCustomMessageData
 >(): Channel<P, C> => {
   const channel = useChannelOrNull<P, C>();
 
@@ -40,15 +40,18 @@ export const useChannel = <
   return channel;
 };
 
-interface ChannelProviderProps<S extends IStorageProvider, P extends DefaultPresence> {
+interface ChannelProviderProps<
+  S extends IStorageProvider,
+  P extends Record<string, unknown> = DefaultPresence
+> {
   channelName: string;
   options?: ChannelConfig<S, P>['options'];
 }
 
 export const ChannelProvider = <
   S extends IStorageProvider,
-  P extends DefaultPresence,
-  C extends DefaultCustomMessageData
+  P extends Record<string, unknown> = DefaultPresence,
+  C extends Record<string, unknown> = DefaultCustomMessageData
 >({
   channelName,
   options,
@@ -93,7 +96,10 @@ export const ChannelProvider = <
   );
 };
 
-export const useMyPresence = <P extends DefaultPresence, C extends DefaultCustomMessageData>() => {
+export const useMyPresence = <
+  P extends Record<string, unknown> = DefaultPresence,
+  C extends Record<string, unknown> = DefaultCustomMessageData
+>() => {
   const channel = useChannel<P, C>();
 
   const subscribeFunction = useCallback(
@@ -117,7 +123,10 @@ export const useMyPresence = <P extends DefaultPresence, C extends DefaultCustom
   return useMemo(() => [myPresence, setMyPresence] as const, [myPresence, setMyPresence]);
 };
 
-export const useCustomMessage = <P extends DefaultPresence, C extends DefaultCustomMessageData>(
+export const useCustomMessage = <
+  P extends Record<string, unknown> = DefaultPresence,
+  C extends Record<string, unknown> = DefaultCustomMessageData
+>(
   callback: (message: C) => void
 ) => {
   const channel = useChannel<P, C>();
