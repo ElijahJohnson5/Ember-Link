@@ -3,7 +3,7 @@ import { AuthFailedError, AuthValue } from '~/auth';
 import { ManagedSocket, SocketOptions } from '~/socket-client';
 import { WebSocketNotFoundError } from '~/types';
 import WS from 'vitest-websocket-mock';
-import { WebSocketCloseCode } from '@ember-link/protocol';
+import { encodeClientMessage, WebSocketCloseCode } from '@ember-link/protocol';
 
 describe('ManagedSocket', () => {
   describe('machine', () => {
@@ -387,10 +387,12 @@ describe('ManagedSocket', () => {
           await vi.runOnlyPendingTimersAsync();
 
           await expect(server).toReceiveMessage(
-            JSON.stringify({
-              type: 'presence',
-              data: {},
-              clock: 0
+            encodeClientMessage({
+              tag: 'ClientPresenceMessage',
+              val: {
+                presence: JSON.stringify({}),
+                clock: 0
+              }
             })
           );
 

@@ -3,9 +3,8 @@ use std::collections::HashMap;
 use super::{cloudflare_websocket_upgrade::WebSocketUpgrade, get_config};
 use axum::response::IntoResponse;
 use protocol::{
-    ClientMessage,
-    ServerMessage, ServerPresenceMessage,
-    StorageSyncMessage, StorageType, StorageUpdateMessage,
+    ClientMessage, ServerMessage, ServerPresenceMessage, StorageSyncMessage, StorageType,
+    StorageUpdateMessage,
 };
 use worker::{wasm_bindgen, WebSocketIncomingMessage};
 
@@ -226,8 +225,7 @@ impl worker::DurableObject for CloudflareChannel {
                         match self.handle_storage_sync_message(msg) {
                             Ok(Some(msgs)) => {
                                 for msg in msgs {
-                                    match ws.send(&ServerMessage::StorageSyncMessage(msg))
-                                    {
+                                    match ws.send(&ServerMessage::StorageSyncMessage(msg)) {
                                         Err(e) => {
                                             web_sys::console::log_1(
                                                 &format!("Error sending message: {}", e).into(),
@@ -259,8 +257,7 @@ impl worker::DurableObject for CloudflareChannel {
                         match self.handle_provider_sync_message(msg) {
                             Ok(Some(msgs)) => {
                                 for msg in msgs {
-                                    match ws.send(&ServerMessage::ProviderSyncMessage(msg))
-                                    {
+                                    match ws.send(&ServerMessage::ProviderSyncMessage(msg)) {
                                         Err(e) => {
                                             web_sys::console::log_1(
                                                 &format!("Error sending message: {}", e).into(),
@@ -375,7 +372,10 @@ impl Channel for CloudflareChannel {
             storage.handle_update_message(&message)?;
         }
 
-        self.broadcast(ServerMessage::StorageUpdateMessage(message), Some(participant_id));
+        self.broadcast(
+            ServerMessage::StorageUpdateMessage(message),
+            Some(participant_id),
+        );
 
         Ok(())
     }
@@ -394,7 +394,10 @@ impl Channel for CloudflareChannel {
     ) -> Result<(), StorageError> {
         self.provider.handle_update_message(&message)?;
 
-        self.broadcast(ServerMessage::StorageUpdateMessage(message), Some(participant_id));
+        self.broadcast(
+            ServerMessage::StorageUpdateMessage(message),
+            Some(participant_id),
+        );
 
         Ok(())
     }

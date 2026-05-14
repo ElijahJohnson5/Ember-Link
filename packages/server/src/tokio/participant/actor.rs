@@ -5,9 +5,8 @@ use axum::{
 };
 use futures_util::{stream::SplitSink, SinkExt};
 use protocol::{
-    ClientPresenceMessage,
-    ServerMessage, ServerPresenceMessage,
-    StorageSyncMessage, StorageUpdateMessage,
+    ClientPresenceMessage, ServerMessage, ServerPresenceMessage, StorageSyncMessage,
+    StorageUpdateMessage,
 };
 use ractor::{Actor, ActorProcessingErr, ActorRef};
 
@@ -30,7 +29,7 @@ pub enum ParticipantMessage {
     ProviderSync { data: StorageSyncMessage },
     ProviderUpdate { data: StorageUpdateMessage },
     ServerMessage { data: String },
-    ServerBinaryMessage { data: Vec<u8> }
+    ServerBinaryMessage { data: Vec<u8> },
 }
 
 pub struct ParticipantArguments {
@@ -67,18 +66,10 @@ impl Actor for Participant {
     ) -> Result<(), ActorProcessingErr> {
         match message {
             ParticipantMessage::PingMessage { data } => {
-                state
-                    .socket_write_sink
-                    .send(Message::Pong(data))
-                    .await
-                    .ok();
+                state.socket_write_sink.send(Message::Pong(data)).await.ok();
             }
             ParticipantMessage::TextPingMessage { data } => {
-                state
-                    .socket_write_sink
-                    .send(Message::text(data))
-                    .await
-                    .ok();
+                state.socket_write_sink.send(Message::text(data)).await.ok();
             }
             ParticipantMessage::MyPresence { data } => {
                 // TODO: Maybe keep an internal clock to make sure we should actually update the data
@@ -113,10 +104,8 @@ impl Actor for Participant {
                             state
                                 .socket_write_sink
                                 .send(Message::binary(
-                                    serde_bare::to_vec(
-                                        &ServerMessage::StorageSyncMessage(msg),
-                                    )
-                                    .unwrap(),
+                                    serde_bare::to_vec(&ServerMessage::StorageSyncMessage(msg))
+                                        .unwrap(),
                                 ))
                                 .await
                                 .expect("Could not send response sync messages");
@@ -141,10 +130,8 @@ impl Actor for Participant {
                             state
                                 .socket_write_sink
                                 .send(Message::binary(
-                                    serde_bare::to_vec(
-                                        &ServerMessage::ProviderSyncMessage(msg),
-                                    )
-                                    .unwrap(),
+                                    serde_bare::to_vec(&ServerMessage::ProviderSyncMessage(msg))
+                                        .unwrap(),
                                 ))
                                 .await
                                 .expect("Could not send response sync messages");
@@ -154,11 +141,7 @@ impl Actor for Participant {
                 }
             }
             ParticipantMessage::ServerMessage { data } => {
-                match state
-                    .socket_write_sink
-                    .send(Message::text(data))
-                    .await
-                {
+                match state.socket_write_sink.send(Message::text(data)).await {
                     Err(e) => {
                         tracing::warn!(
                             error = e.to_string(),
@@ -169,11 +152,7 @@ impl Actor for Participant {
                 }
             }
             ParticipantMessage::ServerBinaryMessage { data } => {
-                match state
-                    .socket_write_sink
-                    .send(Message::binary(data))
-                    .await
-                {
+                match state.socket_write_sink.send(Message::binary(data)).await {
                     Err(e) => {
                         tracing::warn!(
                             error = e.to_string(),

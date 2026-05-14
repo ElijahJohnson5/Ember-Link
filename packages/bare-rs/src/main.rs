@@ -3,7 +3,11 @@ use clap::{Parser, Subcommand};
 use std::fs;
 
 #[derive(Parser, Debug)]
-#[command(name = "bare-rs", version = "0.1.0", about = "A tool for compiling bare schemas")]
+#[command(
+    name = "bare-rs",
+    version = "0.1.0",
+    about = "A tool for compiling bare schemas"
+)]
 #[command(next_line_help = true)]
 struct Cli {
     #[command(subcommand)]
@@ -40,7 +44,13 @@ fn main() {
     let cli = Cli::parse();
 
     match &cli.command {
-        Commands::Compile { schema, out, derives, uses, serde } => {
+        Commands::Compile {
+            schema,
+            out,
+            derives,
+            uses,
+            serde,
+        } => {
             println!("Compiling schema from {} to {}", schema, out);
 
             if !schema.ends_with(".bare") {
@@ -48,8 +58,9 @@ fn main() {
                 return;
             }
 
-            let contents = fs::read_to_string(schema).expect(&format!("Could not read schema file: {}", schema));
-            
+            let contents = fs::read_to_string(schema)
+                .expect(&format!("Could not read schema file: {}", schema));
+
             let tokens = match Lexer::new(&contents).lex() {
                 Ok(tokens) => tokens,
                 Err(e) => {
@@ -57,7 +68,7 @@ fn main() {
                     return;
                 }
             };
-            
+
             let ast = match BareParser::new(tokens).parse_user_types() {
                 Ok(ast) => ast,
                 Err(e) => {
@@ -67,7 +78,10 @@ fn main() {
             };
 
             let (serde_union_string, serde_string) = if *serde {
-                (Some("#[serde(tag = \"tag\", content = \"val\")]".to_string()), Some("#[serde(rename_all = \"camelCase\")]".to_string()))
+                (
+                    Some("#[serde(tag = \"tag\", content = \"val\")]".to_string()),
+                    Some("#[serde(rename_all = \"camelCase\")]".to_string()),
+                )
             } else {
                 (None, None)
             };
@@ -76,7 +90,7 @@ fn main() {
                 serde_string: &serde_string,
                 serde_string_union: &serde_union_string,
                 derives: derives,
-                uses: uses,  
+                uses: uses,
             };
 
             let output = ast.to_rust(&options);

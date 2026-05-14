@@ -1,5 +1,5 @@
-use crate::lexer::Token;
 use crate::ast::*;
+use crate::lexer::Token;
 use std::iter::Peekable;
 use std::vec::IntoIter;
 
@@ -28,15 +28,18 @@ impl Parser {
         let name = match self.tokens.next() {
             Some(Token::UserType(n)) => {
                 if n.contains("_") {
-                    return Err(format!("User type name cannot contain underscores: {}", n))
+                    return Err(format!("User type name cannot contain underscores: {}", n));
                 } else {
                     n
                 }
-            },
+            }
             other => return Err(format!("Expected user-type-name, got {:?}", other)),
         };
         let typ = self.parse_any_type()?;
-        Ok(UserType { name, definition: typ })
+        Ok(UserType {
+            name,
+            definition: typ,
+        })
     }
 
     fn parse_any_type(&mut self) -> Result<AnyType, String> {
@@ -88,8 +91,14 @@ impl Parser {
                     self.tokens.next();
                     let value = if let Some(Token::Equal) = self.tokens.peek() {
                         self.tokens.next();
-                        if let Some(Token::Number(x)) = self.tokens.next() { Some(x) } else { return Err(format!("Expected integer after = in enum")) }
-                    } else { None };
+                        if let Some(Token::Number(x)) = self.tokens.next() {
+                            Some(x)
+                        } else {
+                            return Err(format!("Expected integer after = in enum"));
+                        }
+                    } else {
+                        None
+                    };
                     vals.push(EnumVariant { name, value });
                 }
                 self.expect(&Token::RBrace)?;
@@ -99,8 +108,13 @@ impl Parser {
                 self.expect(&Token::LBrace)?;
                 let mut members = Vec::new();
                 while let Some(tok) = self.tokens.peek() {
-                    if tok == &Token::RBrace { break; }
-                    if tok == &Token::Pipe { self.tokens.next(); continue; }
+                    if tok == &Token::RBrace {
+                        break;
+                    }
+                    if tok == &Token::Pipe {
+                        self.tokens.next();
+                        continue;
+                    }
                     let typ = self.parse_any_type()?;
                     let tag = if let Some(Token::Equal) = self.tokens.peek() {
                         self.tokens.next();
@@ -176,7 +190,7 @@ mod tests {
     fn test_parse_data_with_length() {
         let ast = parse_schema("type B data[10]");
         match &ast.user_types[0].definition {
-            AnyType::Data(Some(10)) => {},
+            AnyType::Data(Some(10)) => {}
             _ => panic!("Expected data[10]"),
         }
     }
@@ -206,8 +220,14 @@ mod tests {
         let ast = parse_schema("type M map<u8> <i32>");
         match &ast.user_types[0].definition {
             AnyType::Map(key, val) => {
-                match &**key { AnyType::Primitive(k) => assert_eq!(k, "u8"), _ => panic!() }
-                match &**val { AnyType::Primitive(v) => assert_eq!(v, "i32"), _ => panic!() }
+                match &**key {
+                    AnyType::Primitive(k) => assert_eq!(k, "u8"),
+                    _ => panic!(),
+                }
+                match &**val {
+                    AnyType::Primitive(v) => assert_eq!(v, "i32"),
+                    _ => panic!(),
+                }
             }
             _ => panic!(),
         }
@@ -219,9 +239,12 @@ mod tests {
         match &ast.user_types[0].definition {
             AnyType::Enum(vals) => {
                 assert_eq!(vals.len(), 3);
-                assert_eq!(&vals[0].name, "Red"); assert_eq!(vals[0].value, Some(1));
-                assert_eq!(&vals[1].name, "Green"); assert_eq!(vals[1].value, None);
-                assert_eq!(&vals[2].name, "Blue"); assert_eq!(vals[2].value, Some(3));
+                assert_eq!(&vals[0].name, "Red");
+                assert_eq!(vals[0].value, Some(1));
+                assert_eq!(&vals[1].name, "Green");
+                assert_eq!(vals[1].value, None);
+                assert_eq!(&vals[2].name, "Blue");
+                assert_eq!(vals[2].value, Some(3));
             }
             _ => panic!(),
         }
@@ -233,8 +256,16 @@ mod tests {
         match &ast.user_types[0].definition {
             AnyType::Struct(fields) => {
                 assert_eq!(fields.len(), 2);
-                assert_eq!(fields[0].name, "x"); match &fields[0].typ { AnyType::Primitive(p) => assert_eq!(p, "u8"), _ => panic!() }
-                assert_eq!(fields[1].name, "y"); match &fields[1].typ { AnyType::Primitive(p) => assert_eq!(p, "bool"), _ => panic!() }
+                assert_eq!(fields[0].name, "x");
+                match &fields[0].typ {
+                    AnyType::Primitive(p) => assert_eq!(p, "u8"),
+                    _ => panic!(),
+                }
+                assert_eq!(fields[1].name, "y");
+                match &fields[1].typ {
+                    AnyType::Primitive(p) => assert_eq!(p, "bool"),
+                    _ => panic!(),
+                }
             }
             _ => panic!(),
         }

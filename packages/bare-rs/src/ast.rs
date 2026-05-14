@@ -60,15 +60,14 @@ impl Ast {
         let mut derives_string: String = "Debug".into();
 
         if let Some(derives) = options.derives {
-
             for derive in derives {
                 derives_string += &format!(", {}", derive);
             }
         }
 
         for user_type in self.user_types.iter() {
-
-            let (rust, mut hoisted, mut inner_hoisted_uses) = user_type.to_rust(&derives_string, options);
+            let (rust, mut hoisted, mut inner_hoisted_uses) =
+                user_type.to_rust(&derives_string, options);
 
             all_types.push(rust);
             all_types.append(&mut hoisted);
@@ -106,47 +105,83 @@ impl UserType {
             AnyType::Struct(fields) => {
                 let mut field_strings = Vec::new();
                 for field in fields {
-                    let (rust_type, mut hoisted, mut inner_hoisted_uses) = field.to_rust(derives, options, &self.name);
+                    let (rust_type, mut hoisted, mut inner_hoisted_uses) =
+                        field.to_rust(derives, options, &self.name);
                     field_strings.push(rust_type);
                     hoisted_defs.append(&mut hoisted);
                     hoisted_uses.append(&mut inner_hoisted_uses);
                 }
 
                 if let Some(serde_string) = options.serde_string {
-                    format!("\n#[derive({})]\n{}\npub struct {} {{\n{}\n}}", derives, serde_string, self.name.to_case(Case::UpperCamel), field_strings.join(",\n"))
+                    format!(
+                        "\n#[derive({})]\n{}\npub struct {} {{\n{}\n}}",
+                        derives,
+                        serde_string,
+                        self.name.to_case(Case::UpperCamel),
+                        field_strings.join(",\n")
+                    )
                 } else {
-                    format!("\n#[derive({})]\npub struct {} {{\n{}\n}}", derives, self.name.to_case(Case::UpperCamel), field_strings.join(",\n"))
+                    format!(
+                        "\n#[derive({})]\npub struct {} {{\n{}\n}}",
+                        derives,
+                        self.name.to_case(Case::UpperCamel),
+                        field_strings.join(",\n")
+                    )
                 }
             }
             AnyType::Enum(variants) => {
-                let body = variants.iter().map(|variant| variant.to_rust()).collect::<Vec<_>>().join(",\n");
+                let body = variants
+                    .iter()
+                    .map(|variant| variant.to_rust())
+                    .collect::<Vec<_>>()
+                    .join(",\n");
 
-                format!("\n#[derive({})]\npub enum {} {{\n{}\n}}", derives, self.name.to_case(Case::UpperCamel), body)
+                format!(
+                    "\n#[derive({})]\npub enum {} {{\n{}\n}}",
+                    derives,
+                    self.name.to_case(Case::UpperCamel),
+                    body
+                )
             }
             AnyType::Union(members) => {
                 let mut member_strings = Vec::new();
                 for member in members {
-                    let (rust_type, mut hoisted, mut inner_hoisted_uses) = member.to_rust(derives, options, &self.name);
+                    let (rust_type, mut hoisted, mut inner_hoisted_uses) =
+                        member.to_rust(derives, options, &self.name);
                     member_strings.push(rust_type);
                     hoisted_defs.append(&mut hoisted);
                     hoisted_uses.append(&mut inner_hoisted_uses);
                 }
 
                 if let Some(serde_string) = options.serde_string_union {
-                    format!("\n#[derive({})]\n{}\npub enum {} {{\n{}\n}}", derives, serde_string, self.name.to_case(Case::UpperCamel), member_strings.join(",\n"))
+                    format!(
+                        "\n#[derive({})]\n{}\npub enum {} {{\n{}\n}}",
+                        derives,
+                        serde_string,
+                        self.name.to_case(Case::UpperCamel),
+                        member_strings.join(",\n")
+                    )
                 } else {
-                    format!("\n#[derive({})]\npub enum {} {{\n{}\n}}", derives, self.name.to_case(Case::UpperCamel), member_strings.join(",\n"))
+                    format!(
+                        "\n#[derive({})]\npub enum {} {{\n{}\n}}",
+                        derives,
+                        self.name.to_case(Case::UpperCamel),
+                        member_strings.join(",\n")
+                    )
                 }
             }
             any => {
-                let (rust_type, mut hoisted, mut inner_hoisted_uses) = any.to_rust(derives, options, &self.name, None);
+                let (rust_type, mut hoisted, mut inner_hoisted_uses) =
+                    any.to_rust(derives, options, &self.name, None);
 
                 hoisted_defs.append(&mut hoisted);
                 hoisted_uses.append(&mut inner_hoisted_uses);
 
-
-
-                format!("\npub type {} = {};", self.name.to_case(Case::UpperCamel), rust_type)
+                format!(
+                    "\npub type {} = {};",
+                    self.name.to_case(Case::UpperCamel),
+                    rust_type
+                )
             }
         };
 
@@ -154,11 +189,16 @@ impl UserType {
     }
 }
 
-
 impl AnyType {
-    pub fn to_rust(&self, derives: &str, options: &Options, parent_name: &str, field_name: Option<&str>) -> (String, Vec<String>, Vec<String>) {
+    pub fn to_rust(
+        &self,
+        derives: &str,
+        options: &Options,
+        parent_name: &str,
+        field_name: Option<&str>,
+    ) -> (String, Vec<String>, Vec<String>) {
         match self {
-            AnyType::Primitive(name) => { 
+            AnyType::Primitive(name) => {
                 let rust_type = match name.as_str() {
                     "u8" => "u8".into(),
                     "u16" => "u16".into(),
@@ -175,28 +215,32 @@ impl AnyType {
                     "void" => "()".into(),
                     other => other.into(),
                 };
-        
+
                 (rust_type, vec![], vec![])
             }
             AnyType::Optional(typ) => {
-                let (inner_str, hoisted_defs, hoisted_use) = typ.to_rust(derives, options, parent_name, field_name);
+                let (inner_str, hoisted_defs, hoisted_use) =
+                    typ.to_rust(derives, options, parent_name, field_name);
 
                 (format!("Option<{}>", inner_str), hoisted_defs, hoisted_use)
-            },
+            }
             AnyType::List(typ, length) => {
-                let (inner_str, hoisted_defs, hoisted_use) = typ.to_rust(derives, options, parent_name, field_name);
+                let (inner_str, hoisted_defs, hoisted_use) =
+                    typ.to_rust(derives, options, parent_name, field_name);
 
                 let rust_type = if let Some(length) = length {
                     format!("[{}; {}]", inner_str, length)
                 } else {
-                    format!("Vec<{}>",inner_str)
+                    format!("Vec<{}>", inner_str)
                 };
 
                 (rust_type, hoisted_defs, hoisted_use)
             }
             AnyType::Map(key_typ, value_typ) => {
-                let (key_typ, mut key_hoisted, mut key_hoisted_use) = key_typ.to_rust(derives, options,  parent_name, field_name);
-                let (value_typ, mut value_hoisted, mut value_hoisted_use) = value_typ.to_rust(derives, options,  parent_name, field_name);
+                let (key_typ, mut key_hoisted, mut key_hoisted_use) =
+                    key_typ.to_rust(derives, options, parent_name, field_name);
+                let (value_typ, mut value_hoisted, mut value_hoisted_use) =
+                    value_typ.to_rust(derives, options, parent_name, field_name);
 
                 key_hoisted.append(&mut value_hoisted);
                 key_hoisted_use.append(&mut value_hoisted_use);
@@ -210,7 +254,7 @@ impl AnyType {
                 (
                     format!("HashMap<{}, {}>", key_typ, value_typ),
                     key_hoisted,
-                    key_hoisted_use
+                    key_hoisted_use,
                 )
             }
             AnyType::Data(length) => {
@@ -232,7 +276,8 @@ impl AnyType {
 
                 let mut field_strings = Vec::new();
                 for field in fields {
-                    let (rust_type, mut hoisted, mut inner_hoisted_uses) = field.to_rust(derives, options, &struct_name);
+                    let (rust_type, mut hoisted, mut inner_hoisted_uses) =
+                        field.to_rust(derives, options, &struct_name);
                     field_strings.push(rust_type);
                     hoisted_defs.append(&mut hoisted);
                     hoisted_uses.append(&mut inner_hoisted_uses);
@@ -254,7 +299,6 @@ impl AnyType {
                         field_strings.join(",\n")
                     )
                 };
-                
 
                 hoisted_defs.insert(0, struct_def);
                 (struct_name, hoisted_defs, hoisted_uses)
@@ -266,20 +310,18 @@ impl AnyType {
                     format!("{}Enum", parent_name).to_case(Case::UpperCamel)
                 };
 
-
                 let mut variant_strings = Vec::new();
                 for variant in variants {
                     let rust_type = variant.to_rust();
                     variant_strings.push(rust_type);
                 }
 
-                let enum_def = 
-                    format!(
-                        "\n#[derive({})]\npub enum {} {{\n{}\n}}",
-                        derives,
-                        enum_name,
-                        variant_strings.join(",\n")
-                    );
+                let enum_def = format!(
+                    "\n#[derive({})]\npub enum {} {{\n{}\n}}",
+                    derives,
+                    enum_name,
+                    variant_strings.join(",\n")
+                );
 
                 (enum_name, vec![enum_def], vec![])
             }
@@ -295,7 +337,8 @@ impl AnyType {
 
                 let mut member_strings = Vec::new();
                 for member in members {
-                    let (rust_type, mut hoisted, mut inner_hoisted_uses) = member.to_rust(derives, options, &union_name);
+                    let (rust_type, mut hoisted, mut inner_hoisted_uses) =
+                        member.to_rust(derives, options, &union_name);
                     member_strings.push(rust_type);
                     hoisted_defs.append(&mut hoisted);
                     hoisted_uses.append(&mut inner_hoisted_uses);
@@ -316,9 +359,7 @@ impl AnyType {
                         union_name,
                         member_strings.join(",\n")
                     )
-                }; 
-
-
+                };
 
                 hoisted_defs.insert(0, union_def);
                 (union_name, hoisted_defs, hoisted_uses)
@@ -329,9 +370,23 @@ impl AnyType {
 }
 
 impl StructField {
-    fn to_rust(&self, derives: &str, options: &Options, parent_name: &str) -> (String, Vec<String>, Vec<String>) {
-        let (inner_str, hoisted_defs, hoisted_uses) = self.typ.to_rust(derives, options, parent_name, Some(&self.name.to_case(Case::UpperCamel)));
-        (format!("    pub {}: {}", self.name.to_case(Case::Snake), inner_str), hoisted_defs, hoisted_uses)
+    fn to_rust(
+        &self,
+        derives: &str,
+        options: &Options,
+        parent_name: &str,
+    ) -> (String, Vec<String>, Vec<String>) {
+        let (inner_str, hoisted_defs, hoisted_uses) = self.typ.to_rust(
+            derives,
+            options,
+            parent_name,
+            Some(&self.name.to_case(Case::UpperCamel)),
+        );
+        (
+            format!("    pub {}: {}", self.name.to_case(Case::Snake), inner_str),
+            hoisted_defs,
+            hoisted_uses,
+        )
     }
 }
 
@@ -345,10 +400,20 @@ impl EnumVariant {
 }
 
 impl UnionMember {
-    fn to_rust(&self, derives: &str, options: &Options, parent_name: &str) -> (String, Vec<String>, Vec<String>) {
-        let (inner_str, hoisted_defs, hoisted_uses) = self.typ.to_rust(derives, options, parent_name, None);
+    fn to_rust(
+        &self,
+        derives: &str,
+        options: &Options,
+        parent_name: &str,
+    ) -> (String, Vec<String>, Vec<String>) {
+        let (inner_str, hoisted_defs, hoisted_uses) =
+            self.typ.to_rust(derives, options, parent_name, None);
 
-        (format!("    {}({})", inner_str, inner_str), hoisted_defs, hoisted_uses)
+        (
+            format!("    {}({})", inner_str, inner_str),
+            hoisted_defs,
+            hoisted_uses,
+        )
     }
 }
 
@@ -364,12 +429,16 @@ mod tests {
     }
 
     fn assert_string_lines_eq_without_whitespace(a: &str, b: &str) {
-        let a_trimmed = a.lines()
-            .filter(|line| !line.trim().is_empty()).map(|line| line.trim())
+        let a_trimmed = a
+            .lines()
+            .filter(|line| !line.trim().is_empty())
+            .map(|line| line.trim())
             .collect::<Vec<&str>>()
             .join("\n");
-        let b_trimmed = b.lines()
-            .filter(|line| !line.trim().is_empty()).map(|line| line.trim())
+        let b_trimmed = b
+            .lines()
+            .filter(|line| !line.trim().is_empty())
+            .map(|line| line.trim())
             .collect::<Vec<&str>>()
             .join("\n");
         assert_eq!(a_trimmed, b_trimmed);
@@ -388,9 +457,14 @@ mod tests {
             }
         "#;
         let ast = parse_schema(schema);
-        
+
         assert_string_lines_eq_without_whitespace(
-            &ast.to_rust(&Options { serde_string: &None, serde_string_union: &None, derives: &None, uses: &None }), 
+            &ast.to_rust(&Options {
+                serde_string: &None,
+                serde_string_union: &None,
+                derives: &None,
+                uses: &None,
+            }),
             r#"
                 #[derive(Debug)]
                 pub enum Department {
@@ -400,7 +474,8 @@ mod tests {
                     Development,
                     Jsmith = 99
                 }
-            "#.trim(),
+            "#
+            .trim(),
         );
     }
 
@@ -416,7 +491,12 @@ mod tests {
         let ast = parse_schema(schema);
 
         assert_string_lines_eq_without_whitespace(
-            &ast.to_rust(&Options { serde_string: &None, serde_string_union: &None, derives: &None, uses: &None }), 
+            &ast.to_rust(&Options {
+                serde_string: &None,
+                serde_string_union: &None,
+                derives: &None,
+                uses: &None,
+            }),
             r#"
                 #[derive(Debug)]
                 pub struct Customer {
@@ -424,7 +504,8 @@ mod tests {
                     pub email: String,
                     pub address: Address
                 }
-            "#.trim(),
+            "#
+            .trim(),
         );
     }
 
@@ -435,10 +516,16 @@ mod tests {
         "#;
         let ast = parse_schema(schema);
         assert_string_lines_eq_without_whitespace(
-            &ast.to_rust(&Options { serde_string: &None, serde_string_union: &None, derives: &None, uses: &None }), 
+            &ast.to_rust(&Options {
+                serde_string: &None,
+                serde_string_union: &None,
+                derives: &None,
+                uses: &None,
+            }),
             r#"
                 pub type Address = [String; 4];
-            "#.trim(),
+            "#
+            .trim(),
         );
     }
 
@@ -454,7 +541,12 @@ mod tests {
         "#;
         let ast = parse_schema(schema);
         assert_string_lines_eq_without_whitespace(
-            &ast.to_rust(&Options { serde_string: &None, serde_string_union: &None, derives: &Some(vec!["Clone".into(), "Serialize".into()]), uses: &None }), 
+            &ast.to_rust(&Options {
+                serde_string: &None,
+                serde_string_union: &None,
+                derives: &Some(vec!["Clone".into(), "Serialize".into()]),
+                uses: &None,
+            }),
             r#"
                 #[derive(Debug, Clone, Serialize)]
                 pub struct Customer {
@@ -463,7 +555,8 @@ mod tests {
                     pub address: Address,
                     pub phone: [String; 4]
                 }
-            "#.trim(),
+            "#
+            .trim(),
         );
     }
 
@@ -479,7 +572,12 @@ mod tests {
         "#;
         let ast = parse_schema(schema);
         assert_string_lines_eq_without_whitespace(
-            &ast.to_rust(&Options { serde_string: &None, serde_string_union: &None, derives: &None, uses: &Some(vec!["use std::collections::HashMap".into()]) }),
+            &ast.to_rust(&Options {
+                serde_string: &None,
+                serde_string_union: &None,
+                derives: &None,
+                uses: &Some(vec!["use std::collections::HashMap".into()]),
+            }),
             r#"
                 use serde::{Deserialize, Serialize}
                 #[derive(Debug)]
@@ -489,7 +587,8 @@ mod tests {
                     pub address: Address,
                     pub phone: [String; 4]
                 }
-            "#.trim(),
+            "#
+            .trim(),
         );
     }
 
@@ -500,10 +599,16 @@ mod tests {
         "#;
         let ast = parse_schema(schema);
         assert_string_lines_eq_without_whitespace(
-            &ast.to_rust(&Options { serde_string: &None, serde_string_union: &None, derives: &None, uses: &None }), 
+            &ast.to_rust(&Options {
+                serde_string: &None,
+                serde_string_union: &None,
+                derives: &None,
+                uses: &None,
+            }),
             r#"
                 pub type Address = Vec<String>;
-            "#.trim(),
+            "#
+            .trim(),
         );
     }
 
@@ -558,7 +663,12 @@ mod tests {
 
         let ast = parse_schema(schema);
         assert_string_lines_eq_without_whitespace(
-            &ast.to_rust(&Options { serde_string: &None, serde_string_union: &None, derives: &None, uses: &None }), 
+            &ast.to_rust(&Options {
+                serde_string: &None,
+                serde_string_union: &None,
+                derives: &None,
+                uses: &None,
+            }),
             r#"
                 use std::collections::HashMap;
                 pub type PublicKey = [u8; 128];
@@ -607,7 +717,8 @@ mod tests {
                     pub metadata: HashMap<String, Vec<u8>>
                 }
                 pub type TerminatedEmployee = ();
-            "#.trim()
+            "#
+            .trim(),
         );
     }
 }

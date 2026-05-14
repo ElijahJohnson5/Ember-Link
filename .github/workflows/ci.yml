@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test:
+    name: Build, test, lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.12.0'
+
+      - name: Setup Rust
+        uses: moonrepo/setup-rust@v1
+        with:
+          components: clippy, rustfmt
+
+      - name: Setup moon toolchain
+        uses: moonrepo/setup-toolchain@v0
+
+      # cargo-llvm-cov is only used for local coverage; skip the slow install in CI.
+      - name: Remove cargo-llvm-cov from moon toolchain
+        run: sed -i '/cargo-llvm-cov/d' .moon/toolchain.yml
+
+      - name: Install JS dependencies
+        run: yarn install --immutable
+
+      - name: Build all projects
+        run: moon run :build
+        env:
+          # svelte-auth example reads this at build time via $env/static/public.
+          # Placeholder is fine for a build smoke-check; real runs supply their own.
+          PUBLIC_JWT_SIGNER_KEY: ci-build-placeholder
+
+      - name: Run tests
+        run: moon run :test
+
+      - name: Cargo fmt
+        run: cargo fmt --all --check
+
+      - name: Cargo clippy
+        run: cargo clippy --workspace --all-targets

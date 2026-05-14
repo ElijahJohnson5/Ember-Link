@@ -143,7 +143,7 @@ export function createAuth(options: AuthOptions) {
         throw new Error('Expected json to be a plain object with a string token');
       }
 
-      const authToken = await parseAuthToken(data.token, auth.jwtSignerPublicKey);
+      const authToken = await parseAuthToken(auth.jwtSignerPublicKey, data.token);
       options.onAuthenticated?.({ type: 'private', token: authToken });
       return authToken;
     } else if (auth.type === 'callback') {
