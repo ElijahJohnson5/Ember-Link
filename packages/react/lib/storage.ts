@@ -27,11 +27,13 @@ export const useArrayStorage = <
 ): ArrayStorageHookResult<T> => {
   const channel = useChannel<P, C>();
 
-  if (!channel.hasStorage()) {
-    throw new Error('A storage provider must be configured to use storage');
-  }
-
-  const storage = useMemo(() => channel.getStorage(), [channel]);
+  const storage = useMemo(() => {
+    const s = channel.getStorage();
+    if (!s) {
+      throw new Error('A storage provider must be configured to use storage');
+    }
+    return s;
+  }, [channel]);
 
   const inner = useMemo(() => storage.getArray<T>(name), [name, storage]);
 
@@ -72,11 +74,13 @@ export const useMapStorage = <
 ): MapStorageHookResult<K, V> => {
   const channel = useChannel<P, C>();
 
-  if (!channel.hasStorage()) {
-    throw new Error('A storage provider must be configured to use storage');
-  }
-
-  const storage = useMemo(() => channel.getStorage(), [channel]);
+  const storage = useMemo(() => {
+    const s = channel.getStorage();
+    if (!s) {
+      throw new Error('A storage provider must be configured to use storage');
+    }
+    return s;
+  }, [channel]);
 
   const inner = useMemo(() => storage.getMap<K, V>(name), [name, storage]);
 

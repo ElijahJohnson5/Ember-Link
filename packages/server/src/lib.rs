@@ -12,26 +12,13 @@ pub mod cloudflare;
 #[cfg(feature = "tokio")]
 pub mod tokio;
 
-mod auth;
+pub mod auth;
 pub mod channel;
 mod config;
+pub mod handler;
+pub mod observer;
 mod storage;
 mod webhook;
-
-#[async_trait::async_trait]
-#[allow(unused_variables)]
-trait AppState: Send + Sync {
-    #[cfg(feature = "multi-tenant")]
-    fn jwt_signer_key_endpoint(&self) -> Option<String>;
-    fn jwt_signer_key(&self) -> Option<String>;
-
-    #[cfg(feature = "multi-tenant")]
-    async fn get_cached_key(&self, tenant_id: &String) -> Option<String> {
-        None
-    }
-    #[cfg(feature = "multi-tenant")]
-    async fn cache_key(&self, tenant_id: String, key: String) {}
-}
 
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]

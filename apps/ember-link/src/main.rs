@@ -8,5 +8,5 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let server = server::tokio::Server::new().await;
 
-    server.serve(None, None).await
+    server.serve().await
 }

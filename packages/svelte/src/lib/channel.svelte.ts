@@ -5,7 +5,6 @@ import {
 	type ChannelOptions,
 	type DefaultCustomMessageData,
 	type DefaultPresence,
-	type IStorageProvider,
 	type Status,
 	type User
 } from '@ember-link/core';
@@ -34,7 +33,7 @@ export class SvelteChannel<
 	#channel: Channel<P, C> | null = null;
 	#leave: (() => void) | null = null;
 	#currentName: string | null = null;
-	#currentOptions: ChannelOptions<IStorageProvider, P> | null = null;
+	#currentOptions: ChannelOptions<P> | null = null;
 	#unsubscribers: Array<() => void> = [];
 
 	/**
@@ -45,11 +44,12 @@ export class SvelteChannel<
 	 * Designed to be called from within `$effect` so prop changes on the
 	 * <ChannelProvider> propagate cleanly.
 	 */
-	joinChannel<S extends IStorageProvider>(channelName: string, options: ChannelOptions<S, P>): void {
+	joinChannel(channelName: string, options: ChannelOptions<P>): void {
+		const normalized = options ?? {};
 		if (
 			channelName === this.#currentName &&
 			this.#currentOptions &&
-			shallowEqualOptions(options, this.#currentOptions)
+			shallowEqualOptions(normalized, this.#currentOptions)
 		) {
 			return;
 		}
@@ -62,9 +62,10 @@ export class SvelteChannel<
 		this.#channel = channel;
 		this.#leave = leave;
 		this.#currentName = channelName;
-		this.#currentOptions = options as ChannelOptions<IStorageProvider, P>;
+		this.#currentOptions = normalized as ChannelOptions<P>;
 
-		this.storage = channel.hasStorage() ? new SvelteStorage(channel.getStorage()) : null;
+		const rawStorage = channel.getStorage();
+		this.storage = rawStorage ? new SvelteStorage(rawStorage) : null;
 		this.others = channel.getOthers();
 		this.myPresence = channel.getPresence();
 		this.status = channel.getStatus();

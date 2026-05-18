@@ -72,6 +72,11 @@ tokio = [
   "axum/ws",
   "tower-http/trace"
 ]
+# EXPERIMENTAL: the cloudflare backend is frozen while the tokio backend is
+# being redesigned around pluggable Authenticator / ChannelEventSink /
+# ChannelExtension / MessageHandler traits. It is currently expected to fail
+# `cargo check --features cloudflare` and will be reimplemented on top of the
+# new abstractions once they stabilize.
 cloudflare = ["dep:wasm-bindgen-futures", "dep:worker", "ring/wasm32_unknown_unknown_js"]
 multi-tenant = ["protocol/multi-tenant"]
 webhook = []

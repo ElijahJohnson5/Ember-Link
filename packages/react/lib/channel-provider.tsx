@@ -2,8 +2,7 @@ import {
   Channel,
   type ChannelConfig,
   type DefaultCustomMessageData,
-  type DefaultPresence,
-  type IStorageProvider
+  type DefaultPresence
 } from '@ember-link/core';
 import {
   createContext,
@@ -40,23 +39,19 @@ export const useChannel = <
   return channel;
 };
 
-interface ChannelProviderProps<
-  S extends IStorageProvider,
-  P extends Record<string, unknown> = DefaultPresence
-> {
+interface ChannelProviderProps<P extends Record<string, unknown> = DefaultPresence> {
   channelName: string;
-  options?: ChannelConfig<S, P>['options'];
+  options?: ChannelConfig<P>['options'];
 }
 
 export const ChannelProvider = <
-  S extends IStorageProvider,
   P extends Record<string, unknown> = DefaultPresence,
   C extends Record<string, unknown> = DefaultCustomMessageData
 >({
   channelName,
   options,
   children
-}: PropsWithChildren<ChannelProviderProps<S, P>>) => {
+}: PropsWithChildren<ChannelProviderProps<P>>) => {
   const client = useClient<P, C>();
   const stableOptions = useShallowMemo(options);
 
@@ -65,14 +60,14 @@ export const ChannelProvider = <
   // The underlying channel is ref-counted inside the client — multiple
   // borrows of the same name share one connection.
   const [pair, setPair] = useState(() =>
-    client.joinChannel<S>(channelName, { ...(stableOptions ?? {}), autoConnect: false })
+    client.joinChannel(channelName, { ...(stableOptions ?? {}), autoConnect: false })
   );
 
   // Re-borrow when deps change. Each useEffect run adds a borrow with
   // the latest options and releases it on cleanup, so it's freed when
   // deps next change or on unmount.
   useEffect(() => {
-    const newPair = client.joinChannel<S>(channelName, stableOptions);
+    const newPair = client.joinChannel(channelName, stableOptions);
     setPair(newPair);
     return () => {
       newPair.leave();

@@ -5,7 +5,6 @@ import type {
   DefaultCustomMessageData,
   DefaultPresence,
   EmberClient,
-  IStorageProvider,
   Status,
   User
 } from '@ember-link/core';
@@ -39,10 +38,10 @@ export interface EmberLinkContextApi<
   C extends Record<string, unknown>
 > {
   EmberLinkProvider: ComponentType<PropsWithChildren<CreateClientOptions>>;
-  ChannelProvider: <S extends IStorageProvider>(
+  ChannelProvider: (
     props: PropsWithChildren<{
       channelName: string;
-      options?: ChannelConfig<S, P>['options'];
+      options?: ChannelConfig<P>['options'];
     }>
   ) => ReturnType<typeof ChannelProvider>;
   useClient: () => EmberClient<P, C>;

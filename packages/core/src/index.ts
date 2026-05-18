@@ -62,14 +62,24 @@ export type DefaultPresence = GetOverride<'Presence'>;
  */
 export type DefaultCustomMessageData = GetOverride<'Custom'>;
 
-export type ChannelOptions<
-  S extends IStorageProvider,
-  P extends Record<string, unknown> = DefaultPresence
-> = ChannelConfig<S, P>['options'];
+export type ChannelOptions<P extends Record<string, unknown> = DefaultPresence> =
+  ChannelConfig<P>['options'];
 export { IStorageProvider };
 
-export { createClient, CreateClientOptions, EmberClient } from './client';
+export {
+  createClient,
+  defaultSocketFactory,
+  type CreateClientOptions,
+  type EmberClient,
+  type SocketFactory,
+  type SocketFactoryParams
+} from './client';
 export { User } from './user';
 export { Channel, ChannelConfig } from './channel';
 export { Status } from './socket-client';
 export * from '@ember-link/storage';
+
+/**
+ * @internal Used by `@ember-link/yjs-provider`. Not stable public API.
+ */
+export { getChannelInternals, type ChannelInternals } from './channel';

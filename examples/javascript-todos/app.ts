@@ -1,5 +1,5 @@
 import { createClient } from '@ember-link/core';
-import { createYJSStorageProvider, YjsStorageProvider } from '@ember-link/yjs-storage';
+import { createYJSStorageProvider } from '@ember-link/yjs-storage';
 
 declare global {
   interface EmberLink {
@@ -11,12 +11,12 @@ declare global {
 
 async function run() {
   const client = createClient({
-    baseUrl: 'http://localhost:8787'
+    baseUrl: 'http://localhost:8787',
+    storageProvider: createYJSStorageProvider()
   });
 
-  const { channel } = client.joinChannel<YjsStorageProvider>('todos', {
-    initialPresence: { isTyping: false },
-    storageProvider: createYJSStorageProvider()
+  const { channel } = client.joinChannel('todos', {
+    initialPresence: { isTyping: false }
   });
 
   const whoIsHere = document.getElementById('who_is_here') as HTMLDivElement;
@@ -32,6 +32,7 @@ async function run() {
   });
 
   const storage = channel.getStorage();
+  if (!storage) throw new Error('storage provider missing');
 
   const todos = storage.getArray<{ text: string }>('todos');
 

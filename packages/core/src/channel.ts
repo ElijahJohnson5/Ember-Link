@@ -19,10 +19,7 @@ import { IWebSocketInstance } from './types';
 import { watch } from 'alien-deepsignals';
 import { signal, effect } from 'alien-signals';
 
-export interface ChannelConfig<
-  S extends IStorageProvider,
-  P extends Record<string, unknown> = DefaultPresence
-> {
+export interface ChannelConfig<P extends Record<string, unknown> = DefaultPresence> {
   channelName: string;
   baseUrl: string;
   authenticate: () => Promise<AuthValue>;
@@ -33,7 +30,7 @@ export interface ChannelConfig<
     // TODO: Implement Loro crdt and Automerge
     // https://github.com/loro-dev/loro
     // https://automerge.org/
-    storageProvider?: S;
+    storageProvider?: IStorageProvider;
 
     autoConnect?: boolean;
 
@@ -56,18 +53,19 @@ export type Channel<
   updatePresence: (state: P) => void;
   sendCustomMessage: (data: C) => void;
   hasStorage: () => boolean;
-  getStorage: () => IStorage;
+  /**
+   * Returns the configured storage handle, or `null` if no
+   * `storageProvider` was supplied at client or channel creation.
+   */
+  getStorage: () => IStorage | null;
   getStatus: () => Status;
   getOthers: () => User<P>[];
   getName: () => string;
   getPresence: () => P | null;
   destroy: () => void;
   connect: () => void;
-  updateYDoc: (data: StorageUpdateMessage) => void;
-  syncYDoc: (data: StorageSyncMessage) => void;
   events: Observable<ChannelEvents<P, C>> & {
     others: Observable<OtherEvents<P>>;
-    yjsProvider: Observable<YjsProviderEvents>;
   };
 };
 
@@ -86,6 +84,30 @@ type YjsProviderEvents = {
   syncMessage: (message: StorageSyncMessage) => void;
   updateMessage: (message: StorageUpdateMessage) => void;
 };
+
+/**
+ * Hooks the Yjs provider package uses to talk to a channel. Not part of the
+ * public API — consume via {@link getChannelInternals} from
+ * `@ember-link/core` (marked `@internal`).
+ */
+export interface ChannelInternals {
+  yjs: {
+    events: Observable<YjsProviderEvents>;
+    sync: (data: StorageSyncMessage) => void;
+    update: (data: StorageUpdateMessage) => void;
+  };
+}
+
+type AnyChannel = Channel<Record<string, unknown>, Record<string, unknown>>;
+
+const channelInternals = new WeakMap<AnyChannel, ChannelInternals>();
+
+/**
+ * @internal Used by `@ember-link/yjs-provider`. Not stable API.
+ */
+export function getChannelInternals(channel: AnyChannel): ChannelInternals | undefined {
+  return channelInternals.get(channel);
+}
 
 interface ThrottledSender {
   (): void;
@@ -134,10 +156,9 @@ function createThrottledSender(send: () => void, intervalMs?: number): Throttled
 }
 
 export function createChannel<
-  S extends IStorageProvider,
   P extends Record<string, unknown> = DefaultPresence,
   C extends Record<string, unknown> = DefaultCustomMessageData
->({ options, ...config }: ChannelConfig<S, P>): Channel<P, C> {
+>({ options, ...config }: ChannelConfig<P>): Channel<P, C> {
   const managedSocket = new ManagedSocket<P, C>({ ...config });
 
   const otherEventEmitter = createEventEmitter<OtherEvents<P>>();
@@ -237,7 +258,7 @@ export function createChannel<
     managedSocket.message(presence.getPresenceMessage());
   });
 
-  const storage = options?.storageProvider?.getStorage();
+  const storage = options?.storageProvider?.getStorage() ?? null;
 
   if (storage) {
     storage.events.subscribe('update', (event) => {
@@ -250,16 +271,12 @@ export function createChannel<
     });
   }
 
-  function getStorage() {
-    if (storage) {
-      return storage;
-    }
-
-    throw new Error('A storage provider must be configured to use storage');
+  function getStorage(): IStorage | null {
+    return storage;
   }
 
   function hasStorage() {
-    return Boolean(storage);
+    return storage !== null;
   }
 
   eventEmitter.pause('status');
@@ -316,7 +333,7 @@ export function createChannel<
     managedSocket.connect();
   }
 
-  return {
+  const channel: Channel<P, C> = {
     updatePresence,
     sendCustomMessage,
     getStorage,
@@ -325,14 +342,21 @@ export function createChannel<
     getOthers: () => managedOthers.signal as User<P>[],
     getPresence: () => presence.state(),
     getName: () => config.channelName,
-    updateYDoc,
-    syncYDoc,
     destroy,
     connect: () => managedSocket.connect(),
     events: {
       ...eventEmitter.observable,
-      others: otherEventEmitter.observable,
-      yjsProvider: yjsProviderEventEmitter.observable
+      others: otherEventEmitter.observable
     }
   };
+
+  channelInternals.set(channel as unknown as AnyChannel, {
+    yjs: {
+      events: yjsProviderEventEmitter.observable,
+      sync: syncYDoc,
+      update: updateYDoc
+    }
+  });
+
+  return channel;
 }

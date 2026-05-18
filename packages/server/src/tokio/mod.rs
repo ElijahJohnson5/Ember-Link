@@ -4,11 +4,13 @@ mod channel_registry;
 mod config;
 mod environment;
 mod event_listener_primitives;
+mod observer_bus;
 mod participant;
 #[cfg(feature = "webhook")]
 mod webhook_processor;
 
 use std::collections::HashMap;
+use std::future::Future;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
@@ -20,11 +22,12 @@ use axum::Router;
 use axum_extra::headers;
 use axum_extra::TypedHeader;
 use channel_registry::{ChannelRegistry, ChannelRegistryBuilder};
-use config::TokioConfig;
+pub use config::TokioConfig;
 use envconfig::Envconfig;
 use environment::Environment;
 use futures_util::SinkExt;
 use futures_util::StreamExt;
+use observer_bus::{start_observer_bus, ObserverBusHandle};
 use participant::actor::ParticipantMessage;
 use participant::start_participant;
 use protocol::ClientMessage;
@@ -37,12 +40,15 @@ use tokio::signal;
 use tower_http::trace::{DefaultMakeSpan, TraceLayer};
 use tracing::instrument;
 
+use crate::auth::authenticator::{
+    AllowAllAuthenticator, Authenticator, AuthenticatorFn, HasAuthenticator, JwtAuthenticator,
+};
 #[cfg(feature = "multi-tenant")]
-use tokio::sync::Mutex;
-
-use crate::auth::{validate_token, AuthData};
+use crate::auth::authenticator::MultiTenantJwtAuthenticator;
+use crate::auth::AuthError;
 use crate::channel::create_channel_name;
-use crate::AppState;
+use crate::handler::{HandlerAction, HandlerError, MessageContext, MessageHandler};
+use crate::observer::{ChannelEvent, Observer, ObserverContext};
 
 pub type BoxDynError = Box<dyn StdError + 'static + Send + Sync>;
 
@@ -50,71 +56,172 @@ pub type BoxDynError = Box<dyn StdError + 'static + Send + Sync>;
 pub struct TokioAppState {
     pub config: TokioConfig,
     pub channel_registry: Arc<ChannelRegistry>,
-    // TODO: Move this to redis or have an option to use redis
-    #[cfg(feature = "multi-tenant")]
-    pub jwt_signer_key_cache: Arc<Mutex<HashMap<String, String>>>,
+    pub(crate) authenticator: Arc<dyn Authenticator>,
 }
 
-#[async_trait::async_trait]
-impl AppState for TokioAppState {
-    #[cfg(feature = "multi-tenant")]
-    fn jwt_signer_key_endpoint(&self) -> Option<String> {
-        self.config.base_config.jwt_signer_key_endpoint.clone()
+impl HasAuthenticator for TokioAppState {
+    fn authenticator(&self) -> &Arc<dyn Authenticator> {
+        &self.authenticator
     }
+}
 
-    fn jwt_signer_key(&self) -> Option<String> {
-        self.config.base_config.jwt_signer_key.clone()
-    }
-
-    #[cfg(feature = "multi-tenant")]
-    async fn get_cached_key(&self, tenant_id: &String) -> Option<String> {
-        let cache = self.jwt_signer_key_cache.lock().await;
-
-        return cache.get(tenant_id).cloned();
+fn default_authenticator(config: &TokioConfig) -> Arc<dyn Authenticator> {
+    if config.base_config.allow_unauthorized {
+        return Arc::new(AllowAllAuthenticator);
     }
 
     #[cfg(feature = "multi-tenant")]
-    async fn cache_key(&self, tenant_id: String, key: String) {
-        let mut cache = self.jwt_signer_key_cache.lock().await;
-
-        cache.insert(tenant_id, key);
+    {
+        if let Some(endpoint) = config.base_config.jwt_signer_key_endpoint.clone() {
+            return Arc::new(MultiTenantJwtAuthenticator::new(endpoint));
+        }
     }
+
+    if let Some(key) = config.base_config.jwt_signer_key.clone() {
+        return Arc::new(JwtAuthenticator::new(key));
+    }
+
+    // No auth configured and ALLOW_UNAUTHORIZED is false. Connections will be
+    // rejected with `SignerKeyMissing` when they attempt to authenticate.
+    Arc::new(JwtAuthenticator::new(String::new()))
 }
 
 pub struct Server {
     router: axum::Router<TokioAppState>,
     app_state: TokioAppState,
-    environment: Environment,
+    bus_handle: ObserverBusHandle,
+    bind_addr: Option<SocketAddr>,
 }
 
-impl Server {
-    pub async fn new() -> Self {
-        match dotenvy::dotenv() {
-            Err(_e) => {
-                tracing::info!("Could not find .env file")
+/// Fluent builder for [`Server`]. Plug in a custom authenticator, observers,
+/// or message handlers before starting.
+///
+/// Defaults loaded from environment variables (`JWT_SIGNER_KEY`, `WEBHOOK_URL`,
+/// `HOST`, `PORT`, …) still apply unless explicitly overridden, so
+/// `Server::builder().build().await.serve().await` remains a viable one-liner.
+#[derive(Default)]
+pub struct ServerBuilder {
+    config: Option<TokioConfig>,
+    authenticator: Option<Arc<dyn Authenticator>>,
+    observers: Vec<Arc<dyn Observer>>,
+    handlers: Vec<Arc<dyn MessageHandler>>,
+    bind_addr: Option<SocketAddr>,
+}
+
+impl ServerBuilder {
+    /// Replace the env-derived [`TokioConfig`]. Useful for embedding tests or
+    /// when you want to drive configuration from your own source of truth.
+    pub fn with_config(mut self, config: TokioConfig) -> Self {
+        self.config = Some(config);
+        self
+    }
+
+    /// Override the bind address; equivalent to setting `HOST`/`PORT` env
+    /// vars but with type-safety. If unset, the address is built from the
+    /// resolved [`TokioConfig::host`] and [`TokioConfig::port`].
+    pub fn bind(mut self, addr: SocketAddr) -> Self {
+        self.bind_addr = Some(addr);
+        self
+    }
+
+    /// Provide a custom [`Authenticator`]. Defaults to a JWT authenticator
+    /// derived from environment vars.
+    pub fn with_authenticator(mut self, authenticator: impl Authenticator + 'static) -> Self {
+        self.authenticator = Some(Arc::new(authenticator));
+        self
+    }
+
+    /// Provide a custom auth function. Stateless cases (a token map, a remote
+    /// fetch) usually want this rather than implementing the trait.
+    pub fn with_auth_fn<F, Fut>(self, f: F) -> Self
+    where
+        F: Fn(Option<String>, Option<String>) -> Fut + Send + Sync + 'static,
+        Fut: Future<Output = Result<crate::auth::AuthContext, AuthError>> + Send + 'static,
+    {
+        self.with_authenticator(AuthenticatorFn::new(f))
+    }
+
+    /// Register an [`Observer`] for channel lifecycle events. Both built-in
+    /// observers from [`Environment`] (e.g. webhook) and embedder-registered
+    /// observers run on the same queue.
+    pub fn with_observer(mut self, observer: impl Observer + 'static) -> Self {
+        self.observers.push(Arc::new(observer));
+        self
+    }
+
+    /// Register an observer from an async closure.
+    pub fn with_observer_fn<F, Fut>(self, f: F) -> Self
+    where
+        F: Fn(ChannelEvent, ObserverContext) -> Fut + Send + Sync + 'static,
+        Fut: Future<Output = ()> + Send + 'static,
+    {
+        let observer = crate::observer::observer_fn(f);
+        ServerBuilder {
+            observers: {
+                let mut o = self.observers;
+                o.push(observer);
+                o
+            },
+            ..self
+        }
+    }
+
+    /// Register a custom message handler.
+    pub fn with_handler(mut self, handler: impl MessageHandler + 'static) -> Self {
+        self.handlers.push(Arc::new(handler));
+        self
+    }
+
+    /// Register a handler from an async closure, keyed by `message_type`.
+    pub fn with_handler_fn<F, Fut>(self, message_type: &'static str, f: F) -> Self
+    where
+        F: Fn(MessageContext, serde_json::Value) -> Fut + Send + Sync + 'static,
+        Fut: Future<Output = Result<HandlerAction, HandlerError>> + Send + 'static,
+    {
+        self.with_handler(crate::handler::HandlerFn::new(message_type, f))
+    }
+
+    pub async fn build(self) -> Server {
+        if self.config.is_none() {
+            match dotenvy::dotenv() {
+                Err(_e) => {
+                    tracing::info!("Could not find .env file")
+                }
+                _ => {}
             }
-            _ => {}
         }
 
-        let config = TokioConfig::init_from_env().unwrap();
+        let config = self
+            .config
+            .unwrap_or_else(|| TokioConfig::init_from_env().unwrap());
 
         let environment = Environment::from_config(&config).await;
 
-        #[cfg(feature = "webhook")]
-        let channel_registry = ChannelRegistryBuilder::new(config.clone())
-            .with_webhook_processor(environment.webhook_processor())
-            .build();
+        // Default observers (from env) come first; user-registered observers
+        // run after them.
+        let mut all_observers = environment.into_observers();
+        all_observers.extend(self.observers);
 
-        #[cfg(not(feature = "webhook"))]
-        let channel_registry = ChannelRegistryBuilder::new(config.clone()).build();
+        let (bus, bus_handle) = start_observer_bus(all_observers);
 
-        let channel_registry: Arc<ChannelRegistry> = Arc::new(channel_registry);
+        let mut registry_builder = ChannelRegistryBuilder::new(config.clone()).with_observers(bus);
+
+        for handler in self.handlers {
+            registry_builder = registry_builder.with_handler(handler);
+        }
+
+        let channel_registry: Arc<ChannelRegistry> = Arc::new(registry_builder.build());
+
+        let authenticator = self
+            .authenticator
+            .unwrap_or_else(|| default_authenticator(&config));
+
+        let bind_addr = self.bind_addr;
 
         let app_state = TokioAppState {
             config,
             channel_registry,
-            #[cfg(feature = "multi-tenant")]
-            jwt_signer_key_cache: Arc::default(),
+            authenticator,
         };
 
         let router = Router::new()
@@ -125,34 +232,41 @@ impl Server {
                     .make_span_with(DefaultMakeSpan::default().include_headers(true)),
             );
 
-        Self {
+        Server {
             router,
             app_state,
-            environment,
+            bus_handle,
+            bind_addr,
         }
     }
+}
 
-    pub async fn serve(
-        mut self,
-        host: Option<String>,
-        port: Option<String>,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        if let Some(host) = host {
-            self.app_state.config.host = host;
-        }
+impl Server {
+    /// Start building a server with custom pluggable behavior.
+    pub fn builder() -> ServerBuilder {
+        ServerBuilder::default()
+    }
 
-        if let Some(port) = port {
-            self.app_state.config.port = port;
-        }
+    /// Shorthand for `Server::builder().build().await`. Preserves the
+    /// "everything from env" UX from the docker image.
+    pub async fn new() -> Self {
+        Self::builder().build().await
+    }
 
-        let tcp_listener_addr = format!(
-            "{}:{}",
-            self.app_state.config.host, self.app_state.config.port
-        );
+    /// Bind to the configured address (or one set via [`ServerBuilder::bind`])
+    /// and serve until shutdown. After the listener exits, registered
+    /// [`Observer`]s receive `shutdown()` so they can flush.
+    pub async fn serve(self) -> Result<(), Box<dyn std::error::Error>> {
+        let addr: SocketAddr = match self.bind_addr {
+            Some(addr) => addr,
+            None => format!("{}:{}", self.app_state.config.host, self.app_state.config.port)
+                .parse()
+                .map_err(|e: std::net::AddrParseError| -> Box<dyn std::error::Error> {
+                    Box::new(e)
+                })?,
+        };
 
-        let listener = tokio::net::TcpListener::bind(tcp_listener_addr)
-            .await
-            .unwrap();
+        let listener = tokio::net::TcpListener::bind(addr).await?;
         tracing::info!("listening on {}", listener.local_addr().unwrap());
 
         let router = self.router.with_state(self.app_state.clone());
@@ -165,7 +279,7 @@ impl Server {
         .await
         .unwrap();
 
-        self.environment.cleanup().await;
+        self.bus_handle.shutdown().await;
 
         Ok(())
     }
@@ -252,8 +366,6 @@ async fn handle_socket(
         return;
     }
 
-    let mut token_payload: Option<AuthData> = None;
-
     let tenant_id = {
         #[cfg(feature = "multi-tenant")]
         {
@@ -266,29 +378,35 @@ async fn handle_socket(
         }
     };
 
-    if query_params.contains_key("token") {
-        let payload =
-            match validate_token(&query_params["token"], tenant_id.clone(), &app_state).await {
-                Ok(payload) => payload,
-                Err(auth_error) => {
-                    let auth_error_string = auth_error.to_string();
-                    tracing::error!("{}", auth_error_string);
+    let auth_context: Option<crate::auth::authenticator::AuthContext> = if query_params
+        .contains_key("token")
+    {
+        let token = query_params.get("token").map(String::as_str);
+        match app_state
+            .authenticator
+            .authenticate(token, tenant_id.as_deref())
+            .await
+        {
+            Ok(ctx) => Some(ctx),
+            Err(auth_error) => {
+                let auth_error_string = auth_error.to_string();
+                tracing::error!("{}", auth_error_string);
 
-                    let websocket_close_code: WebSocketCloseCode = auth_error.into();
+                let websocket_close_code: WebSocketCloseCode = auth_error.into();
 
-                    socket
-                        .send(ws::Message::Close(Some(ws::CloseFrame {
-                            code: websocket_close_code as u16,
-                            reason: auth_error_string.into(),
-                        })))
-                        .await
-                        .expect("Could not close websocket");
-                    return;
-                }
-            };
-
-        token_payload.replace(payload);
-    }
+                socket
+                    .send(ws::Message::Close(Some(ws::CloseFrame {
+                        code: websocket_close_code as u16,
+                        reason: auth_error_string.into(),
+                    })))
+                    .await
+                    .expect("Could not close websocket");
+                return;
+            }
+        }
+    } else {
+        None
+    };
 
     tracing::debug!("New WebSocket connection: {}", who,);
 
@@ -360,8 +478,14 @@ async fn handle_socket(
 
     let weak_channel = channel.downgrade();
 
-    let (participant, handle) =
-        start_participant(channel, participant_id.clone().to_string(), write).await;
+    let (participant, handle) = start_participant(
+        channel,
+        participant_id.clone().to_string(),
+        write,
+        app_state.channel_registry.message_handlers(),
+        auth_context,
+    )
+    .await;
 
     loop {
         tokio::select! {
@@ -488,8 +612,9 @@ fn handle_client_message(
         ClientMessage::ProviderUpdateMessage(msg) => {
             participant.cast(ParticipantMessage::ProviderUpdate { data: msg })
         }
-        ClientMessage::CustomMessage(msg) => participant.cast(ParticipantMessage::ServerMessage {
-            data: serde_json::to_string(&ServerMessage::CustomMessage(msg)).unwrap(),
-        }),
+        ClientMessage::CustomMessage(msg) => {
+            participant.cast(ParticipantMessage::CustomMessage { data: msg })
+        }
     }
 }
+

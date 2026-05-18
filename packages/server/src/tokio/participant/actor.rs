@@ -1,11 +1,18 @@
-use crate::{channel::Channel, tokio::channel::TokioChannel};
+use std::sync::Arc;
+
+use crate::{
+    auth::authenticator::AuthContext,
+    channel::Channel,
+    handler::{HandlerAction, MessageContext, MessageHandlerRegistry},
+    tokio::channel::TokioChannel,
+};
 use axum::{
     body::Bytes,
     extract::ws::{Message, WebSocket},
 };
 use futures_util::{stream::SplitSink, SinkExt};
 use protocol::{
-    ClientPresenceMessage, ServerMessage, ServerPresenceMessage, StorageSyncMessage,
+    ClientPresenceMessage, CustomMessage, ServerMessage, ServerPresenceMessage, StorageSyncMessage,
     StorageUpdateMessage,
 };
 use ractor::{Actor, ActorProcessingErr, ActorRef};
@@ -17,6 +24,8 @@ pub struct ParticipantState {
     channel: TokioChannel,
     presence: Option<String>,
     socket_write_sink: SplitSink<WebSocket, Message>,
+    handlers: Arc<MessageHandlerRegistry>,
+    auth: Option<AuthContext>,
 }
 
 #[derive(Debug, Clone)]
@@ -28,6 +37,7 @@ pub enum ParticipantMessage {
     StorageSync { data: StorageSyncMessage },
     ProviderSync { data: StorageSyncMessage },
     ProviderUpdate { data: StorageUpdateMessage },
+    CustomMessage { data: CustomMessage },
     ServerMessage { data: String },
     ServerBinaryMessage { data: Vec<u8> },
 }
@@ -36,6 +46,8 @@ pub struct ParticipantArguments {
     pub id: String,
     pub channel: TokioChannel,
     pub socket_write_sink: SplitSink<WebSocket, Message>,
+    pub handlers: Arc<MessageHandlerRegistry>,
+    pub auth: Option<AuthContext>,
 }
 
 impl Actor for Participant {
@@ -55,6 +67,8 @@ impl Actor for Participant {
             id: args.id,
             presence: None,
             socket_write_sink: args.socket_write_sink,
+            handlers: args.handlers,
+            auth: args.auth,
         })
     }
 
@@ -72,7 +86,6 @@ impl Actor for Participant {
                 state.socket_write_sink.send(Message::text(data)).await.ok();
             }
             ParticipantMessage::MyPresence { data } => {
-                // TODO: Maybe keep an internal clock to make sure we should actually update the data
                 state.presence.replace(data.presence.clone());
 
                 state
@@ -140,6 +153,35 @@ impl Actor for Participant {
                     _ => {}
                 }
             }
+            ParticipantMessage::CustomMessage { data } => {
+                let ctx = MessageContext {
+                    channel_name: state.channel.channel_name().to_string(),
+                    participant_id: state.id.clone(),
+                    tenant_id: state.channel.tenant_id().cloned(),
+                    auth: state.auth.clone(),
+                };
+
+                match state.handlers.dispatch(&data.message, ctx).await {
+                    None => {
+                        // No matching handler — fall back to legacy behavior:
+                        // broadcast as-is to everyone except sender.
+                        state.channel.broadcast(
+                            ServerMessage::CustomMessage(data),
+                            Some(&state.id),
+                        );
+                    }
+                    Some(Ok(action)) => {
+                        if let Err(e) =
+                            dispatch_handler_action(state, action).await
+                        {
+                            tracing::warn!(error = e, "Failed to dispatch handler action");
+                        }
+                    }
+                    Some(Err(e)) => {
+                        tracing::warn!(error = e.to_string(), "Handler returned error");
+                    }
+                }
+            }
             ParticipantMessage::ServerMessage { data } => {
                 match state.socket_write_sink.send(Message::text(data)).await {
                     Err(e) => {
@@ -166,6 +208,46 @@ impl Actor for Participant {
 
         Ok(())
     }
+}
+
+async fn dispatch_handler_action(
+    state: &mut ParticipantState,
+    action: HandlerAction,
+) -> Result<(), String> {
+    match action {
+        HandlerAction::Broadcast(value) => {
+            let payload = serde_json::to_string(&value)
+                .map_err(|e| format!("serialize broadcast payload: {}", e))?;
+            state.channel.broadcast(
+                ServerMessage::CustomMessage(CustomMessage { message: payload }),
+                Some(&state.id),
+            );
+        }
+        HandlerAction::BroadcastIncludingSender(value) => {
+            let payload = serde_json::to_string(&value)
+                .map_err(|e| format!("serialize broadcast payload: {}", e))?;
+            state
+                .channel
+                .broadcast(ServerMessage::CustomMessage(CustomMessage { message: payload }), None);
+        }
+        HandlerAction::ReplyOnly(value) => {
+            let payload = serde_json::to_string(&value)
+                .map_err(|e| format!("serialize reply payload: {}", e))?;
+            state
+                .socket_write_sink
+                .send(Message::text(
+                    serde_json::to_string(&ServerMessage::CustomMessage(CustomMessage {
+                        message: payload,
+                    }))
+                    .map_err(|e| format!("serialize ServerMessage: {}", e))?,
+                ))
+                .await
+                .map_err(|e| format!("send reply: {}", e))?;
+        }
+        HandlerAction::Drop => {}
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]

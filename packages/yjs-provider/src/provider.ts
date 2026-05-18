@@ -1,4 +1,4 @@
-import type { Channel } from '@ember-link/core';
+import { type Channel, getChannelInternals } from '@ember-link/core';
 import { ObservableV2 } from 'lib0/observable';
 import { type Doc } from 'yjs';
 import { Awareness } from '~/awareness';
@@ -26,17 +26,26 @@ export class EmberLinkYjsProvider extends ObservableV2<{
     this.doc = doc;
     this.channel = channel;
 
+    const internals = getChannelInternals(
+      channel as unknown as Channel<Record<string, unknown>, Record<string, unknown>>
+    );
+    if (!internals) {
+      throw new Error(
+        'Channel was not created by @ember-link/core. EmberLinkYjsProvider needs a real channel.'
+      );
+    }
+
     this.awareness = new Awareness(doc, channel);
     this.docHandler = new DocumentHandler({
       doc,
       syncYDoc: (data: Uint8Array, syncType: string) => {
-        channel.syncYDoc({
+        internals.yjs.sync({
           update: data.buffer as ArrayBuffer,
           syncType: syncType
         });
       },
       updateYDoc: (data: Uint8Array) => {
-        channel.updateYDoc({
+        internals.yjs.update({
           update: data.buffer as ArrayBuffer
         });
       }
@@ -53,7 +62,7 @@ export class EmberLinkYjsProvider extends ObservableV2<{
     );
 
     this.unsubscribers.push(
-      this.channel.events.yjsProvider.subscribe('syncMessage', (message) => {
+      internals.yjs.events.subscribe('syncMessage', (message) => {
         this.docHandler.handleServerUpdate({
           update: new Uint8Array(message.update),
           syncType: message.syncType
@@ -62,7 +71,7 @@ export class EmberLinkYjsProvider extends ObservableV2<{
     );
 
     this.unsubscribers.push(
-      this.channel.events.yjsProvider.subscribe('updateMessage', (message) => {
+      internals.yjs.events.subscribe('updateMessage', (message) => {
         this.docHandler.handleServerUpdate({
           update: new Uint8Array(message.update)
         });

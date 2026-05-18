@@ -2,39 +2,50 @@ use std::{
     collections::HashMap,
     fmt,
     sync::{Arc, Weak},
+    time::{SystemTime, UNIX_EPOCH},
 };
 
 use parking_lot::{Mutex, RwLock};
 use protocol::{
-    InitialPresenceMessage, ServerMessage, ServerPresenceMessage, StorageSyncMessage,
-    StorageUpdateMessage,
+    InitialPresenceMessage, NewParticipant, RemoveParticipant, ServerMessage,
+    ServerPresenceMessage, StorageSyncMessage, StorageUpdateMessage, StorageUpdated,
 };
 use ractor::ActorRef;
 
 use crate::{
     channel::Channel,
+    observer::{ChannelEvent, ObserverContext},
     storage::{yjs::YjsStorage, Storage, StorageError},
     tokio::{
-        event_listener_primitives::{Bag, BagOnce, HandlerId},
+        event_listener_primitives::{BagOnce, HandlerId},
+        observer_bus::ObserverBus,
         participant::actor::ParticipantMessage,
     },
 };
 
 #[derive(Default)]
 struct Handlers {
-    participant_added: Bag<Arc<dyn Fn(&String, &usize) + Send + Sync>, String, usize>,
-    participant_removed: Bag<Arc<dyn Fn(&String, &usize) + Send + Sync>, String, usize>,
-    storage_updated: Bag<Arc<dyn Fn(&Vec<u8>) + Send + Sync>, Vec<u8>>,
     closed: BagOnce<Box<dyn FnOnce() + Send>>,
 }
 
 struct Inner {
     id: String,
+    channel_name: String,
+    tenant_id: Option<String>,
     storage: Option<Box<dyn Storage + Sync + Send + 'static>>,
     yjs_provider_storage: YjsStorage,
     participant_refs: RwLock<HashMap<String, ActorRef<ParticipantMessage>>>,
     participant_presence_state: Mutex<HashMap<String, (String, i32)>>,
     handlers: Handlers,
+    observers: ObserverBus,
+}
+
+impl Inner {
+    fn observer_context(&self) -> ObserverContext {
+        ObserverContext {
+            tenant_id: self.tenant_id.clone(),
+        }
+    }
 }
 
 impl fmt::Debug for Inner {
@@ -47,6 +58,9 @@ impl Drop for Inner {
     fn drop(&mut self) {
         tracing::info!("Channel {} closed", self.id);
 
+        // The registry's `on_close` hook (fired here) is responsible for
+        // removing the channel from the map and emitting a `CloseChannel`
+        // event with the authoritative remaining-channels count.
         self.handlers.closed.call_simple();
     }
 }
@@ -100,10 +114,15 @@ impl Channel for TokioChannel {
             storage.handle_update_message(&message)?;
         }
 
-        self.inner
-            .handlers
-            .storage_updated
-            .call_simple(&message.update);
+        self.inner.observers.emit(
+            ChannelEvent::StorageUpdated(StorageUpdated {
+                id: uuid::Uuid::new_v4().into(),
+                channel_name: self.inner.channel_name.clone(),
+                timestamp: now_millis(),
+                data: message.update.clone(),
+            }),
+            self.inner.observer_context(),
+        );
 
         self.broadcast(
             ServerMessage::StorageUpdateMessage(message),
@@ -132,10 +151,15 @@ impl Channel for TokioChannel {
             .yjs_provider_storage
             .handle_update_message(&message)?;
 
-        self.inner
-            .handlers
-            .storage_updated
-            .call_simple(&message.update);
+        self.inner.observers.emit(
+            ChannelEvent::StorageUpdated(StorageUpdated {
+                id: uuid::Uuid::new_v4().into(),
+                channel_name: self.inner.channel_name.clone(),
+                timestamp: now_millis(),
+                data: message.update.clone(),
+            }),
+            self.inner.observer_context(),
+        );
 
         self.broadcast(
             ServerMessage::ProviderUpdateMessage(message),
@@ -147,19 +171,36 @@ impl Channel for TokioChannel {
 }
 
 impl TokioChannel {
-    pub fn new(id: String, storage: Option<Box<dyn Storage + Send + Sync>>) -> Self {
+    pub(crate) fn new(
+        id: String,
+        channel_name: String,
+        tenant_id: Option<String>,
+        storage: Option<Box<dyn Storage + Send + Sync>>,
+        observers: ObserverBus,
+    ) -> Self {
         tracing::info!("Creating channel {}", id);
 
         Self {
             inner: Arc::new(Inner {
                 id,
+                channel_name,
+                tenant_id,
                 storage,
                 yjs_provider_storage: YjsStorage::new(yrs::Doc::new()),
                 participant_refs: RwLock::new(HashMap::new()),
                 participant_presence_state: Mutex::default(),
                 handlers: Handlers::default(),
+                observers,
             }),
         }
+    }
+
+    pub fn channel_name(&self) -> &str {
+        &self.inner.channel_name
+    }
+
+    pub fn tenant_id(&self) -> Option<&String> {
+        self.inner.tenant_id.as_ref()
     }
 
     pub fn add_presence(&self, participant_id: String, state: String, clock: i32) {
@@ -182,10 +223,16 @@ impl TokioChannel {
             pariticpants.len()
         };
 
-        self.inner
-            .handlers
-            .participant_added
-            .call_simple(&participant_id, &num_participants);
+        self.inner.observers.emit(
+            ChannelEvent::NewParticipant(NewParticipant {
+                id: uuid::Uuid::new_v4().into(),
+                channel_name: self.inner.channel_name.clone(),
+                timestamp: now_millis(),
+                participant_id: participant_id.clone(),
+                num_pariticipants: num_participants,
+            }),
+            self.inner.observer_context(),
+        );
 
         participant
             .cast(ParticipantMessage::ServerMessage {
@@ -213,10 +260,16 @@ impl TokioChannel {
                 .remove(participant_id)
         };
 
-        self.inner
-            .handlers
-            .participant_removed
-            .call_simple(&participant_id.to_string(), &num_participants);
+        self.inner.observers.emit(
+            ChannelEvent::RemoveParticipant(RemoveParticipant {
+                id: uuid::Uuid::new_v4().into(),
+                channel_name: self.inner.channel_name.clone(),
+                timestamp: now_millis(),
+                participant_id: participant_id.to_string(),
+                num_pariticipants: num_participants,
+            }),
+            self.inner.observer_context(),
+        );
 
         match state {
             Some((_, clock)) => {
@@ -233,34 +286,9 @@ impl TokioChannel {
         }
     }
 
-    pub fn on_participant_added<F: Fn(&String, &usize) + Send + Sync + 'static>(
-        &self,
-        callback: F,
-    ) -> HandlerId {
-        self.inner
-            .handlers
-            .participant_added
-            .add(Arc::new(callback))
-    }
-
-    pub fn on_storage_updated<F: Fn(&Vec<u8>) + Send + Sync + 'static>(
-        &self,
-        callback: F,
-    ) -> HandlerId {
-        self.inner.handlers.storage_updated.add(Arc::new(callback))
-    }
-
-    pub fn on_participant_removed<F: Fn(&String, &usize) + Send + Sync + 'static>(
-        &self,
-        callback: F,
-    ) -> HandlerId {
-        self.inner
-            .handlers
-            .participant_removed
-            .add(Arc::new(callback))
-    }
-
-    pub fn on_close<F: FnOnce() + Send + 'static>(&self, callback: F) -> HandlerId {
+    /// Internal hook used by [`crate::tokio::channel_registry::ChannelRegistry`]
+    /// to remove a closed channel from its map and emit the close event.
+    pub(crate) fn on_close<F: FnOnce() + Send + 'static>(&self, callback: F) -> HandlerId {
         self.inner.handlers.closed.add(Box::new(callback))
     }
 
@@ -303,6 +331,13 @@ impl TokioChannel {
     }
 }
 
+pub(crate) fn now_millis() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("Time went backwards")
+        .as_millis() as u64
+}
+
 /// Similar to `TokioChannel`, but doesn't prevent channel from being destroyed
 #[derive(Debug, Clone)]
 pub struct WeakTokioChannel {
@@ -318,12 +353,23 @@ impl WeakTokioChannel {
 
 #[cfg(test)]
 pub mod tests {
+    use crate::tokio::observer_bus::ObserverBus;
     use crate::tokio::participant::actor::tests::{create_participant, TestParticipantActorState};
     use tokio::{sync::Mutex, task::yield_now};
 
     use protocol::StorageUpdateMessage;
 
     use super::*;
+
+    pub(crate) fn make_channel(id: &str) -> TokioChannel {
+        TokioChannel::new(
+            id.to_string(),
+            id.to_string(),
+            None,
+            None,
+            ObserverBus::noop(),
+        )
+    }
 
     async fn get_nth_message(
         state: Arc<Mutex<TestParticipantActorState>>,
@@ -334,7 +380,7 @@ pub mod tests {
 
     #[tokio::test]
     async fn it_adds_a_participant_and_sends_initial_presence() {
-        let channel = TokioChannel::new("test".to_string(), None);
+        let channel = make_channel("test");
         let (participant, state) = create_participant().await;
 
         let participant_id: String = "participant".into();
@@ -377,58 +423,11 @@ pub mod tests {
     }
 
     #[tokio::test]
-    async fn it_calls_participant_added_handler() {
-        let channel = TokioChannel::new("test".to_string(), None);
-        let (participant, _) = create_participant().await;
-
-        let participant_id: String = "participant".into();
-
-        let handler_counter = Arc::new(parking_lot::Mutex::new(HandlerCounter { count: 0 }));
-
-        channel
-            .on_participant_added({
-                let handler_counter = handler_counter.clone();
-                move |_participant_id, _size| {
-                    handler_counter.lock().count += 1;
-                }
-            })
-            .detach();
-
-        channel.add_participant(participant_id, participant);
-
-        assert_eq!(handler_counter.lock().count, 1);
-    }
-
-    #[tokio::test]
-    async fn it_calls_participant_removed_handler() {
-        let channel = TokioChannel::new("test".to_string(), None);
-        let (participant, _) = create_participant().await;
-
-        let participant_id: String = "participant".into();
-
-        let handler_counter = Arc::new(parking_lot::Mutex::new(HandlerCounter { count: 0 }));
-
-        channel
-            .on_participant_removed({
-                let handler_counter = handler_counter.clone();
-                move |_participant_id, _size| {
-                    handler_counter.lock().count += 1;
-                }
-            })
-            .detach();
-
-        channel.add_participant(participant_id.clone(), participant);
-        channel.remove_participant(&participant_id);
-
-        assert_eq!(handler_counter.lock().count, 1);
-    }
-
-    #[tokio::test]
     async fn it_calls_on_close_when_dropped() {
         let handler_counter = Arc::new(parking_lot::Mutex::new(HandlerCounter { count: 0 }));
 
         {
-            let channel = TokioChannel::new("test".to_string(), None);
+            let channel = make_channel("test");
 
             channel
                 .on_close({
@@ -445,7 +444,7 @@ pub mod tests {
 
     #[tokio::test]
     async fn it_broadcasts_to_all_participants() {
-        let channel = TokioChannel::new("test".to_string(), None);
+        let channel = make_channel("test");
         let (participant1, state) = create_participant().await;
 
         let participant_id1: String = "participant1".into();
@@ -507,7 +506,7 @@ pub mod tests {
 
     #[tokio::test]
     async fn it_boradcasts_to_all_participants_except_excluded() {
-        let channel = TokioChannel::new("test".to_string(), None);
+        let channel = make_channel("test");
         let (participant1, state) = create_participant().await;
 
         let participant_id1: String = "participant1".into();
@@ -553,7 +552,7 @@ pub mod tests {
 
     #[tokio::test]
     async fn it_removes_participant() {
-        let channel = TokioChannel::new("test".to_string(), None);
+        let channel = make_channel("test");
         let (participant, _) = create_participant().await;
 
         let participant_id: String = "participant".into();
@@ -573,7 +572,7 @@ pub mod tests {
 
     #[tokio::test]
     async fn it_broadcasts_removed_participant_presence() {
-        let channel = TokioChannel::new("test".to_string(), None);
+        let channel = make_channel("test");
         let (participant1, _) = create_participant().await;
 
         let participant_id1: String = "participant1".into();
@@ -628,7 +627,7 @@ pub mod tests {
 
     #[test]
     fn it_can_downgrade_and_upgrade() {
-        let channel = TokioChannel::new("test".to_string(), None);
+        let channel = make_channel("test");
 
         let downgrade = channel.downgrade();
 
@@ -638,7 +637,7 @@ pub mod tests {
     #[test]
     fn it_returns_none_when_trying_to_upgrade_dropped_channel() {
         let downgrade = {
-            let channel = TokioChannel::new("test".to_string(), None);
+            let channel = make_channel("test");
 
             channel.downgrade()
         };
@@ -648,7 +647,7 @@ pub mod tests {
 
     #[tokio::test]
     async fn it_sends_all_current_presences_to_new_participant() {
-        let channel = TokioChannel::new("test".to_string(), None);
+        let channel = make_channel("test");
         let (participant1, _) = create_participant().await;
 
         let participant_id1: String = "participant1".into();

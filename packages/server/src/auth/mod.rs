@@ -21,15 +21,23 @@ use axum_extra::{
 #[cfg(feature = "tokio")]
 use std::collections::HashMap;
 
-use crate::AppState;
+pub mod authenticator;
+
+pub use authenticator::{
+    AllowAllAuthenticator, AuthContext, Authenticator, AuthenticatorFn, JwtAuthenticator,
+};
+#[cfg(feature = "tokio")]
+pub(crate) use authenticator::HasAuthenticator;
+#[cfg(feature = "multi-tenant")]
+pub use authenticator::MultiTenantJwtAuthenticator;
 
 pub type BoxDynError = Box<dyn StdError + 'static + Send + Sync>;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Claims {
-    sub: String,
-    company: String,
-    exp: usize,
+    pub sub: String,
+    pub company: String,
+    pub exp: usize,
 }
 
 pub type AuthData = TokenData<Claims>;
@@ -69,6 +77,7 @@ impl IntoResponse for AuthError {
             AuthError::FailedToDeserializeQueryString(e) => {
                 #[cfg(feature = "tokio")]
                 tracing::error!("Failed to deserialize query string: {:?}", e);
+                let _ = e;
                 (
                     StatusCode::BAD_REQUEST,
                     "Failed to deserialize query string",
@@ -77,6 +86,7 @@ impl IntoResponse for AuthError {
             AuthError::InvalidSignerKey(e) => {
                 #[cfg(feature = "tokio")]
                 tracing::error!("Invalid signer key: {:?}", e);
+                let _ = e;
                 (StatusCode::INTERNAL_SERVER_ERROR, "Invalid signer key")
             }
             AuthError::SignerKeyMissing => {
@@ -101,14 +111,14 @@ impl IntoResponse for AuthError {
     }
 }
 
-// Define a local wrapper type for JwtPayload
-pub struct AuthPayload(pub TokenData<Claims>);
+/// Axum extractor that authenticates an incoming HTTP request using the
+/// configured [`Authenticator`].
+pub struct AuthPayload(pub AuthContext);
 
 #[cfg(feature = "tokio")]
 impl<S> FromRequestParts<S> for AuthPayload
 where
-    S: Send + Sync,
-    S: AppState,
+    S: Send + Sync + HasAuthenticator,
 {
     type Rejection = AuthError;
 
@@ -124,96 +134,19 @@ where
             .await
             .map_err(|_| AuthError::MissingCredentials)?;
 
-        let tenant_id = query_params.get("tenant_id").cloned();
-        let token = bearer.token().to_string();
+        let tenant_id = query_params.get("tenant_id").map(String::as_str);
+        let token = bearer.token();
 
-        let payload = validate_token(&token, tenant_id, state).await?;
+        let ctx = state
+            .authenticator()
+            .authenticate(Some(token), tenant_id)
+            .await?;
 
-        Ok(AuthPayload(payload))
+        Ok(AuthPayload(ctx))
     }
 }
 
-#[cfg(not(feature = "multi-tenant"))]
-pub async fn validate_token<S>(
-    token: &String,
-    _tenant_id: Option<String>,
-    app_state: &S,
-) -> Result<AuthData, AuthError>
-where
-    S: Send + Sync,
-    S: AppState,
-{
-    if let Some(jwt_signer_key) = app_state.jwt_signer_key() {
-        // Validate signature of token
-        return verify_token(&token, jwt_signer_key);
-    } else {
-        Err(AuthError::SignerKeyMissing)
-    }
-}
-
-#[cfg(feature = "multi-tenant")]
-pub async fn validate_token<S>(
-    token: &String,
-    tenant_id: Option<String>,
-    app_state: &S,
-) -> Result<AuthData, AuthError>
-where
-    S: Send + Sync,
-    S: AppState,
-{
-    use url::Url;
-
-    if let None = tenant_id {
-        return Err(AuthError::MissingTenantId);
-    }
-
-    // We guard against this unwrap above
-    let tenant_id = tenant_id.unwrap();
-
-    {
-        if let Some(signer_key) = app_state.get_cached_key(&tenant_id).await {
-            return verify_token(&token, signer_key.clone());
-        }
-    }
-
-    if let Some(jwt_signer_key_endpoint) = app_state.jwt_signer_key_endpoint() {
-        let mut url = Url::parse(jwt_signer_key_endpoint.as_str())
-            .map_err(|_e| AuthError::InvalidSignerEndpoint)?;
-
-        url.query_pairs_mut().append_pair("tenant_id", &tenant_id);
-
-        #[cfg(feature = "tokio")]
-        tracing::info!("{:?}", url);
-
-        let response = reqwest::get(url).await.map_err(|e| {
-            #[cfg(feature = "tokio")]
-            tracing::error!("Error: {e}");
-            AuthError::InvalidSignerEndpoint
-        })?;
-
-        #[cfg(feature = "tokio")]
-        tracing::info!("Signing Key Endpoint status: {}", response.status());
-        let response = response
-            .json::<protocol::SignerKeyResponse>()
-            .await
-            .map_err(|e| {
-                #[cfg(feature = "tokio")]
-                tracing::error!("Error: {e}");
-                AuthError::InvalidSignerEndpoint
-            })?;
-
-        app_state
-            .cache_key(tenant_id.clone(), response.public_signer_key.clone())
-            .await;
-
-        return verify_token(&token, response.public_signer_key);
-    } else {
-        Err(AuthError::InvalidSignerEndpoint)
-    }
-}
-
-fn verify_token(token: &String, signer_key: String) -> Result<AuthData, AuthError> {
-    // Validate signature of token
+pub(crate) fn verify_token(token: &str, signer_key: &str) -> Result<AuthData, AuthError> {
     match DecodingKey::from_rsa_pem(signer_key.as_bytes()) {
         Ok(decoding_key) => match decode::<Claims>(token, &decoding_key, &Validation::default()) {
             Ok(token_data) => Ok(token_data),
